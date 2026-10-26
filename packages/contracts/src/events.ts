@@ -3,16 +3,18 @@ import { IdSchema, InstantSchema, CountSchema, JobStatusSchema, Base64Schema } f
 
 export const EventTopicSchema = z.enum([
   "document.saved", "tree.changed", "access.changed", "review.changed", "history.created",
-  "git.changed", "job.changed", "operation.changed", "notification.created", "policy.changed",
+  "git.changed", "job.changed", "operation.changed", "notification.created", "policy.changed", "session.revoked",
 ]);
 const versionPayload = z.strictObject({ resourceId: IdSchema, version: CountSchema }).readonly();
 const revisionPayload = z.strictObject({ resourceId: IdSchema, revision: CountSchema, epoch: CountSchema }).readonly();
 const jobPayload = z.strictObject({ resourceId: IdSchema, status: JobStatusSchema }).readonly();
+const sessionRevokedPayload = z.strictObject({ userId: IdSchema, sessionId: IdSchema.nullable() }).readonly();
 export const EventPayloadSchemas = {
   "document.saved": revisionPayload, "tree.changed": versionPayload, "access.changed": versionPayload,
   "review.changed": versionPayload, "history.created": versionPayload, "git.changed": versionPayload,
   "job.changed": jobPayload, "operation.changed": jobPayload, "notification.created": versionPayload,
   "policy.changed": versionPayload,
+  "session.revoked": sessionRevokedPayload,
 } as const;
 const eventFields = {
   seq: CountSchema, id: IdSchema, aggregateId: IdSchema, at: InstantSchema,
@@ -28,6 +30,7 @@ export const EventSchema = z.discriminatedUnion("topic", [
   z.strictObject({ ...eventFields, topic: z.literal("operation.changed"), payload: jobPayload }),
   z.strictObject({ ...eventFields, topic: z.literal("notification.created"), payload: versionPayload }),
   z.strictObject({ ...eventFields, topic: z.literal("policy.changed"), payload: versionPayload }),
+  z.strictObject({ ...eventFields, topic: z.literal("session.revoked"), payload: sessionRevokedPayload }),
 ]).readonly();
 export const RealtimeClientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({

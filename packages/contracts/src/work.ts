@@ -2,6 +2,7 @@ import { z } from "zod";
 import { IdSchema, InstantSchema, DigestSchema, CountSchema, ScopeSchema,
   JobStatusSchema, CapabilitySchema } from "./primitives";
 import { CompileSettingsSchema, SnapshotSchema, SuggestionSchema } from "./projects";
+import { PolicySchema } from "./accounts";
 
 export const CompileRequestSchema = z.strictObject({
   scope: ScopeSchema, expectedRevision: CountSchema, settings: CompileSettingsSchema.optional(), clean: z.boolean(),
@@ -37,6 +38,7 @@ export const LibraryEntrySchema = z.strictObject({
 export const ProviderConfigSchema = z.strictObject({
   id: IdSchema, kind: z.string(), baseUrl: z.string(), model: z.string().optional(), enabled: z.boolean(),
   secretPresent: z.boolean(), capabilities: z.record(z.string(), CapabilitySchema),
+  policy: PolicySchema, version: CountSchema,
 }).readonly();
 export const AiRunSchema = z.strictObject({
   id: IdSchema, scope: ScopeSchema, mode: z.enum(["ask", "agent"]), status: JobStatusSchema,

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { routesFor, none, noBody, list, version, key } from "./route-builders";
 import { IdSchema as id, CountSchema, InstantSchema, OkSchema as ok, pageSchema, CapabilitySchema } from "./primitives";
-import { IdParamsSchema as ids } from "./endpoint";
-import { UserSchema, AuditEntrySchema, PolicySchema } from "./accounts";
+import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
+import { UserSchema, AdminUserSummarySchema, AuditEntrySchema, PolicySchema } from "./accounts";
 import { OperationSchema, WorkerSchema, EnvironmentSchema, ProviderConfigSchema, BackupSchema, ReleaseSchema } from "./work";
 import { ProjectSchema } from "./projects";
 
@@ -12,10 +12,16 @@ const k = routesFor("K");
 const existing = z.strictObject(version);
 const provider = z.strictObject({ kind: z.string() });
 const user = z.strictObject({ u: id });
+const usersQuery = list.extend({
+  q: z.string().optional(), role: z.enum(["all", "operator", "member", "guest"]).default("all"),
+  state: z.enum(["all", "active", "suspended", "deleted"]).default("active"),
+});
 export const operationEndpoints = {
   operationGet: r("GET", "/api/operations/:id", { params: ids, query: none, body: noBody, output: OperationSchema }),
   adminOverview: r("GET", "/api/admin/overview", { params: none, query: none, body: noBody, output: z.strictObject({ users: CountSchema, projects: CountSchema, storageBytes: CountSchema, queuedJobs: CountSchema, runningJobs: CountSchema, capabilities: z.record(z.string(), CapabilitySchema), topology: z.array(z.strictObject({ role: z.string(), backend: z.string(), state: z.string() })) }) }),
   adminUserGet: a("GET", "/api/admin/users/:u", { params: user, query: none, body: noBody, output: UserSchema }),
+  adminUsersList: a("GET", "/api/admin/users", { params: none, query: usersQuery, body: noBody, output: pageSchema(AdminUserSummarySchema) }),
+  adminUsersCsv: a("GET", "/api/admin/users.csv", { params: none, query: usersQuery.omit({ cursor: true, limit: true }), body: noBody, output: BytesSchema, transport: "bytes" }),
   adminUserPatch: a("PATCH", "/api/admin/users/:u", { params: user, query: none, body: z.strictObject({ name: z.string().optional(), suspended: z.boolean().optional(), operator: z.boolean().optional(), ...version }), output: UserSchema }),
   adminUserInvite: a("POST", "/api/admin/users/invite", { params: none, query: none, body: z.strictObject({ name: z.string(), email: z.email() }), output: UserSchema, ...key }),
   adminUserTransfer: a("POST", "/api/admin/users/:u/transfer", { params: user, query: none, body: z.strictObject({ projectId: id, to: id, ...version }), output: ok, ...key }),
@@ -24,6 +30,10 @@ export const operationEndpoints = {
   adminProjects: k("GET", "/api/admin/projects", { params: none, query: list.extend({ url: z.string().optional() }), body: noBody, output: pageSchema(ProjectSchema) }),
   adminEditorState: a("POST", "/api/admin/editor-state", { params: none, query: none, body: z.strictObject({ closed: z.boolean(), message: z.string(), ...version }), output: ok }),
   workersList: r("GET", "/api/admin/workers", { params: none, query: list, body: noBody, output: pageSchema(WorkerSchema) }),
+  workerPolicyGet: r("GET", "/api/admin/workers/policy", { params: none, query: none, body: noBody,
+    output: z.strictObject({ min: CountSchema, max: CountSchema, timeoutSeconds: z.number().int().positive().max(600),
+      sandbox: z.enum(["bwrap", "docker"]), version: CountSchema,
+      pools: z.array(z.strictObject({ id, name: z.string() })) }) }),
   workersCreate: r("POST", "/api/admin/workers", { params: none, query: none, body: z.strictObject({ poolId: id, count: z.number().int().positive() }), output: OperationSchema, ...key, successStatus: 202 }),
   workerPolicy: r("PATCH", "/api/admin/workers/policy", { params: none, query: none, body: z.strictObject({ min: CountSchema, max: CountSchema, timeoutSeconds: z.number().int().positive().max(600), sandbox: z.enum(["bwrap", "docker"]), ...version }), output: ok }),
   workerDrain: r("POST", "/api/admin/workers/:id/drain", { params: ids, query: none, body: existing, output: OperationSchema, ...key, successStatus: 202 }),

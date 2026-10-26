@@ -47,7 +47,7 @@ test("injects lane registration when a real module supplies a handler", async ()
   const failure = await boot.then(() => null, (error: unknown) => error);
   expect(failure).toBeInstanceOf(ServiceError);
 });
-test("preserves byte responses when the typed client downloads content", async () => {
+test("preserves bytes and artifact metadata when the typed client downloads content", async () => {
   // Given: a test-owned byte transport registered through the K module boundary.
   await using sandbox = await isolatedData();
   const bytes = new Uint8Array([0, 255, 128, 10]);
@@ -56,6 +56,7 @@ test("preserves byte responses when the typed client downloads content", async (
     register(context) {
       context.routes.register(endpoints.fileContent, (_input, request) => {
         request.responseHeaders.set("content-type", "application/octet-stream");
+        request.responseHeaders.set("x-artifact-partial", "true");
         return bytes;
       });
     },
@@ -63,11 +64,13 @@ test("preserves byte responses when the typed client downloads content", async (
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: app.fetch });
   try {
     // When: the same registry drives a byte download.
-    const result = await createClient(server.url.origin).call(endpoints.fileContent, {
+    const response = await createClient(server.url.origin).callWithMetadata(endpoints.fileContent, {
       params: { p: ids.project, f: ids.mainFile }, query: { branch: "main" }, body: undefined,
     });
     // Then: binary bytes are not coerced through JSON or text.
-    expect("data" in result ? result.data : null).toEqual(bytes);
+    expect("data" in response.result ? response.result.data : null).toEqual(bytes);
+    expect(response.metadata.headers["x-artifact-partial"]).toBe("true");
+    expect(response.metadata.headers["content-type"]).toBe("application/octet-stream");
   } finally { await server.stop(true); app.close(); }
 });
 test("preserves multipart wire data when the typed client sends an upload", async () => {
@@ -107,6 +110,8 @@ test("preserves conflict details and version metadata when a service rejects sta
     register(context) {
       context.routes.register(endpoints.projectGet, (_input, request) => {
         request.responseHeaders.set("etag", resourceVersionTag(2));
+        request.responseHeaders.set("x-last-successful-artifact-id", ids.mainFile);
+        request.responseHeaders.set("x-preview-stale", "true");
         throw new ServiceError("STALE_VERSION", 409, {
           message: "The resource changed", details: { currentVersion: 2 },
         });
@@ -120,7 +125,9 @@ test("preserves conflict details and version metadata when a service rejects sta
       params: { p: ids.project }, query: { branch: "main" }, body: undefined,
     });
     // Then: the caller can recover without inventing a DTO field or a version.
-    expect(response.metadata).toEqual({ etag: '"v2"', expectedVersion: 2 });
+    expect(response.metadata).toMatchObject({ etag: '"v2"', expectedVersion: 2 });
+    expect(response.metadata.headers["x-last-successful-artifact-id"]).toBe(ids.mainFile);
+    expect(response.metadata.headers["x-preview-stale"]).toBe("true");
     expect("error" in response.result ? response.result.error : null)
       .toMatchObject({ code: "STALE_VERSION", details: { currentVersion: 2 } });
   } finally { await server.stop(true); app.close(); }

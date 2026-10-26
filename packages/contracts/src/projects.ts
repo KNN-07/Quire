@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { IdSchema, InstantSchema, DigestSchema, GitOidSchema, CountSchema,
-  ScopeSchema, VersionSchema, ProjectPathSchema, Base64Schema } from "./primitives";
+  ScopeSchema, VersionSchema, ProjectPathSchema, Base64Schema, RoleSchema } from "./primitives";
 
 export const EngineSchema = z.enum(["pdflatex", "latex", "xelatex", "lualatex", "plain"]);
 export const CompileSettingsSchema = z.strictObject({
@@ -11,6 +11,9 @@ export const ProjectSchema = z.strictObject({
   id: IdSchema, name: z.string(), ownerId: IdSchema, workspaceId: IdSchema.nullable(),
   defaultBranch: z.string(), settings: CompileSettingsSchema, version: CountSchema,
   createdAt: InstantSchema, updatedAt: InstantSchema,
+}).readonly();
+export const ProjectSummarySchema = ProjectSchema.unwrap().extend({
+  ownerName: z.string(), tagIds: z.array(IdSchema).readonly(), role: RoleSchema,
 }).readonly();
 export const FileEntrySchema = z.strictObject({
   id: IdSchema, path: ProjectPathSchema, kind: z.enum(["file", "folder"]), mime: z.string(),
@@ -78,6 +81,7 @@ export const TagSchema = z.strictObject({
 }).readonly();
 export type CompileSettings = z.infer<typeof CompileSettingsSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
+export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 export type FileEntry = z.infer<typeof FileEntrySchema>;
 export type TextDocument = z.infer<typeof TextDocumentSchema>;
 export type Snapshot = z.infer<typeof SnapshotSchema>;

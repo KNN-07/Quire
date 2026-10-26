@@ -53,6 +53,37 @@ describe("boundary contracts", () => {
     // Then: it cannot enter the mutation handler.
     expect(result.success).toBe(false);
   });
+  test("accepts independently versioned projects when a bulk operation is parsed", () => {
+    // Given: projects whose versions differ.
+    const input = { params: {}, query: {}, body: { action: "archive" as const,
+      items: [{ id: ids.project, expectedVersion: 2 }, { id: ids.team, expectedVersion: 7 }],
+    } };
+    // When: the shared request parser admits the batch.
+    const result = endpoints.projectBulk.input.safeParse(input);
+    // Then: both independent concurrency guards survive parsing.
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.body).toEqual(input.body);
+  });
+  test("rejects repeated projects when a bulk operation crosses the boundary", () => {
+    // Given: the same project requested twice with conflicting versions.
+    const input = { params: {}, query: {}, body: { action: "trash",
+      items: [{ id: ids.project, expectedVersion: 2 }, { id: ids.project, expectedVersion: 7 }],
+    } };
+    // When: the bulk boundary parses the ambiguous batch.
+    const result = endpoints.projectBulk.input.safeParse(input);
+    // Then: no handler receives duplicate mutations.
+    expect(result.success).toBe(false);
+  });
+  test("rejects missing per-project versions when a bulk operation is parsed", () => {
+    // Given: an unguarded mutation of one selected project.
+    const input = { params: {}, query: {}, body: { action: "archive",
+      items: [{ id: ids.project }],
+    } };
+    // When: the mutation boundary parses the batch.
+    const result = endpoints.projectBulk.input.safeParse(input);
+    // Then: the missing concurrency guard is rejected.
+    expect(result.success).toBe(false);
+  });
   test("rejects invalid realtime bytes when an update is parsed", () => {
     // Given: a syntactically malformed encoded update.
     const update = { type: "update", fileId: ids.mainFile, epoch: 0, clientId: ids.mai, clientSeq: 1, updateBase64: "<invalid>" };
@@ -60,6 +91,17 @@ describe("boundary contracts", () => {
     const result = RealtimeClientMessageSchema.safeParse(update);
     // Then: it is rejected before a Yjs document can receive it.
     expect(result.success).toBe(false);
+  });
+  test("preserves the concurrency guard when sessions are listed for revocation", () => {
+    // Given: a persisted session with the version required by its delete endpoint.
+    const session = { id: ids.mai, createdAt: "2026-10-26T00:00:00Z",
+      expiresAt: "2026-11-26T00:00:00Z", lastSeenAt: "2026-10-26T01:00:00Z",
+      current: false, userAgent: "Quire contract fixture", ip: null, version: 3 };
+    // When: the session-list response crosses the shared client boundary.
+    const result = endpoints.sessionList.output.safeParse({ items: [session], nextCursor: null });
+    // Then: the caller receives the guard needed for a checked revocation.
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.items[0]).toMatchObject({ version: 3 });
   });
   test("rejects malformed anchors when a suggestion crosses the mutation boundary", () => {
     // Given: an edit whose relative anchor cannot be decoded as base64.

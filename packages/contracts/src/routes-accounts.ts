@@ -3,11 +3,13 @@ import { routesFor, none, noBody, list, version, key } from "./route-builders";
 import { IdSchema as id, InstantSchema, CountSchema, CapabilitySchema, OkSchema, pageSchema } from "./primitives";
 import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, PreferencesSchema, SessionSchema, OrganizationSchema, MembershipSchema,
-  MemberRoleSchema, PolicySchema, AuditEntrySchema, BillingAccountSchema, IdentityConfigSchema } from "./accounts";
+  MemberRoleSchema, PolicySchema, AuditEntrySchema, BillingAccountSchema, IdentityConfigSchema,
+  AuthOptionsSchema, LinkedIdentitySchema, NotificationPreferencesSchema, InvoiceSchema } from "./accounts";
 import { OperationSchema } from "./work";
 import { AvatarUploadSchema, SamlCallbackSchema } from "./multipart";
 
 const r = routesFor("A");
+const adapter = routesFor("X");
 const email = z.email();
 const password = z.string().min(12).max(1024);
 const token = z.string().min(1);
@@ -21,6 +23,7 @@ const metrics = z.strictObject({
   compileCount: CountSchema, compileMs: CountSchema, storageBytes: CountSchema, aiUses: CountSchema,
 });
 export const accountEndpoints = {
+  authOptions: r("GET", "/api/auth/options", { params: none, query: none, body: noBody, output: AuthOptionsSchema }),
   authRegister: r("POST", "/api/auth/register", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), email, password }), output: z.strictObject({ verificationRequired: z.boolean() }), ...key }),
   authVerifyEmail: r("POST", "/api/auth/verify-email", { params: none, query: none, body: z.strictObject({ token }), output: ok }),
   authLogin: r("POST", "/api/auth/login", { params: none, query: none, body: z.strictObject({ email, password: z.string() }), output: UserSchema }),
@@ -35,20 +38,23 @@ export const accountEndpoints = {
   identityCallback: r("GET", "/api/auth/:provider/callback", { params: provider, query: z.object({ code: z.string().optional(), state: z.string().optional(), error: z.string().optional() }), body: noBody, output: BytesSchema, transport: "bytes" }),
   samlCallback: r("POST", "/api/auth/saml/acs", { params: none, query: none, body: SamlCallbackSchema, output: BytesSchema, transport: "multipart" }),
   identityLink: r("POST", "/api/me/identities/:provider/link", { params: provider, query: none, body: existing, output: ok }),
+  identitiesList: r("GET", "/api/me/identities", { params: none, query: list, body: noBody, output: pageSchema(LinkedIdentitySchema) }),
   identityUnlink: r("DELETE", "/api/me/identities/:id", { params: ids, query: none, body: existing, output: ok }),
   profilePatch: r("PATCH", "/api/me", { params: none, query: none, body: UserSchema.unwrap().pick({ name: true, latexName: true, affiliation: true, orcid: true, interfaceLanguage: true }).partial().extend(version), output: UserSchema }),
+  avatarGet: r("GET", "/api/me/avatar", { params: none, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
   avatarPut: r("PUT", "/api/me/avatar", { params: none, query: none, body: AvatarUploadSchema, output: UserSchema, transport: "multipart", ifMatch: true }),
   avatarDelete: r("DELETE", "/api/me/avatar", { params: none, query: none, body: existing, output: ok }),
   preferencesGet: r("GET", "/api/me/preferences", { params: none, query: none, body: noBody, output: PreferencesSchema }),
   preferencesPatch: r("PATCH", "/api/me/preferences", { params: none, query: none, body: PreferencesSchema.unwrap().omit({ version: true }).partial().extend(version), output: PreferencesSchema }),
   emailAdd: r("POST", "/api/me/emails", { params: none, query: none, body: z.strictObject({ email, ...version }), output: ok, ...key }),
-  emailDelete: r("DELETE", "/api/me/emails", { params: none, query: none, body: z.strictObject({ id, ...version }), output: ok }),
+  emailDelete: r("DELETE", "/api/me/emails", { params: none, query: none, body: z.strictObject({ email, ...version }), output: ok }),
   aiConsent: r("POST", "/api/me/ai-consent", { params: none, query: none, body: z.strictObject({ termsVersion: z.string(), accepted: z.boolean(), ...version }), output: ok }),
   accountExport: r("POST", "/api/me/export", { params: none, query: none, body: none, output: OperationSchema, ...key, successStatus: 202 }),
   accountDelete: r("DELETE", "/api/me", { params: none, query: none, body: z.strictObject({ confirmation: z.string(), password: z.string().optional(), reassignment: z.record(z.string(), id).optional(), ...version }), output: ok }),
   notificationsList: r("GET", "/api/notifications", { params: none, query: list, body: noBody, output: pageSchema(z.strictObject({ id, kind: z.string(), resourceId: id, read: z.boolean(), createdAt: InstantSchema, version: CountSchema })) }),
   notificationRead: r("POST", "/api/notifications/:id/read", { params: ids, query: none, body: existing, output: ok }),
-  notificationPreferences: r("PATCH", "/api/me/notification-preferences", { params: none, query: none, body: z.strictObject({ events: z.record(z.string(), z.boolean()), channels: z.array(z.enum(["in-app", "email"])), projectOverrides: z.record(z.string(), z.record(z.string(), z.boolean())), ...version }), output: ok }),
+  notificationPreferencesGet: r("GET", "/api/me/notification-preferences", { params: none, query: none, body: noBody, output: NotificationPreferencesSchema }),
+  notificationPreferences: r("PATCH", "/api/me/notification-preferences", { params: none, query: none, body: NotificationPreferencesSchema.unwrap().omit({ version: true }).extend(version), output: ok }),
   organizationsList: r("GET", "/api/organizations", { params: none, query: list, body: noBody, output: pageSchema(OrganizationSchema) }),
   organizationGet: r("GET", "/api/organizations/:o", { params: org, query: none, body: noBody, output: OrganizationSchema }),
   organizationCreate: r("POST", "/api/organizations", { params: none, query: none, body: OrganizationSchema.unwrap().pick({ name: true, kind: true, domains: true }), output: OrganizationSchema, ...key }),
@@ -72,6 +78,8 @@ export const accountEndpoints = {
   managedDelete: r("POST", "/api/organizations/:o/managed/:u/delete", { params: org.extend({ u: id }), query: none, body: z.strictObject({ transferTo: id, ...version }), output: ok }),
   billingCatalog: r("GET", "/api/billing/catalog", { params: none, query: none, body: noBody, output: z.strictObject({ configured: z.boolean(), plans: z.array(z.strictObject({ id: z.string(), name: z.string(), amountMinor: CountSchema, currency: z.string(), period: z.enum(["month", "year"]) })) }) }),
   billingGet: r("GET", "/api/organizations/:o/billing", { params: org, query: none, body: noBody, output: BillingAccountSchema }),
+  billingInvoices: r("GET", "/api/organizations/:o/billing/invoices", { params: org, query: list, body: noBody, output: pageSchema(InvoiceSchema) }),
+  billingPortal: adapter("POST", "/api/organizations/:o/billing/portal", { params: org, query: none, body: existing, output: z.strictObject({ url: z.url() }), ...key }),
   billingPreview: r("POST", "/api/organizations/:o/billing/preview", { params: org, query: none, body: z.strictObject({ planId: z.string(), seats: CountSchema, period: z.enum(["month", "year"]), ...version }), output: z.strictObject({ quoteId: id, amountMinor: CountSchema, currency: z.string(), expiresAt: InstantSchema }), ...key }),
   billingCheckout: r("POST", "/api/organizations/:o/billing/checkout", { params: org, query: none, body: z.strictObject({ quoteId: id, ...version }), output: OperationSchema, ...key, successStatus: 202 }),
   billingDetails: r("PATCH", "/api/organizations/:o/billing/details", { params: org, query: none, body: z.strictObject({ invoiceEmail: email, taxId: z.string(), address: z.string(), ...version }), output: BillingAccountSchema }),

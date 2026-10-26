@@ -4,7 +4,7 @@ import { IdSchema as id, CountSchema, InstantSchema, ScopeSchema as scope, RoleS
   DigestSchema, ProjectPathSchema as path, OkSchema as ok, pageSchema } from "./primitives";
 import { ProjectParamsSchema as p, ProjectIdParamsSchema as pi, FileParamsSchema as pf,
   IdParamsSchema as ids, BranchQuerySchema as branch, BytesSchema } from "./endpoint";
-import { ProjectSchema, CompileSettingsSchema, FileEntrySchema, TextDocumentSchema, AnchorSchema,
+import { ProjectSchema, ProjectSummarySchema, CompileSettingsSchema, FileEntrySchema, TextDocumentSchema, AnchorSchema,
   ProposedEditSchema, SuggestionSchema, ThreadSchema, CommentSchema, HistoryVersionSchema,
   GitHunkSchema, GitStatusSchema, TemplateVersionSchema, TagSchema } from "./projects";
 import { InvitationSchema, AccessRequestSchema, UserSchema } from "./accounts";
@@ -17,13 +17,16 @@ const edits = z.array(ProposedEditSchema.unwrap().omit({ id: true, status: true 
 const templateFields = { name: z.string(), category: z.string(), description: z.string(), license: z.string(), visibility: z.enum(["public", "organization", "private"]), sourceProjectId: id } as const;
 const libraryFields = { bibtex: z.string(), origin: z.enum(["manual", "doi", "provider"]), providerId: z.string().optional() } as const;
 const threadParams = p.extend({ t: id });
+const bulkProjects = z.array(z.strictObject({ id, expectedVersion: CountSchema })).min(1)
+  .refine(items => new Set(items.map(item => item.id)).size === items.length,
+    { message: "Each project may appear only once" });
 export const coreEndpoints = {
-  projectList: r("GET", "/api/projects", { params: none, query: list.extend({ q: z.string().optional(), owner: z.enum(["me", "shared", "all"]).default("all"), state: z.enum(["active", "archived", "trash"]).default("active"), tag: id.optional(), sort: z.enum(["updated", "title", "owner"]).default("updated"), direction: z.enum(["asc", "desc"]).default("desc") }), body: noBody, output: pageSchema(ProjectSchema) }),
+  projectList: r("GET", "/api/projects", { params: none, query: list.extend({ q: z.string().optional(), owner: z.enum(["me", "shared", "all"]).default("all"), state: z.enum(["active", "archived", "trash"]).default("active"), tag: id.optional(), sort: z.enum(["updated", "title", "owner"]).default("updated"), direction: z.enum(["asc", "desc"]).default("desc") }), body: noBody, output: pageSchema(ProjectSummarySchema) }),
   projectCreate: r("POST", "/api/projects", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), workspaceId: id.optional(), origin: z.discriminatedUnion("kind", [z.strictObject({ kind: z.literal("blank") }), z.strictObject({ kind: z.literal("example") }), z.strictObject({ kind: z.literal("template"), templateVersionId: id })]) }), output: ProjectSchema, ...key }),
   projectGet: r("GET", "/api/projects/:p", { params: p, query: branch, body: noBody, output: ProjectSchema }),
   projectPatch: r("PATCH", "/api/projects/:p", { params: p, query: none, body: z.strictObject({ name: z.string().optional(), settings: CompileSettingsSchema.optional(), ...version }), output: ProjectSchema }),
   projectCopy: r("POST", "/api/projects/:p/copy", { params: p, query: none, body: z.strictObject({ name: z.string(), ...version }), output: ProjectSchema, ...key }),
-  projectBulk: r("POST", "/api/projects/bulk", { params: none, query: none, body: z.strictObject({ ids: z.array(id).min(1), action: z.enum(["archive", "trash", "restore", "download"]), ...version }), output: OperationSchema, ...key, successStatus: 202 }),
+  projectBulk: r("POST", "/api/projects/bulk", { params: none, query: none, body: z.strictObject({ items: bulkProjects, action: z.enum(["archive", "trash", "restore", "download"]) }), output: OperationSchema, ...key, successStatus: 202 }),
   projectLeave: r("POST", "/api/projects/:p/leave", { params: p, query: none, body: existing, output: ok }),
   projectTransfer: r("POST", "/api/projects/:p/transfer", { params: p, query: none, body: z.strictObject({ newOwnerId: id, ...version }), output: ok, ...key }),
   projectDelete: r("DELETE", "/api/projects/:p", { params: p, query: none, body: z.strictObject({ confirmation: z.string(), ...version }), output: ok }),

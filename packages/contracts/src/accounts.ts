@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema } from "./primitives";
+import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema, CapabilitySchema } from "./primitives";
 import { EngineSchema } from "./projects";
 
 export const UserSchema = z.strictObject({
@@ -33,6 +33,13 @@ export const MemberRoleSchema = z.enum(["admin", "manager", "member"]);
 export const MembershipSchema = z.strictObject({
   id: IdSchema, organizationId: IdSchema, userId: IdSchema, role: MemberRoleSchema,
   licensed: z.boolean(), version: CountSchema,
+}).readonly();
+export const AdminUserSummarySchema = UserSchema.unwrap().extend({
+  operator: z.boolean(), suspended: z.boolean(), deletedAt: InstantSchema.nullable(),
+  groups: z.array(z.strictObject({
+    name: z.string(), membership: MembershipSchema,
+  }).readonly()).readonly(),
+  projectCount: CountSchema, lastSeenAt: InstantSchema.nullable(), version: CountSchema,
 }).readonly();
 export const InvitationSchema = z.strictObject({
   id: IdSchema, projectId: IdSchema.nullable(), organizationId: IdSchema.nullable(), email: z.email(),
@@ -81,13 +88,29 @@ export const AuditEntrySchema = z.strictObject({
 }).readonly();
 export const SessionSchema = z.strictObject({
   id: IdSchema, createdAt: InstantSchema, expiresAt: InstantSchema, lastSeenAt: InstantSchema,
-  current: z.boolean(), userAgent: z.string(), ip: z.string().nullable(),
+  current: z.boolean(), userAgent: z.string(), ip: z.string().nullable(), version: CountSchema,
+}).readonly();
+export const AuthOptionsSchema = z.strictObject({
+  passwordEnabled: z.boolean(), registrationEnabled: z.boolean(),
+  providers: z.array(z.strictObject({
+    id: z.string(), label: z.string(), capability: CapabilitySchema,
+  }).readonly()).readonly(),
+}).readonly();
+export const LinkedIdentitySchema = z.strictObject({
+  id: IdSchema, issuer: z.string(), subject: z.string(), createdAt: InstantSchema,
+}).readonly();
+export const NotificationPreferencesSchema = z.strictObject({
+  events: z.record(z.string(), z.boolean()),
+  channels: z.array(z.enum(["in-app", "email"])).readonly(),
+  projectOverrides: z.record(IdSchema, z.record(z.string(), z.boolean())),
+  version: CountSchema,
 }).readonly();
 export type User = z.infer<typeof UserSchema>;
 export type Policy = z.infer<typeof PolicySchema>;
 export type Preferences = z.infer<typeof PreferencesSchema>;
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Membership = z.infer<typeof MembershipSchema>;
+export type AdminUserSummary = z.infer<typeof AdminUserSummarySchema>;
 export type Invitation = z.infer<typeof InvitationSchema>;
 export type AccessRequest = z.infer<typeof AccessRequestSchema>;
 export type IdentityConfig = z.infer<typeof IdentityConfigSchema>;
@@ -95,3 +118,6 @@ export type BillingAccount = z.infer<typeof BillingAccountSchema>;
 export type Invoice = z.infer<typeof InvoiceSchema>;
 export type AuditEntry = z.infer<typeof AuditEntrySchema>;
 export type Session = z.infer<typeof SessionSchema>;
+export type AuthOptions = z.infer<typeof AuthOptionsSchema>;
+export type LinkedIdentity = z.infer<typeof LinkedIdentitySchema>;
+export type NotificationPreferences = z.infer<typeof NotificationPreferencesSchema>;

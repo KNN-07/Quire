@@ -10,7 +10,10 @@ export class ClientContractError extends Error {
 }
 export type ClientResponse<T> = {
   readonly result: Result<T>;
-  readonly metadata: { readonly etag: string | null; readonly expectedVersion: number | null };
+  readonly metadata: {
+    readonly etag: string | null; readonly expectedVersion: number | null;
+    readonly headers: Readonly<Record<string, string>>;
+  };
 };
 type WireInput = {
   readonly params: Readonly<Record<string, string>>;
@@ -62,7 +65,8 @@ export function createClient(baseUrl = "", options: { readonly csrfToken?: () =>
           body instanceof Uint8Array ? { body: new Uint8Array(body) } : { json: body }),
       });
       const etag = response.headers.get("etag");
-      const metadata = { etag, expectedVersion: parseResourceVersionTag(etag) };
+      const metadata = { etag, expectedVersion: parseResourceVersionTag(etag),
+        headers: Object.freeze(Object.fromEntries(response.headers)) };
       if (response.ok && route.output instanceof z.ZodCustom) {
         return { result: { data: route.output.parse(new Uint8Array(await response.arrayBuffer())),
           requestId: IdSchema.parse(response.headers.get("x-request-id")) }, metadata };

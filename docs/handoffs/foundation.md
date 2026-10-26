@@ -1,5 +1,8 @@
 # P0 foundation contract
 
+P1 implementers must also read `docs/handoffs/p1-contract-deltas.md`; it records
+lead-owned corrections discovered by actual consumers after the P0 freeze.
+
 Owner: F. Frozen interface date: October 26, 2026. This is a runnable foundation, not acceptance of any P1/P2 feature. Feature endpoints remain `501 NOT_IMPLEMENTED` until their owning module registers a real implementation. Seeded accounts do not enable login; stored Yjs documents do not imply a collaboration server.
 
 ## Start and verification
