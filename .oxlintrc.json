@@ -1,0 +1,24 @@
+{
+  "plugins": ["typescript", "import", "oxc"],
+  "jsPlugins": [{ "name": "programming", "specifier": "./lint/oxlint-plugin/index.js" }],
+  "categories": { "correctness": "error", "suspicious": "error" },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "no-param-reassign": "error",
+    "no-unused-vars": "error",
+    "no-empty": "error",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+    "programming/require-suppression-reason": "error"
+  },
+  "overrides": [{
+    "files": ["apps/*/src/**/*", "packages/*/src/**/*"],
+    "rules": { "programming/no-em-dash-copy": "error" }
+  }],
+  "ignorePatterns": ["node_modules/**", "dist/**", "docs/**"]
+}

@@ -1,0 +1,4 @@
+name: Latent Dynamics Note
+main: main.tex
+engine: pdflatex
+environment: texlive-2025-native

@@ -1,0 +1,97 @@
+import { z } from "zod";
+import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema } from "./primitives";
+import { EngineSchema } from "./projects";
+
+export const UserSchema = z.strictObject({
+  id: IdSchema, name: z.string(), primaryEmail: z.email(), verifiedEmails: z.array(z.email()).readonly(),
+  managedBy: IdSchema.nullable(), avatarBlob: DigestSchema.nullable(), latexName: z.string(),
+  affiliation: z.string(), orcid: z.string().nullable(), interfaceLanguage: z.enum(["en", "vi", "zh"]),
+}).readonly();
+export const PolicySchema = z.strictObject({
+  compileSeconds: z.number().int().positive().max(600), writableMembers: CountSchema.nullable(),
+  historyDays: CountSchema.nullable(), trackChanges: z.boolean(), chat: z.boolean(),
+  ai: z.enum(["off", "ask", "agent"]), aiDailyUses: CountSchema.nullable(),
+  sharing: z.enum(["named", "organization", "anyone"]), anonymousRead: z.boolean(), anonymousEdit: z.boolean(),
+}).readonly();
+export const PreferencesSchema = z.strictObject({
+  theme: z.enum(["light", "dark", "system"]), bindings: z.enum(["default", "vim", "emacs"]),
+  fontSize: z.number().min(10).max(24), fontFamily: z.enum(["plex", "system", "serif"]),
+  lineHeight: z.enum(["compact", "normal", "wide"]), defaultView: z.enum(["source", "split", "visual", "pdf"]),
+  defaultEngine: EngineSchema, dictionary: z.enum(["en-US", "en-GB", "vi", "zh"]),
+  spellCheck: z.boolean(), customWords: z.array(z.string()).readonly(), viewer: z.enum(["builtin", "browser"]),
+  autoCompile: z.boolean(), autocomplete: z.boolean(), autoClose: z.boolean(), cursors: z.boolean(),
+  aiModel: z.string().nullable(), aiMode: z.enum(["ask", "agent"]), aiStyle: z.enum(["match", "academic", "plain"]),
+  citationProviders: z.array(z.string()).readonly(), inlineCompletion: z.boolean(), errorAssist: z.boolean(),
+  citationWebSearch: z.boolean(), aiBranch: z.boolean(), shareAiChat: z.boolean(),
+  compileBeforeCommit: z.boolean(), version: CountSchema,
+}).readonly();
+export const OrganizationSchema = z.strictObject({
+  id: IdSchema, slug: z.string(), name: z.string(), kind: z.enum(["team", "institution"]),
+  domains: z.array(z.string()).readonly(), policy: PolicySchema, version: CountSchema,
+}).readonly();
+export const MemberRoleSchema = z.enum(["admin", "manager", "member"]);
+export const MembershipSchema = z.strictObject({
+  id: IdSchema, organizationId: IdSchema, userId: IdSchema, role: MemberRoleSchema,
+  licensed: z.boolean(), version: CountSchema,
+}).readonly();
+export const InvitationSchema = z.strictObject({
+  id: IdSchema, projectId: IdSchema.nullable(), organizationId: IdSchema.nullable(), email: z.email(),
+  role: z.union([RoleSchema.exclude(["owner"]), MemberRoleSchema]),
+  status: z.enum(["pending", "accepted", "revoked", "expired"]), expiresAt: InstantSchema, version: CountSchema,
+}).readonly();
+export const AccessRequestSchema = z.strictObject({
+  id: IdSchema, projectId: IdSchema, userId: IdSchema, role: z.enum(["reviewer", "editor"]),
+  message: z.string(), status: z.enum(["pending", "accepted", "declined"]), version: CountSchema,
+}).readonly();
+export const IdentityConfigSchema = z.strictObject({
+  protocol: z.enum(["saml", "oidc", "ldap"]), enabled: z.boolean(), requireSso: z.boolean(),
+  createOnLogin: z.boolean(), breakGlassUserId: IdSchema, domains: z.array(z.string()).readonly(),
+  mappings: z.array(z.strictObject({
+    group: z.string(), role: z.union([MemberRoleSchema, z.literal("guest")]), ai: PolicySchema.unwrap().shape.ai,
+  }).readonly()).readonly(),
+  attributes: z.strictObject({ email: z.string(), name: z.string(), groups: z.string() }).readonly(),
+  saml: z.strictObject({
+    entityId: z.string(), ssoUrl: z.string(), metadataXml: z.string(),
+    certificates: z.array(z.string()).readonly(),
+  }).readonly().nullable(),
+  oidc: z.strictObject({
+    issuer: z.string(), clientId: z.string(), scopes: z.array(z.string()).readonly(), secretPresent: z.boolean(),
+  }).readonly().nullable(),
+  ldap: z.strictObject({
+    url: z.string(), baseDn: z.string(), bindDn: z.string(), userFilter: z.string(),
+    caCertificate: z.string(), secretPresent: z.boolean(),
+  }).readonly().nullable(), version: CountSchema,
+}).readonly();
+export const BillingAccountSchema = z.strictObject({
+  id: IdSchema, organizationId: IdSchema.nullable(), userId: IdSchema.nullable(),
+  provider: z.enum(["manual", "configured"]), planId: z.string().nullable(), period: z.enum(["month", "year"]),
+  seats: CountSchema, status: z.enum(["unbilled", "active", "past_due", "canceled"]),
+  renewsAt: InstantSchema.nullable(), invoiceEmail: z.string(), taxId: z.string(),
+  address: z.string(), version: CountSchema,
+}).readonly();
+export const InvoiceSchema = z.strictObject({
+  id: IdSchema, billingAccountId: IdSchema, providerId: z.string().nullable(), amountMinor: CountSchema,
+  currency: z.string(), status: z.enum(["draft", "open", "paid", "void"]),
+  issuedAt: InstantSchema, documentArtifactId: IdSchema.nullable(),
+}).readonly();
+export const AuditEntrySchema = z.strictObject({
+  id: IdSchema, seq: CountSchema, at: InstantSchema, actorId: IdSchema.nullable(),
+  organizationId: IdSchema.nullable(), event: z.string(), targetId: IdSchema, ip: z.string().nullable(),
+  details: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+}).readonly();
+export const SessionSchema = z.strictObject({
+  id: IdSchema, createdAt: InstantSchema, expiresAt: InstantSchema, lastSeenAt: InstantSchema,
+  current: z.boolean(), userAgent: z.string(), ip: z.string().nullable(),
+}).readonly();
+export type User = z.infer<typeof UserSchema>;
+export type Policy = z.infer<typeof PolicySchema>;
+export type Preferences = z.infer<typeof PreferencesSchema>;
+export type Organization = z.infer<typeof OrganizationSchema>;
+export type Membership = z.infer<typeof MembershipSchema>;
+export type Invitation = z.infer<typeof InvitationSchema>;
+export type AccessRequest = z.infer<typeof AccessRequestSchema>;
+export type IdentityConfig = z.infer<typeof IdentityConfigSchema>;
+export type BillingAccount = z.infer<typeof BillingAccountSchema>;
+export type Invoice = z.infer<typeof InvoiceSchema>;
+export type AuditEntry = z.infer<typeof AuditEntrySchema>;
+export type Session = z.infer<typeof SessionSchema>;

@@ -4,9 +4,34 @@ A LaTeX writing workspace, being built from the supplied Quire editor design and
 
 ## Status
 
-Product discovery and implementation are in progress. This initial repository
-bootstrap is not yet a runnable application. Setup and verification instructions
-will accompany the implementation.
+The Bun/React/Vite foundation is runnable. Feature routes return explicit
+`501 NOT_IMPLEMENTED` errors until their service modules are implemented.
+
+With Bun 1.3.14 installed:
+
+```sh
+bun install
+bun run db:migrate
+bun run seed
+bun run doctor
+bun run dev
+```
+
+The shell runs at `http://localhost:5173`, proxying the API at
+`http://127.0.0.1:3001`. Local seed prints generated credentials once and persists
+users plus a real example Git repository in `.data`; authentication itself is not
+implemented yet. Configuration is documented in `.env.example`.
+
+Verified foundation checks:
+
+```sh
+bun run typecheck
+bun test tests/contract
+bun run build
+```
+
+See `docs/handoffs/foundation.md` for frozen exports, registration, fixtures,
+browser verification, and the current implementation boundary.
 
 ## Product inputs
 

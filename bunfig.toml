@@ -1,0 +1,6 @@
+[install]
+exact = true
+
+[test]
+root = "."
+timeout = 10000
