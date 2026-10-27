@@ -1,0 +1,11 @@
+{
+  "id": "00000000-0000-4000-8000-000000000703",
+  "label": "Imported environment fixture",
+  "release": "2025",
+  "backend": "docker",
+  "rootOrImageDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "engines": ["pdflatex"],
+  "helpers": [],
+  "packagesDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "experimental": true
+}
