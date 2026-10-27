@@ -207,6 +207,23 @@ responses before the correction.
 
 ## Review concurrency and assembly
 
+Final review module export is `dispose`, not `disposeReview`; alias it on
+import if desired. Compose identity, governance order 11, base order 21,
+review order 23, then catalog/Git and compiler. Review now consumes governance
+notification hooks and the base editor guard; those producer integrations are
+implemented and tested.
+
+Compiler registration probes readiness and starts lease reaping but does not
+start the local consumer: call `await startWorker(runtime)` after assembly and
+`await stopWorker(runtime)` before closing SQLite. A cold native probe takes
+about 45 seconds on this workstation; startup checks need a bounded deadline
+that accommodates it. Do not replace a slow real probe with assumed readiness.
+
+The lead has completed administration form replacement. Native O/X handlers
+remain P2 scope; F must not add fake overview/provider responses to bypass
+their absence. Root composition/router is exclusively the integrator's write
+scope once its node starts. The parent is no longer editing those files.
+
 `Comment.version` exposes the stored comment counter, including chat records.
 `HistoryVersion.version` exposes the label aggregate counter, not the snapshot
 revision. Review serializers must return those persisted counters.

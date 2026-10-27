@@ -13,7 +13,7 @@ export default defineConfig({
   metadata: { dataDir },
   webServer: {
     command: "bun run dev", cwd: fileURLToPath(new URL("../..", import.meta.url)),
-    url: baseURL, reuseExistingServer: false,
-    env: { QUIRE_DATA_DIR: dataDir }, timeout: 30_000,
+    url: `${baseURL}/api/health`, reuseExistingServer: false,
+    env: { QUIRE_DATA_DIR: dataDir }, timeout: 120_000,
   },
 });

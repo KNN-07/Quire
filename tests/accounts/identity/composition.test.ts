@@ -22,7 +22,7 @@ async function composedIdentity() {
     }),
     [Symbol.asyncDispose]: async () => {
       await server.stop(true);
-      app.close();
+      await app.close();
       await sandbox[Symbol.asyncDispose]();
     },
   };

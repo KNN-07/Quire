@@ -4,8 +4,16 @@ A LaTeX writing workspace, being built from the supplied Quire editor design and
 
 ## Status
 
-The Bun/React/Vite foundation is runnable. Feature routes return explicit
-`501 NOT_IMPLEMENTED` errors until their service modules are implemented.
+The native Bun/React/Vite application now includes local authentication,
+persistent projects and files, governance, collaboration/review/history,
+Git smart HTTP, bibliography/templates, real isolated LaTeX compilation and
+project/account/administration pages.
+
+This is an implementation checkpoint, **not the complete editor yet**. The
+source/visual/PDF workspace, external adapters and most operations workflows
+remain under development. The scale profile is not available yet. There are
+176 registered API contracts and 69 explicit later-phase
+`501 NOT_IMPLEMENTED` contracts; no external-provider success is simulated.
 
 With Bun 1.3.14 installed:
 
@@ -19,19 +27,28 @@ bun run dev
 
 The shell runs at `http://localhost:5173`, proxying the API at
 `http://127.0.0.1:3001`. Local seed prints generated credentials once and persists
-users plus a real example Git repository in `.data`; authentication itself is not
-implemented yet. Configuration is documented in `.env.example`.
+users plus a real example Git repository in `.data`. Use those generated
+credentials to sign in. Configuration is documented in `.env.example`.
 
-Verified foundation checks:
+Native compilation requires the actual TeX tools, BibTeX/Biber, SyncTeX,
+Poppler PDF tools, Bubblewrap and a working systemd user service/cgroup
+environment. A cold compiler readiness probe takes about 45 seconds on the
+development workstation; startup does not substitute assumed readiness.
+
+Verified native checks:
 
 ```sh
 bun run typecheck
-bun test tests/contract
+bun run lint
+bun test tests/contract tests/core tests/accounts tests/compiler tests/integration
+bun test tests/operations/overview
 bun run build
 ```
 
-See `docs/handoffs/foundation.md` for frozen exports, registration, fixtures,
-browser verification, and the current implementation boundary.
+See `docs/handoffs/p1-acceptance.md` for the native acceptance evidence and its
+remaining boundaries, `docs/feature-matrix.md` for the complete requirement
+inventory, and `docs/architecture/storage-portability.md` for the next
+PostgreSQL/Redis/S3 phase.
 
 ## Product inputs
 

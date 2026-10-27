@@ -8,7 +8,7 @@ import { fixtureIds as ids } from "../fixtures/foundation";
 test("serves checked health when the typed client uses a real HTTP server", async () => {
   // Given: an isolated API listening on an ephemeral port.
   await using sandbox = await isolatedData();
-  const app = await createApplication({ config: sandbox.config });
+  const app = await createApplication({ config: sandbox.config, modules: [] });
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: app.fetch });
   const client = createClient(server.url.origin);
   try {
@@ -16,12 +16,12 @@ test("serves checked health when the typed client uses a real HTTP server", asyn
     const result = await client.call(endpoints.health, { params: {}, query: {}, body: undefined });
     // Then: real database-backed health passes the checked response contract.
     expect("data" in result && result.data.status).toBe("ok");
-  } finally { await server.stop(true); app.close(); }
+  } finally { await server.stop(true); await app.close(); }
 });
 test("returns 501 when authentication and realtime are unimplemented", async () => {
   // Given: a foundation application with no account or core modules.
   await using sandbox = await isolatedData();
-  const app = await createApplication({ config: sandbox.config });
+  const app = await createApplication({ config: sandbox.config, modules: [] });
   try {
     // When: unsupported feature surfaces are invoked.
     const responses = await Promise.all([
@@ -33,7 +33,7 @@ test("returns 501 when authentication and realtime are unimplemented", async () 
       expect(response.status).toBe(501);
       expect(ErrorResultSchema.parse(await response.json()).error.code).toBe("NOT_IMPLEMENTED");
     }
-  } finally { app.close(); }
+  } finally { await app.close(); }
 });
 test("injects lane registration when a real module supplies a handler", async () => {
   // Given: an F-owned health route reserved by composition.
@@ -71,7 +71,7 @@ test("preserves bytes and artifact metadata when the typed client downloads cont
     expect("data" in response.result ? response.result.data : null).toEqual(bytes);
     expect(response.metadata.headers["x-artifact-partial"]).toBe("true");
     expect(response.metadata.headers["content-type"]).toBe("application/octet-stream");
-  } finally { await server.stop(true); app.close(); }
+  } finally { await server.stop(true); await app.close(); }
 });
 test("preserves multipart wire data when the typed client sends an upload", async () => {
   // Given: a test-owned handler that observes parsed upload input, without storing feature data.
@@ -100,7 +100,7 @@ test("preserves multipart wire data when the typed client sends an upload", asyn
     });
     // Then: validation normalizes metadata without turning the File into a JSON object.
     expect(seen).toEqual([{ version: 4, paths: ["asset.bin"], bytes: [0, 255] }]);
-  } finally { await server.stop(true); app.close(); }
+  } finally { await server.stop(true); await app.close(); }
 });
 test("preserves conflict details and version metadata when a service rejects stale state", async () => {
   // Given: a typed service boundary returning a structured, versioned conflict.
@@ -130,5 +130,5 @@ test("preserves conflict details and version metadata when a service rejects sta
     expect(response.metadata.headers["x-preview-stale"]).toBe("true");
     expect("error" in response.result ? response.result.error : null)
       .toMatchObject({ code: "STALE_VERSION", details: { currentVersion: 2 } });
-  } finally { await server.stop(true); app.close(); }
+  } finally { await server.stop(true); await app.close(); }
 });

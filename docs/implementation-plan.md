@@ -1,5 +1,14 @@
 # Quire implementation architecture
 
+> Execution correction, October 27, 2026: after P1 verification and before
+> P2 adapter implementations, run a portable-storage phase as specified in
+> `architecture/storage-portability.md`. P1's native services directly use
+> synchronous SQLite handles; an adapter-only scale implementation cannot
+> meet the required PostgreSQL/Redis/S3 and two-API acceptance criteria.
+> Keep local behavior and migration digests intact while converting shared
+> transaction/coordination contracts. This adds implementation work; it does
+> not reduce the scale-profile requirement.
+
 Status: implementation contract, October 26, 2026. This document and `feature-matrix.md` specify work to build, not completed application behavior. Inputs: the original HTML/research archive, `docs/discovery/{design,core,services}.md`, and the 23 decoded design sources. Original inputs and the existing Git baseline remain untouched.
 
 ## 1. Decisions

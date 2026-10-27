@@ -4,6 +4,34 @@ Implementation targets, not passing results. Source IDs retain their exact spell
 
 Disposition: **B** native build; **A** build adapter plus live external prerequisite; **E** build installed/experimental extension; **P** implement configuration/boundary, not vendor marketing policy. Multiple letters retain both obligations. Every row names its primary implementation lane; UI uses U for editor or V for product/admin. Phases: K/A/C/V in P1, X/U/O in P2, F integrates P3 and lead verifies P4.
 
+## Implementation evidence checkpoint (October 27, 2026)
+
+The requirement tables below remain the complete acceptance inventory. A
+backend or fixture result does not mark a full user workflow complete.
+
+| Implemented increment | Captured evidence | Remaining acceptance boundary |
+| --- | --- | --- |
+| Local identity, profile, sessions, recovery, account lifecycle | `handoffs/p1-identity.md`; 42 real HTTP/CLI tests, 175 assertions; strict types/lint pass; commit `48b7cae` | Default application assembly and configured federation/SSO enforcement |
+| Persistent project/files/access and source archives | `handoffs/p1-core-base.md`; real SQLite/blob/Git/restart/role tests; lead maintenance, privileged-download and operator-discovery regressions | Editor browser integration; external import/conversion adapters |
+| Organizations, managed lifecycle, notification and audit domain | `handoffs/p1-governance.md`; 43 native tests, plus lead operator maintenance reads | External billing, federation and scheduler assembly |
+| Collaboration, comments, suggestions and recoverable history | `handoffs/p1-core-review.md`; 32 tests, 173 assertions; real named/anonymous HTTP/WS/SSE and Chromium handshake, including targeted/wildcard session revocation | Application transport lifecycle and editor screens |
+| Named Git operations and smart HTTP bridge | `handoffs/p1-core-git.md`; 22 real CLI/HTTP/compiler tests, 95 assertions | Git editor screens, configured remote adapters and deployed SSH service |
+| Library and versioned template publication | `handoffs/p1-core-catalog.md`; native bibliography/publication/privacy tests; lead operator queue and approval-copy regressions | Citation insertion/editor integration and configured metadata providers |
+| Native isolated compilation, artifacts, diagnostics, SyncTeX and PDF differences | `handoffs/p1-compiler.md`; 44 actual-tool tests, 128 assertions, plus eight real-role HTTP cases | PDF viewer/editor interaction; installed Docker/R/knitr/minted profiles and operations provisioning |
+| Projects, account, marketing and administration screens | `handoffs/p1-ui-*.md`; actual React browser matrices; administration replacement has 61 viewport/theme states plus focused interaction captures | Whole-application native-service browser checks; fixtures are not backend acceptance |
+
+**Still unimplemented phases:** X external adapters/reviewed AI, U source/
+visual/PDF/editor workspace, and O deployment/recovery/scalable infrastructure.
+No external provider login, payment, synchronization, AI response, production
+deployment or complete-product acceptance is claimed at this checkpoint.
+
+P1 follow-up acceptance is recorded in `handoffs/p1-acceptance.md`. The lead
+fixed the independent verifier's PDF timestamp diagnostic defect and added
+the native operator overview, making real administration user edits and audit
+reads reachable. Focused native checks and actual desktop/mobile operator
+browser flows pass. The registry now has 176 registered entries and 69
+explicit later-phase entries. Other O workflows remain unimplemented.
+
 ## Core: authoring
 
 | ID | Target / explicit Quire disposition | Owner | Verification |
