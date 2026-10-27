@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["../../../services/core/base/**/*.ts", "../../../packages/runtime/src/assets.d.ts", "./**/*.ts", "../projects.test.ts", "../files.test.ts"],
+  "exclude": ["../../../node_modules", "../../../dist"]
+}
