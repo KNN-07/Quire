@@ -26,6 +26,9 @@ export const OperationSchema = z.strictObject({
   id: IdSchema, kind: z.string(), status: JobStatusSchema, progress: z.number().min(0).max(1),
   result: z.record(z.string(), z.unknown()).nullable(), errorCode: z.string().nullable(),
 }).readonly();
+export const OperationSummarySchema = OperationSchema.unwrap().extend({
+  createdAt: InstantSchema, updatedAt: InstantSchema,
+}).readonly();
 export const PublicationSchema = z.strictObject({
   provider: z.string(), providerId: z.string(), title: z.string(), authors: z.array(z.string()).readonly(),
   year: z.number().int().nullable(), doi: z.string().nullable(), url: z.string().nullable(), bibtex: z.string(),
@@ -74,6 +77,7 @@ export type Artifact = z.infer<typeof ArtifactSchema>;
 export type Diagnostic = z.infer<typeof DiagnosticSchema>;
 export type CompileJob = z.infer<typeof CompileJobSchema>;
 export type Operation = z.infer<typeof OperationSchema>;
+export type OperationSummary = z.infer<typeof OperationSummarySchema>;
 export type Publication = z.infer<typeof PublicationSchema>;
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>;
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;

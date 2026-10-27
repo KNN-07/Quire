@@ -116,6 +116,24 @@ describe("boundary contracts", () => {
     // Then: a handler never receives the malformed position.
     expect(result.success).toBe(false);
   });
+  test("preserves persisted comment versions across reloads", () => {
+    const comment = { id: ids.mai, authorId: ids.kien, body: "Revised",
+      createdAt: "2026-10-26T00:00:00Z", editedAt: null, version: 7 };
+    const result = endpoints.chatList.output.parse({ items: [comment], nextCursor: null });
+    expect(result.items[0]?.version).toBe(7);
+    expect(endpoints.commentPatch.output.safeParse({ ...comment, version: -1 }).success).toBe(false);
+  });
+  test("separates history label concurrency from snapshot revision", () => {
+    const history = { id: ids.mai, version: 3, labels: [], authors: [ids.kien],
+      reviewSnapshotId: ids.team, accessible: true, snapshot: {
+        id: ids.mainFile, scope: { projectId: ids.project, branch: "main" },
+        revision: 19, tree: `sha1:${"a".repeat(40)}`, createdAt: "2026-10-26T00:00:00Z",
+        authorId: ids.kien, reason: "checkpoint",
+      } };
+    const result = endpoints.historyList.output.parse({ items: [history], nextCursor: null });
+    expect(result.items[0]?.version).toBe(3);
+    expect(result.items[0]?.snapshot.revision).toBe(19);
+  });
   test("has unambiguous route dispatch when the registry is composed", () => {
     // Given: all registered endpoint definitions.
     const routes = endpointRegistry.map((route) => `${route.method} ${route.path}`);

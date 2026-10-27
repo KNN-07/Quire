@@ -2,6 +2,13 @@
 
 ## Project dashboard and bulk operations
 
+K catalog now owns `adminTemplatesList`, operator-only
+`GET /api/admin/templates`, with cursor/limit and `Page<TemplateVersion>`.
+It returns each template's current version with its persisted aggregate guard,
+including unpublished submissions. The ordinary gallery retains its existing
+visibility rules. This is the administration approval queue; never broaden
+`templatesList` to make private submissions visible to ordinary users.
+
 The projects UI exposed two gaps in the P0 contracts. These changes supersede
 the corresponding initial architecture examples:
 
@@ -37,6 +44,18 @@ routes remain owned by A, and `supportInquiry` by O. Marketing must not register
 duplicate service endpoints or fabricate a delivered inquiry.
 
 ## Account read models and session revocation
+
+Identity configuration PUT and test requests now accept optional write-only
+`oidcSecret` and `ldapSecret` fields. Omission retains stored credentials; an
+explicit empty string removes them. X must encrypt saved secrets, never return
+them in IdentityConfig, and derive `secretPresent` from stored state rather
+than trusting client flags. Test requests use draft secrets only for the
+requested handshake and do not persist them. GET must return the actual
+initial unconfigured policy so the form can initialize with its ETag.
+
+The identity UI now uses named active operator selection, structured group/
+role/AI mapping rows, and a dedicated one-time SCIM token confirmation. There
+is no raw-schema fallback when the configuration read fails.
 
 Native settings must not become unavailable merely because P0 omitted their
 read endpoints. The following contracts are now exported:
@@ -130,6 +149,11 @@ session actions; group membership controls use actual organization/membership
 IDs behind named choices. The operator never enters concurrency metadata.
 All admin operations require server-side operator authorization.
 
+A governance also owns `adminEditorStateGet`, operator-only
+`GET /api/admin/editor-state`, returning persisted `{closed,message,version}`
+and its ETag. This uses the same `editorState` reader enforced by core access.
+The overview maintenance form confirms changes using that actual version.
+
 O additionally owns `workerPolicyGet`, `GET /api/admin/workers/policy`, returning
 the actual `{min,max,timeoutSeconds,sandbox,version,pools:[{id,name}]}`.
 The worker UI chooses named pools rather than asking for UUIDs, and edits the
@@ -148,7 +172,24 @@ reads never return the credential. The AI form edits the AI mode/allowance while
 preserving the other fetched policy fields. `/admin/providers` is an alias of
 the implemented `/admin/ai` view.
 
+`adminEnvironments` exposes the environment collection ETag. Default/retire
+mutations use that version, not a user-entered number. Environment registration
+imports a deployment-generated manifest file matching `environmentCreate`'s
+manifest schema; availability and probe timestamp remain server-owned.
+Build requests select an existing base by name and report the returned
+Operation status. Registration does not imply a successful runtime probe.
+
 ## Compiler preview response metadata
+
+O owns `auditSiemGet`, authorized `GET /api/admin/audit/siem`, returning the
+persisted `{endpoint,enabled,secretPresent,version}` and ETag, including the
+unconfigured initial state. PUT retains a credential when secret is omitted,
+and removes it when secret is the empty string. Never return secret bytes.
+The audit UI uses this read state rather than asking for versions or ETags.
+Governance's current synchronous audit export returns trusted CSV in the
+succeeded Operation result; the audit UI downloads that returned CSV directly.
+
+## Compiler client headers
 
 `createClient().callWithMetadata()` now preserves the actual response headers
 in `metadata.headers: Readonly<Record<string,string>>`, alongside its existing
@@ -161,3 +202,56 @@ U must consume `x-last-successful-artifact-id`, `x-preview-stale` and
 forbidden-header rules still apply; this is not an alternate cookie reader.
 Real HTTP regressions reproduced the lost metadata on both byte and JSON
 responses before the correction.
+
+## Background-operation history and downloads
+
+## Review concurrency and assembly
+
+`Comment.version` exposes the stored comment counter, including chat records.
+`HistoryVersion.version` exposes the label aggregate counter, not the snapshot
+revision. Review serializers must return those persisted counters.
+`RealtimeSocketData.actorId` and `sessionId` are nullable for anonymous Viewer
+connections; authenticated connections retain actual IDs.
+
+Git credentials retain lane A and are composed through `registerCredentials`
+as module `025-a-git-credentials` alongside the K Git module. Identity now
+publicly exports `defaultPreferences` for governance account creation.
+The server must disable idle timeouts for authenticated SSE requests and wire
+review disposal before runtime closure. Governance's editor guard and producer
+notification hook must be consumed by core; composition alone is insufficient.
+
+The lead has now wired `requireEditorOpen` into base authorization after read
+access and before mutations, including Editor-link membership creation. Reads
+and source downloads remain available while editing is closed. Native HTTP
+regressions reproduced both mutation paths returning 200 during closure; both
+now return 503 without changing source or granting membership. Review must
+still enforce closure on established transports and direct review writes.
+
+## Background-operation result access
+
+O owns `operationsList`, `GET /api/operations`, a cursor-paginated list of the
+authenticated actor's operations, with optional kind/status filters and newest
+first ordering. It returns `OperationSummary` (Operation plus createdAt and
+updatedAt). It must not expose another user's job result merely because its ID
+is known. The Support screen follows actual operation links and this list, not
+manually entered opaque IDs.
+
+Blob-backed downloadable results use trusted internal publication metadata:
+`{blob, projectIds, operatorOnly?, mime?, filename?}`. Only use a blob actually
+published by the service; never copy these access fields from provider JSON.
+Instance-wide diagnostics/backups/global administrative exports set
+`operatorOnly:true`. The core download handler now rechecks current active
+operator privilege as well as actor ownership, and still rechecks every
+projectId. A real HTTP regression proved demoted operators previously received
+200 for an operator-only result.
+
+Optional MIME and application-chosen ASCII filename metadata are validated
+before response headers are set. Ordinary source exports retain their ZIP
+defaults; converters can supply the correct document MIME/extension instead
+of being mislabeled as source.zip. C artifact results continue to use the
+authorized artifact route. Operation completion is distinct from generation
+request acknowledgment, and the UI offers downloads only after success.
+
+The backup restore UI sends `confirmation:"RESTORE"` only after an explicit
+target-directory confirmation. O must validate the isolated destination and
+retain its stricter maintenance/approval contract for any live restore.

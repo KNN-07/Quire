@@ -87,8 +87,8 @@ export const accountEndpoints = {
   invoiceDownload: r("GET", "/api/organizations/:o/billing/invoices/:id/download", { params: orgId, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
   billingWebhook: r("POST", "/api/webhooks/billing/:provider", { params: provider, query: none, body: BytesSchema, output: ok, transport: "bytes" }),
   identityConfigGet: r("GET", "/api/admin/identity", { params: none, query: none, body: noBody, output: IdentityConfigSchema }),
-  identityConfigPut: r("PUT", "/api/admin/identity", { params: none, query: none, body: IdentityConfigSchema.unwrap().omit({ version: true }).extend(version), output: IdentityConfigSchema, ifMatch: true }),
-  identityTest: r("POST", "/api/admin/identity/test", { params: none, query: none, body: z.strictObject({ draftConfig: IdentityConfigSchema, nonce: z.string() }), output: OperationSchema, ...key, successStatus: 202 }),
+  identityConfigPut: r("PUT", "/api/admin/identity", { params: none, query: none, body: IdentityConfigSchema.unwrap().omit({ version: true }).extend({ ...version, oidcSecret: z.string().optional(), ldapSecret: z.string().optional() }), output: IdentityConfigSchema, ifMatch: true }),
+  identityTest: r("POST", "/api/admin/identity/test", { params: none, query: none, body: z.strictObject({ draftConfig: IdentityConfigSchema, nonce: z.string(), oidcSecret: z.string().optional(), ldapSecret: z.string().optional() }), output: OperationSchema, ...key, successStatus: 202 }),
   identityMetadata: r("GET", "/api/admin/identity/metadata.xml", { params: none, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
   scimToken: r("POST", "/api/admin/scim/token", { params: none, query: none, body: none, output: z.strictObject({ id, secretOnce: z.string() }), ...key }),
 } as const;

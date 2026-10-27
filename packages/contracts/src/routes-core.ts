@@ -49,6 +49,7 @@ export const coreEndpoints = {
   operationDownload: r("GET", "/api/operations/:id/download", { params: ids, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
   projectSearch: r("GET", "/api/projects/:p/search", { params: p, query: branch.extend({ q: z.string(), case: z.enum(["true", "false"]).default("false"), regex: z.enum(["true", "false"]).default("false"), word: z.enum(["true", "false"]).default("false") }), body: noBody, output: z.strictObject({ matches: z.array(z.strictObject({ fileId: id, line: CountSchema, column: CountSchema, preview: z.string() })), excluded: z.array(z.strictObject({ fileId: id, reason: z.string() })) }) }),
   templatesList: r("GET", "/api/templates", { params: none, query: list, body: noBody, output: pageSchema(TemplateVersionSchema) }),
+  adminTemplatesList: r("GET", "/api/admin/templates", { params: none, query: list, body: noBody, output: pageSchema(TemplateVersionSchema) }),
   templateGet: r("GET", "/api/templates/:id", { params: ids, query: none, body: noBody, output: TemplateVersionSchema }),
   templateCreate: r("POST", "/api/templates", { params: none, query: none, body: z.strictObject(templateFields), output: TemplateVersionSchema, ...key }),
   templatePatch: r("PATCH", "/api/templates/:id", { params: ids, query: none, body: z.strictObject(templateFields).partial().extend(version), output: TemplateVersionSchema }),

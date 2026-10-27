@@ -45,14 +45,14 @@ export const SuggestionSchema = z.strictObject({
 }).readonly();
 export const CommentSchema = z.strictObject({
   id: IdSchema, authorId: IdSchema, body: z.string(), createdAt: InstantSchema,
-  editedAt: InstantSchema.nullable(),
+  editedAt: InstantSchema.nullable(), version: CountSchema,
 }).readonly();
 export const ThreadSchema = z.strictObject({
   id: IdSchema, scope: ScopeSchema, anchor: AnchorSchema.nullable(), resolved: z.boolean(),
   comments: z.array(CommentSchema).readonly(),
 }).readonly();
 export const HistoryVersionSchema = z.strictObject({
-  id: IdSchema, snapshot: SnapshotSchema,
+  id: IdSchema, snapshot: SnapshotSchema, version: CountSchema,
   labels: z.array(z.strictObject({ id: IdSchema, name: z.string() }).readonly()).readonly(),
   authors: z.array(IdSchema).readonly(), reviewSnapshotId: IdSchema, accessible: z.boolean(),
 }).readonly();

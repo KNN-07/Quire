@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { routesFor, none, noBody, list, version, key } from "./route-builders";
-import { IdSchema as id, CountSchema, InstantSchema, OkSchema as ok, pageSchema, CapabilitySchema } from "./primitives";
+import { IdSchema as id, CountSchema, InstantSchema, OkSchema as ok, pageSchema, CapabilitySchema, JobStatusSchema } from "./primitives";
 import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, AdminUserSummarySchema, AuditEntrySchema, PolicySchema } from "./accounts";
-import { OperationSchema, WorkerSchema, EnvironmentSchema, ProviderConfigSchema, BackupSchema, ReleaseSchema } from "./work";
+import { OperationSchema, OperationSummarySchema, WorkerSchema, EnvironmentSchema, ProviderConfigSchema, BackupSchema, ReleaseSchema } from "./work";
 import { ProjectSchema } from "./projects";
 
 const r = routesFor("O");
@@ -17,6 +17,7 @@ const usersQuery = list.extend({
   state: z.enum(["all", "active", "suspended", "deleted"]).default("active"),
 });
 export const operationEndpoints = {
+  operationsList: r("GET", "/api/operations", { params: none, query: list.extend({ kind: z.string().optional(), status: JobStatusSchema.optional() }), body: noBody, output: pageSchema(OperationSummarySchema) }),
   operationGet: r("GET", "/api/operations/:id", { params: ids, query: none, body: noBody, output: OperationSchema }),
   adminOverview: r("GET", "/api/admin/overview", { params: none, query: none, body: noBody, output: z.strictObject({ users: CountSchema, projects: CountSchema, storageBytes: CountSchema, queuedJobs: CountSchema, runningJobs: CountSchema, capabilities: z.record(z.string(), CapabilitySchema), topology: z.array(z.strictObject({ role: z.string(), backend: z.string(), state: z.string() })) }) }),
   adminUserGet: a("GET", "/api/admin/users/:u", { params: user, query: none, body: noBody, output: UserSchema }),
@@ -29,6 +30,8 @@ export const operationEndpoints = {
   adminUserRestore: a("POST", "/api/admin/users/:u/restore", { params: user, query: none, body: existing, output: UserSchema }),
   adminProjects: k("GET", "/api/admin/projects", { params: none, query: list.extend({ url: z.string().optional() }), body: noBody, output: pageSchema(ProjectSchema) }),
   adminEditorState: a("POST", "/api/admin/editor-state", { params: none, query: none, body: z.strictObject({ closed: z.boolean(), message: z.string(), ...version }), output: ok }),
+  adminEditorStateGet: a("GET", "/api/admin/editor-state", { params: none, query: none, body: noBody,
+    output: z.strictObject({ closed: z.boolean(), message: z.string(), version: CountSchema }) }),
   workersList: r("GET", "/api/admin/workers", { params: none, query: list, body: noBody, output: pageSchema(WorkerSchema) }),
   workerPolicyGet: r("GET", "/api/admin/workers/policy", { params: none, query: none, body: noBody,
     output: z.strictObject({ min: CountSchema, max: CountSchema, timeoutSeconds: z.number().int().positive().max(600),
@@ -49,6 +52,8 @@ export const operationEndpoints = {
   auditList: a("GET", "/api/admin/audit", { params: none, query: list.extend({ event: z.string().optional(), from: InstantSchema.optional(), to: InstantSchema.optional() }), body: noBody, output: pageSchema(AuditEntrySchema) }),
   auditExport: a("POST", "/api/admin/audit/export", { params: none, query: none, body: z.strictObject({ event: z.string().optional(), from: InstantSchema.optional(), to: InstantSchema.optional() }), output: OperationSchema, ...key, successStatus: 202 }),
   auditSiem: r("PUT", "/api/admin/audit/siem", { params: none, query: none, body: z.strictObject({ endpoint: z.url(), secret: z.string().optional(), enabled: z.boolean(), ...version }), output: ok, ifMatch: true }),
+  auditSiemGet: r("GET", "/api/admin/audit/siem", { params: none, query: none, body: noBody,
+    output: z.strictObject({ endpoint: z.string(), secretPresent: z.boolean(), enabled: z.boolean(), version: CountSchema }) }),
   backupPolicyGet: r("GET", "/api/admin/backups/policy", { params: none, query: none, body: noBody, output: z.strictObject({ schedule: z.string(), retentionDays: CountSchema, destination: z.string(), version: CountSchema }) }),
   backupPolicyPut: r("PUT", "/api/admin/backups/policy", { params: none, query: none, body: z.strictObject({ schedule: z.string(), retentionDays: CountSchema, destination: z.string(), ...version }), output: ok, ifMatch: true }),
   backupCreate: r("POST", "/api/admin/backups", { params: none, query: none, body: none, output: BackupSchema, ...key, successStatus: 202 }),

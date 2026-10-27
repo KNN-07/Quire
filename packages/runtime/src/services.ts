@@ -14,7 +14,7 @@ export interface PolicyPort {
   forProject(actorId: Id, projectId: Id): Promise<Policy>;
 }
 export type RealtimeSocketData = {
-  readonly actorId: Id; readonly sessionId: Id; readonly connectionId: Id; readonly scope: Scope;
+  readonly actorId: Id | null; readonly sessionId: Id | null; readonly connectionId: Id; readonly scope: Scope;
 };
 export interface RealtimePort {
   readonly handlers: WebSocketHandler<RealtimeSocketData>;
