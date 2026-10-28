@@ -11,12 +11,15 @@ import { register as base, migrations as baseMigrations, CoreProjects } from "..
 import { register as identity, migrations as identityMigrations } from "../../../services/accounts/identity";
 import { register as governance, migrations as governanceMigrations } from "../../../services/accounts/governance";
 import { seed } from "../../../scripts/seed";
+import { postgresFixture } from "./postgres-fixture";
 import * as Y from "yjs";
 
 export const password = "review-test-password-2026";
 export const origin = "http://localhost:5173";
 export async function reviewFixture(options: { readonly localOrigin?: boolean } = {}) {
-  const path = await mkdtemp(join(tmpdir(), "quire-review-"));
+  const path = await mkdtemp(join(tmpdir(), "quire-p1s-review-"));
+  const postgresUrl = process.env["QUIRE_REVIEW_POSTGRES_URL"];
+  const postgres = postgresUrl ? await postgresFixture(postgresUrl) : null;
   const modules = [
     { id: "010-a-identity", lane: "A", order: 10, register: identity, migrations: identityMigrations },
     { id: "011-a-governance", lane: "A", order: 11, register: governance, migrations: governanceMigrations },
@@ -41,8 +44,16 @@ export async function reviewFixture(options: { readonly localOrigin?: boolean } 
   let server = listen();
   const configuration = () => loadConfig({ QUIRE_DATA_DIR: path,
     QUIRE_PUBLIC_URL: options.localOrigin ? server.url.href : origin });
-  runtime = await createRuntime(configuration(), { modules, clock });
-  await seed(runtime, password);
+  try {
+    runtime = await createRuntime(configuration(), { modules, clock, ...(postgres ? { createAdapters: postgres.createAdapters } : {}) });
+    await seed(runtime, password);
+  } catch (error) {
+    server[Symbol.dispose]();
+    server.unref();
+    await postgres?.close();
+    await rm(path, { recursive: true, force: true });
+    throw error;
+  }
   async function request(route: string, init: RequestInit = {}) {
     const headers = new Headers(init.headers);
     headers.set("origin", new URL(runtime.config.publicUrl).origin);
@@ -74,26 +85,51 @@ export async function reviewFixture(options: { readonly localOrigin?: boolean } 
         body: JSON.stringify({ name: "Review fixture", origin: { kind: "blank" } }) });
       return z.object({ data: ProjectSchema }).parse(await response.json()).data;
     },
+    async replica() {
+      const replica = await createRuntime(configuration(), { modules, clock, ...(postgres ? { createAdapters: postgres.createAdapters } : {}) });
+      return {
+        runtime: replica,
+        async request(route: string, init: RequestInit = {}) {
+          const headers = new Headers(init.headers);
+          headers.set("origin", new URL(replica.config.publicUrl).origin);
+          if (typeof init.body === "string") headers.set("content-type", "application/json");
+          return replica.routes.fetch(new Request(new URL(route, server.url), { ...init, headers }));
+        },
+        async [Symbol.asyncDispose]() { await dispose(replica); await replica.close(); },
+      };
+    },
     async restart() {
       // Bun 1.3.14 leaves pendingWebSockets stale after server-initiated close;
       // its synchronous disposer stops listening without awaiting that broken counter.
       server[Symbol.dispose]();
       server.unref();
-      dispose(runtime);
+      await dispose(runtime);
       await Promise.resolve();
-      runtime.close();
+      await runtime.close();
       server = listen();
-      runtime = await createRuntime(configuration(), { modules, clock });
+      runtime = await createRuntime(configuration(), { modules, clock, ...(postgres ? { createAdapters: postgres.createAdapters } : {}) });
     },
     async [Symbol.asyncDispose]() {
       server[Symbol.dispose]();
       server.unref();
-      dispose(runtime);
+      await dispose(runtime);
       await Promise.resolve();
-      runtime.close();
+      await runtime.close();
+      await postgres?.close();
       await rm(path, { recursive: true, force: true });
+      console.info("P1S_REVIEW_ROOT_CLEANED", path);
     },
   };
+}
+export async function bounded<T>(promise: Promise<T>): Promise<T> {
+  const signal = AbortSignal.timeout(10000);
+  let abort: () => void = () => {};
+  try {
+    return await Promise.race([promise, new Promise<never>((_resolve, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+    })]);
+  } finally { signal.removeEventListener("abort", abort); }
 }
 export async function peer(url: URL, scope: Scope, headers: Record<string, string>) {
   const wsUrl = new URL(`/api/projects/${scope.projectId}/realtime?branch=${scope.branch}`, url);

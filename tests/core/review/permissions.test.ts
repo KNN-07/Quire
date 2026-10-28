@@ -38,7 +38,7 @@ test("enforces viewer, reviewer, author and editor authority through direct HTTP
   expect(reply.status).toBe(200);
   expect(resolved.status).toBe(200);
   expect(deleted.status).toBe(200);
-  expect(fixture.runtime.db.query<{ n: number }, []>("SELECT count(*) AS n FROM permanent_comment_tombstones").get()?.n).toBe(2);
+  expect((await fixture.runtime.db.get<{ n: number }>("SELECT count(*) AS n FROM permanent_comment_tombstones", []))?.n).toBe(2);
 });
 
 test("allows named viewer chat and reads live chat policy", async () => {
@@ -49,8 +49,8 @@ test("allows named viewer chat and reads live chat policy", async () => {
   const route = `/api/projects/${ids.project}/chat`;
   // When: the named viewer chats, then the owner policy disables chat.
   const sent = await fixture.request(route, mutation(viewer.headers, { scope, body: "Named viewer", expectedVersion: 0 }));
-  fixture.runtime.db.query(`INSERT INTO policy_sets(id,scope_kind,scope_id,policy_json,updated_at)
-    VALUES(?,'project',?,?,?)`).run(crypto.randomUUID(), ids.project, JSON.stringify({ ...defaultPolicy, chat: false }), fixture.runtime.clock.now());
+  (await fixture.runtime.db.run(`INSERT INTO policy_sets(id,scope_kind,scope_id,policy_json,updated_at)
+    VALUES(?,'project',?,?,?)`, [crypto.randomUUID(), ids.project, JSON.stringify({ ...defaultPolicy, chat: false }), fixture.runtime.clock.now()]));
   const disabled = await fixture.request(route, mutation(viewer.headers, { scope, body: "blocked", expectedVersion: 0 }));
   const hidden = await fixture.request(`${route}?branch=main`, { headers: viewer.headers });
   // Then: a named viewer can chat only while current policy enables it.
@@ -76,5 +76,5 @@ test("replays metadata creates exactly once and rejects different payloads under
   // Then: successful replies refer to one durable thread and reuse conflicts do not mutate it.
   expect(duplicate).toEqual(original);
   expect(conflict.status).toBe(409);
-  expect(fixture.runtime.db.query<{ n: number }, []>("SELECT count(*) AS n FROM threads").get()?.n).toBe(1);
+  expect((await fixture.runtime.db.get<{ n: number }>("SELECT count(*) AS n FROM threads", []))?.n).toBe(1);
 });

@@ -132,3 +132,29 @@ test("preserves conflict details and version metadata when a service rejects sta
       .toMatchObject({ code: "STALE_VERSION", details: { currentVersion: 2 } });
   } finally { await server.stop(true); await app.close(); }
 });
+
+test("preserves an explicit project token only on its typed HTTP request", async () => {
+  await using sandbox = await isolatedData();
+  const seen: { raw: string | null; parsed: string | undefined }[] = [];
+  const app = await createApplication({ config: sandbox.config, modules: [{
+    id: "020-k-token-fixture", lane: "K", order: 20,
+    register(context) {
+      context.routes.register(endpoints.filesList, (input, request) => {
+        seen.push({ raw: request.request.headers.get("x-project-token"), parsed: input.headers["x-project-token"] });
+        return [];
+      });
+    },
+  }] });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: app.fetch });
+  try {
+    const client = createClient(server.url.origin);
+    const input = { params: { p: ids.project }, query: { branch: "main" }, body: undefined };
+    const result = await client.call(endpoints.filesList, { ...input, headers: { "x-project-token": "fixture-share-credential" } });
+    expect("data" in result && result.data).toEqual([]);
+    await client.call(endpoints.filesList, input);
+    expect(seen).toEqual([
+      { raw: "fixture-share-credential", parsed: "fixture-share-credential" },
+      { raw: null, parsed: undefined },
+    ]);
+  } finally { await server.stop(true); await app.close(); }
+});

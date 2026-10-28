@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { ScopeSchema, ProjectPathSchema, IdSchema } from "./primitives";
+import { ScopeSchema, ProjectPathSchema, IdSchema, DigestSchema, InstantSchema, CountSchema } from "./primitives";
+import { EngineSchema } from "./projects";
+
+export const ImportSelectionSchema = z.strictObject({
+  mainPath: ProjectPathSchema.optional(), engine: EngineSchema.optional(), environmentId: IdSchema.optional(),
+}).readonly();
+export const ImportUploadSchema = z.strictObject({
+  id: IdSchema, filename: z.string().min(1).max(255), mime: z.string(),
+  bytes: CountSchema, sha256: DigestSchema, expiresAt: InstantSchema,
+}).readonly();
 
 const jsonField = z.string().transform((text, context): unknown => {
   try { return JSON.parse(text); }
@@ -43,21 +52,29 @@ export const AvatarUploadSchema = formWith(["file", "expectedVersion"]).transfor
 export const LibraryUploadSchema = formWith(["file"]).transform((form) => ({
   file: form.get("file"),
 })).pipe(z.strictObject({ file: z.instanceof(File) })).readonly();
+export const ImportUploadFormSchema = formWith(["file"]).transform(form => ({
+  file: form.get("file"),
+})).pipe(z.strictObject({ file: z.instanceof(File) })).readonly();
 export const SamlCallbackSchema = formWith(["SAMLResponse", "RelayState"]).transform((form): {
   readonly SAMLResponse: FormDataEntryValue | null; readonly RelayState?: FormDataEntryValue | undefined;
 } => {
   const relayState = form.get("RelayState");
   return { SAMLResponse: form.get("SAMLResponse"), ...(relayState === null ? {} : { RelayState: relayState }) };
 }).pipe(z.strictObject({ SAMLResponse: z.string().min(1), RelayState: z.string().optional() })).readonly();
-export const ImportFormSchema = formWith(["kind", "name", "workspaceId", "source"]).transform((form): {
+export const ImportFormSchema = formWith(["kind", "name", "workspaceId", "source", "mainPath", "engine", "environmentId"]).transform((form): {
   readonly kind: FormDataEntryValue | null; readonly name: FormDataEntryValue | null;
   readonly source: FormDataEntryValue | null; readonly workspaceId?: FormDataEntryValue | undefined;
+  readonly mainPath?: FormDataEntryValue | undefined; readonly engine?: FormDataEntryValue | undefined;
+  readonly environmentId?: FormDataEntryValue | undefined;
 } => {
-  const workspaceId = form.get("workspaceId");
   return { kind: form.get("kind"), name: form.get("name"), source: form.get("source"),
-    ...(workspaceId === null ? {} : { workspaceId }) };
+    ...Object.fromEntries(["workspaceId", "mainPath", "engine", "environmentId"].flatMap(name => {
+      const value = form.get(name);
+      return value === null ? [] : [[name, value]];
+    })) };
 }).pipe(z.strictObject({
   kind: z.enum(["zip", "docx", "markdown", "git", "github", "open-in"]),
   name: z.string().min(1), workspaceId: IdSchema.optional(),
   source: z.union([z.instanceof(File), jsonField.pipe(ImportSourceSchema)]),
+  ...ImportSelectionSchema.unwrap().shape,
 })).readonly();

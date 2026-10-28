@@ -14,7 +14,7 @@ test("commits asynchronous SQL and outbox when the portable callback completes",
       payload: { resourceId: ids.project, version: 1 } });
   });
   // Then: the state and durable notification both become visible.
-  expect(fixture.db.query("SELECT value_json FROM operator_settings WHERE key='test'").get()).toEqual({ value_json: "1" });
+  expect(await fixture.db.get<{ value_json: string }>("SELECT value_json FROM operator_settings WHERE key='test'")).toEqual({ value_json: "1" });
   expect(await fixture.events.read(0)).toEqual([event]);
 });
 test("rolls back asynchronous SQL when the portable callback rejects", async () => {
@@ -28,7 +28,7 @@ test("rolls back asynchronous SQL when the portable callback rejects", async () 
   // Then: the failure reaches the caller and no partial row survives.
   const failure = await result.then(() => null, (error: unknown) => error);
   expect(failure).toMatchObject({ code: "TEST_FAILURE" });
-  expect(fixture.db.query("SELECT * FROM operator_settings").all()).toEqual([]);
+  expect(await fixture.db.all("SELECT * FROM operator_settings")).toEqual([]);
 });
 test("serializes writers when async transactions enter concurrently", async () => {
   // Given: two transactions submitted without waiting for the first.
@@ -41,5 +41,5 @@ test("serializes writers when async transactions enter concurrently", async () =
     await tx.execute("UPDATE operator_settings SET value_json=? WHERE key=?", [String(Number(row.value_json) + 1), "counter"]);
   })));
   // Then: the second writer observes the first committed value.
-  expect(fixture.db.query("SELECT value_json FROM operator_settings WHERE key='counter'").get()).toEqual({ value_json: "2" });
+  expect(await fixture.db.get<{ value_json: string }>("SELECT value_json FROM operator_settings WHERE key='counter'")).toEqual({ value_json: "2" });
 });

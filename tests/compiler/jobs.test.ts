@@ -1,4 +1,5 @@
 import { test, expect } from "bun:test";
+import { strict as assert } from "node:assert";
 import { compilerFixture, terminalEvent, fixtureIds as ids, settings } from "./fixtures";
 import { pdfText } from "./pdf-text";
 import { CompilerLeases } from "../../services/compiler/leases";
@@ -29,7 +30,7 @@ test("T08 immutable snapshots and failed jobs preserve the last successful PDF",
   const failedJob = await compiler.get(ids.kien, failed.id);
   expect(failedJob.status).toBe("failed");
   expect(failedJob.diagnostics.some((item) => item.fileId === ids.mainFile && item.line === 2)).toBe(true);
-  const preview = z.object({ artifact_id: z.string() }).parse(runtime.db.query("SELECT artifact_id FROM compiler_previews").get());
+  const preview = z.object({ artifact_id: z.string() }).parse((await runtime.db.get("SELECT artifact_id FROM compiler_previews", [])));
   expect(preview.artifact_id).toBe(pdf.id);
   expect(failedJob.artifacts.some((item) => item.kind === "log")).toBe(true);
 }, 60000);
@@ -59,19 +60,19 @@ test("T08 worker lease expiry fences late completion with injected clock", async
   await using runtime = await compilerFixture();
   const compiler = runtime.services.get("compiler");
   await compiler.enqueue(ids.kien, { scope: { projectId: ids.project, branch: "main" }, expectedRevision: 0, settings, clean: false }, "lease");
-  const environmentRow = z.object({ manifest_json: z.string() }).parse(runtime.db.query("SELECT manifest_json FROM environments WHERE id=?").get(ids.environment));
+  const environmentRow = z.object({ manifest_json: z.string() }).parse((await runtime.db.get("SELECT manifest_json FROM environments WHERE id=?", [ids.environment])));
   let now = Date.parse(runtime.clock.now());
   const service = new CompilerService({ ...runtime, clock: { now: () => InstantSchema.parse(new Date(now).toISOString()) }, routes: runtime.routes.forLane("C") },
     EnvironmentSchema.parse(JSON.parse(environmentRow.manifest_json)));
   const leases = new CompilerLeases(service);
-  const lease = leases.lease(ids.operator, [ids.environment]);
+  const lease = await leases.lease(ids.operator, [ids.environment]);
   if (!lease) throw new TypeError("Lease missing");
   // When the injected clock passes the lease deadline.
   now += 31000;
-  leases.reap();
+  await leases.reap();
   // Then stale worker writes are rejected independently of process timing.
-  expect(runtime.store.get(lease.jobId).failureCode).toBe("WORKER_LEASE_EXPIRED");
-  expect(() => leases.fence(lease.jobId, lease)).toThrow();
+  expect((await runtime.store.get(lease.jobId)).failureCode).toBe("WORKER_LEASE_EXPIRED");
+  await assert.rejects(leases.fence(lease.jobId, lease), { code: "STALE_LEASE" });
 }, 60000);
 
 test("T08 a real runaway TeX job reaches durable timeout state", async () => {
@@ -106,10 +107,10 @@ test("T08 late completion cannot replace a newer successful preview", async () =
   const secondDone = terminalEvent(runtime);
   const second = await compiler.enqueue(ids.kien, { scope: newSnapshot.scope, expectedRevision: newSnapshot.revision, settings, clean: true }, "new-preview");
   await secondDone;
-  const newerPdf = runtime.store.get(second.id).artifacts.find((artifact) => artifact.name === "output.pdf");
+  const newerPdf = (await runtime.store.get(second.id)).artifacts.find((artifact) => artifact.name === "output.pdf");
   if (!newerPdf) throw new TypeError("Newer PDF missing");
   // When completion publication arrives in the opposite order.
-  compiler.publishPreview(first.id);
+  await runtime.uow.run(async tx => { await tx.lock("quire:compiler"); await compiler.publishPreview(tx, first.id); });
   // Then the preview still identifies the newer actual PDF.
-  expect(z.object({ artifact_id: z.string() }).parse(runtime.db.query("SELECT artifact_id FROM compiler_previews").get()).artifact_id).toBe(newerPdf.id);
+  expect(z.object({ artifact_id: z.string() }).parse((await runtime.db.get("SELECT artifact_id FROM compiler_previews", []))).artifact_id).toBe(newerPdf.id);
 }, 90000);

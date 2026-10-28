@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true
+  },
+  "include": [
+    "../../packages/runtime/src/assets.d.ts",
+    "../../apps/web/src/features/editor/shared/**/*.ts",
+    "./shared/**/*.ts",
+    "./shared/**/*.tsx"
+  ],
+  "exclude": ["../../node_modules", "../../dist"]
+}

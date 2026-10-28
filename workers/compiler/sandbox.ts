@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
 import { ServiceError } from "@quire/runtime";
+import type { InstallationRecipe } from "../../services/operations/installation/caller-execution-context";
+import { installationSandbox } from "../../services/operations/installation/caller-execution";
 
 export type Limits = {
   readonly wallSeconds: number;
@@ -17,6 +19,8 @@ export type SandboxInput = {
   readonly signal?: AbortSignal;
   readonly unitId?: string;
   readonly onStderr?: (chunk: string) => void;
+  readonly installationWork?: InstallationRecipe;
+  readonly installationProfile?: "default" | "restricted" | "knitr";
 };
 export type SandboxResult = {
   readonly code: number;
@@ -53,6 +57,8 @@ async function bounded(stream: ReadableStream<Uint8Array>, limit: number,
 }
 
 export async function sandbox(input: SandboxInput): Promise<SandboxResult> {
+  const installed = await installationSandbox(input, "bwrap");
+  if (installed) return installed;
   const unit = `quire-compile-${input.unitId ?? crypto.randomUUID()}`;
   if (!/^quire-compile-[a-f0-9-]{36}$/.test(unit)) throw new ServiceError("INVALID_UNIT", 500, "Invalid compiler unit identifier");
   const { limits } = input;

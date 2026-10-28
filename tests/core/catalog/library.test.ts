@@ -20,7 +20,7 @@ for (const method of ["PATCH", "DELETE"]) {
     await using fixture = await catalogFixture();
     const owner = await fixture.login();
     const entry = entryEnvelope.parse(await (await fixture.mutate("/api/me/library", owner.headers, { bibtex: bib, origin: "provider" })).json()).data;
-    fixture.runtime.db.query("UPDATE library_entries SET readonly=1 WHERE id=?").run(entry.id);
+    (await fixture.runtime.db.run("UPDATE library_entries SET readonly=1 WHERE id=?", [entry.id]));
     // When: the owner attempts a local mutation.
     const result = await fixture.request(`/api/me/library/${entry.id}`, { method, headers: owner.headers, body: JSON.stringify({ expectedVersion: 0 }) });
     // Then: linked data rejects mutation rather than silently breaking synchronization.
@@ -37,7 +37,7 @@ for (const [email, expected] of [["kien@quire.local", 200], ["mai@quire.local", 
     const scope = { projectId: ids.project, branch: "main" };
     // When: a citation is copied into the seeded bibliography.
     const result = await fixture.mutate(`/api/projects/${ids.project}/citations`, actor.headers,
-      { scope, publication, command: "citep", expectedVersion: fixture.service.getBranch(scope).revision });
+      { scope, publication, command: "citep", expectedVersion: (await fixture.service.getBranch(scope)).revision });
     // Then: only writable source roles can mutate it.
     expect(result.status).toBe(expected);
   });
@@ -51,11 +51,11 @@ test("requires a target when several editable bibliography files exist", async (
   const scope = { projectId: project.id, branch: "main" };
   for (const path of ["one.bib", "two.bib"]) {
     await fixture.mutate(`/api/projects/${project.id}/files`, owner.headers,
-      { scope, path, kind: "file", text: "", expectedVersion: fixture.service.getBranch(scope).revision });
+      { scope, path, kind: "file", text: "", expectedVersion: (await fixture.service.getBranch(scope)).revision });
   }
   // When: no bibliography target is selected.
   const result = await fixture.mutate(`/api/projects/${project.id}/citations`, owner.headers,
-    { scope, publication, command: "citet", expectedVersion: fixture.service.getBranch(scope).revision });
+    { scope, publication, command: "citet", expectedVersion: (await fixture.service.getBranch(scope)).revision });
   // Then: the user must choose rather than writing to an arbitrary file.
   expect(result.status).toBe(409);
   expect(errorEnvelope.parse(await result.json()).error.code).toBe("TARGET_REQUIRED");
@@ -68,13 +68,12 @@ test("rejects citation insertion when its explicit bibliography target is linked
   const project = await fixture.create(owner.headers);
   const scope = { projectId: project.id, branch: "main" };
   const created = await fixture.mutate(`/api/projects/${project.id}/files`, owner.headers,
-    { scope, path: "linked.bib", kind: "file", text: bib, expectedVersion: fixture.service.getBranch(scope).revision });
+    { scope, path: "linked.bib", kind: "file", text: bib, expectedVersion: (await fixture.service.getBranch(scope)).revision });
   const file = fileEnvelope.parse(await created.json()).data;
-  fixture.runtime.db.query("UPDATE files SET editable=0,link_json=? WHERE id=?").run(
-    JSON.stringify({ kind: "bibliography", sourceId: "provider-collection", lastRefreshedAt: null }), file.id);
+  (await fixture.runtime.db.run("UPDATE files SET editable=0,link_json=? WHERE id=?", [JSON.stringify({ kind: "bibliography", sourceId: "provider-collection", lastRefreshedAt: null }), file.id]));
   // When: even the owner selects it for a local citation copy.
   const result = await fixture.mutate(`/api/projects/${project.id}/citations`, owner.headers,
-    { scope, publication, targetFileId: file.id, command: "cite", expectedVersion: fixture.service.getBranch(scope).revision });
+    { scope, publication, targetFileId: file.id, command: "cite", expectedVersion: (await fixture.service.getBranch(scope)).revision });
   // Then: local mutation is rejected.
   expect(result.status).toBe(403);
 });

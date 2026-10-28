@@ -16,10 +16,10 @@ test("T11 creates a real branch merges its two-parent history and deletes the br
   const topic = statusEnvelope.parse(await created.json()).data;
   const service = fixture.service();
   const repo = new GitRepository(service);
-  const changed = service.readDocument({ ...scope, branch: "topic" }, project.settings.mainFileId).text + "% topic\n";
-  await service.serialized({ ...scope, branch: "topic" }, () => service.commitSource({
-    actorId: owner.user.id, scope: { ...scope, branch: "topic" }, expectedRevision: service.getBranch({ ...scope, branch: "topic" }).revision,
-    inputs: service.listFiles({ ...scope, branch: "topic" }).map(file => ({ file, bytes: new TextEncoder().encode(changed) })),
+  const changed = (await service.readDocument({ ...scope, branch: "topic" }, project.settings.mainFileId)).text + "% topic\n";
+  await service.serialized({ ...scope, branch: "topic" }, async lease => service.commitSource({ lease,
+    actorId: owner.user.id, scope: { ...scope, branch: "topic" }, expectedRevision: (await service.getBranch({ ...scope, branch: "topic" })).revision,
+    inputs: (await service.listFiles({ ...scope, branch: "topic" })).map(file => ({ file, bytes: new TextEncoder().encode(changed) })),
   }));
   const topicStatus = await fixture.status(owner.headers, project.id, "topic");
   await fixture.request(`/api/projects/${project.id}/git/stage`, { method: "PUT",
@@ -40,7 +40,7 @@ test("T11 creates a real branch merges its two-parent history and deletes the br
   const parents = (await run({ path: repo.path(scope), args: ["rev-list", "--parents", "-1", "main"] })).text.split(" ");
   expect(parents).toHaveLength(3);
   expect(parents[1]).toBe(raw(initial.head));
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(changed);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(changed);
   const log = await fixture.request(`/api/projects/${project.id}/git/log?branch=main`, { headers: owner.headers });
   expect(z.object({ data: z.object({ items: z.array(z.object({ message: z.string() })) }) }).parse(await log.json()).data.items[0]?.message).toBe("Merge topic");
 });

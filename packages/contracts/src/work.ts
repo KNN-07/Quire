@@ -43,8 +43,15 @@ export const ProviderConfigSchema = z.strictObject({
   secretPresent: z.boolean(), capabilities: z.record(z.string(), CapabilitySchema),
   policy: PolicySchema, version: CountSchema,
 }).readonly();
+export const AiToolSchema = z.enum([
+  "chat", "texgpt", "error-fix", "table-prompt", "table-image", "equation-prompt", "equation-image",
+  "grammar", "fluency", "paraphrase", "concise", "scientific", "split", "join", "synonyms",
+  "title", "abstract", "translate", "inline-completion", "citation-reviewer",
+]);
+export type AiTool = z.infer<typeof AiToolSchema>;
 export const AiRunSchema = z.strictObject({
   id: IdSchema, scope: ScopeSchema, mode: z.enum(["ask", "agent"]), status: JobStatusSchema,
+  tool: AiToolSchema, version: CountSchema, errorCode: z.string().nullable(), conversationId: IdSchema.nullable(),
   messages: z.array(z.strictObject({ role: z.enum(["user", "assistant"]), text: z.string() }).readonly()).readonly(),
   proposals: z.array(SuggestionSchema).readonly(), sources: z.array(PublicationSchema).readonly(), usageId: IdSchema,
 }).readonly();

@@ -10,8 +10,8 @@ test("stores Argon2id credentials and hashes session secrets instead of persisti
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
   // When: the persisted credential records are inspected at the adapter boundary.
-  const user = z.object({ password_hash: z.string() }).parse(fixture.runtime.db.query("SELECT password_hash FROM users WHERE id=?").get(login.user.id));
-  const session = z.object({ token_hash: z.string(), csrf_hash: z.string() }).parse(fixture.runtime.db.query("SELECT token_hash,csrf_hash FROM sessions WHERE user_id=?").get(login.user.id));
+  const user = z.object({ password_hash: z.string() }).parse((await fixture.runtime.db.get("SELECT password_hash FROM users WHERE id=?", [login.user.id])));
+  const session = z.object({ token_hash: z.string(), csrf_hash: z.string() }).parse((await fixture.runtime.db.get("SELECT token_hash,csrf_hash FROM sessions WHERE user_id=?", [login.user.id])));
   // Then: password verification uses Argon2id and neither bearer secret appears in storage.
   expect(user.password_hash.startsWith("$argon2id$")).toBe(true);
   expect(await Bun.password.verify(password, user.password_hash)).toBe(true);
@@ -61,16 +61,15 @@ test("intersects persisted project and organization policies with deny winning",
   // Given: accepted user consent, an organization allowing Agent, and a project limited to Ask.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=?").run(JSON.stringify({ ...defaultPolicy, ai: "agent" }));
-  fixture.runtime.db.query("INSERT INTO policy_sets(id,scope_kind,scope_id,policy_json,updated_at) VALUES(?,'project',?,?,?)")
-    .run(crypto.randomUUID(), fixtureIds.project, JSON.stringify({ ...defaultPolicy, ai: "ask" }), fixture.runtime.clock.now());
+  await fixture.runtime.db.run("UPDATE organizations SET policy_json=?", [JSON.stringify({ ...defaultPolicy, ai: "agent" })]);
+  await fixture.runtime.db.run("INSERT INTO policy_sets(id,scope_kind,scope_id,policy_json,updated_at) VALUES(?,'project',?,?,?)", [crypto.randomUUID(), fixtureIds.project, JSON.stringify({ ...defaultPolicy, ai: "ask" }), fixture.runtime.clock.now()]);
   const consent = await fixture.request("/api/me/ai-consent", { method: "POST", headers: login.headers,
     body: JSON.stringify({ termsVersion: "2026-10-26", accepted: true, expectedVersion: 0 }) });
   expect(consent.status).toBe(200);
   const policy = fixture.runtime.services.get("policy");
   expect((await policy.forProject(fixtureIds.kien, fixtureIds.project)).ai).toBe("ask");
   // When: a persisted organization deny replaces its grant.
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=? WHERE id=?").run(JSON.stringify({ ...defaultPolicy, ai: "off" }), fixtureIds.team);
+  await fixture.runtime.db.run("UPDATE organizations SET policy_json=? WHERE id=?", [JSON.stringify({ ...defaultPolicy, ai: "off" }), fixtureIds.team]);
   // Then: the broader grant cannot override that deny.
   expect((await policy.forProject(fixtureIds.kien, fixtureIds.project)).ai).toBe("off");
 });

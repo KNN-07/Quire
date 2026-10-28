@@ -19,15 +19,12 @@ export async function git(path: string, args: readonly string[], input?: Uint8Ar
   return output.trim();
 }
 export async function initializeRepository(context: ModuleContext, projectId: Id): Promise<void> {
-  const path = repositoryPath(context, projectId);
-  await git(path, ["init", "--bare", "--initial-branch=main", path]);
-  await git(path, ["config", "transfer.hideRefs", "refs/quire/"]);
-  await git(path, ["config", "receive.hideRefs", "refs/quire/"]);
-  await git(path, ["config", "core.fsync", "committed"]);
+  await context.repositories.initialize(projectId);
 }
 type TreeNode = { readonly files: Map<string, string>; readonly folders: Map<string, TreeNode> };
 export async function writeCheckpoint(context: ModuleContext, projectId: Id, files: readonly FileEntry[]) {
-  const path = repositoryPath(context, projectId);
+  const objects = async (args: readonly string[], input?: Uint8Array) =>
+    new TextDecoder().decode(await context.repositories.objects(projectId, args, input)).trim();
   const root: TreeNode = { files: new Map(), folders: new Map() };
   for (const file of files) {
     if (file.kind === "folder" || file.blob === null) continue;
@@ -40,17 +37,16 @@ export async function writeCheckpoint(context: ModuleContext, projectId: Id, fil
       if (!child) { child = { files: new Map(), folders: new Map() }; node.folders.set(part, child); }
       node = child;
     }
-    const oid = await git(path, ["hash-object", "-w", "--stdin"], await context.blobs.get(file.blob));
+    const oid = await objects(["hash-object", "-w", "--stdin"], await context.blobs.get(file.blob));
     node.files.set(name, oid);
   }
   async function tree(node: TreeNode): Promise<string> {
     const entries: string[] = [];
     for (const [name, oid] of node.files) entries.push(`100644 blob ${oid}\t${name}\0`);
     for (const [name, child] of node.folders) entries.push(`040000 tree ${await tree(child)}\t${name}\0`);
-    return git(path, ["mktree", "-z"], new TextEncoder().encode(entries.join("")));
+    return objects(["mktree", "-z"], new TextEncoder().encode(entries.join("")));
   }
   const oid = await tree(root);
-  const commit = await git(path, ["-c", "user.name=Quire", "-c", "user.email=quire@localhost",
-    "commit-tree", oid, "-m", "Quire source checkpoint"]);
+  const commit = await objects(["commit-tree", oid, "-m", "Quire source checkpoint"]);
   return { tree: GitOidSchema.parse(`sha1:${oid}`), commit };
 }

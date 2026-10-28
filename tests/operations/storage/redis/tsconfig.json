@@ -1,0 +1,8 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "../../../../services/operations/storage/redis/**/*.ts",
+    "./**/*.ts"
+  ],
+  "exclude": []
+}

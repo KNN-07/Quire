@@ -31,7 +31,7 @@ export function LinkedIdentities(props: SettingsProps) {
         <Button disabled={version === null} busy={action.busy} onClick={() => { void action.run(async () => {
           if (version === null) return;
           unwrap(await props.client.call(endpoints.identityUnlink, { params: { id: identity.id }, query: {}, body: { expectedVersion: version } }));
-          await load(); await props.refresh();
+          location.assign("/sign-in");
         }); }}>Unlink {identity.issuer}</Button>
       </div>
     </li>)}</ul>}
@@ -41,8 +41,11 @@ export function LinkedIdentities(props: SettingsProps) {
       <span>{provider.label}{!provider.capability.enabled && <small>{provider.capability.reason ?? provider.capability.state}</small>}</span>
       <Button disabled={!provider.capability.enabled || version === null} busy={action.busy} onClick={() => { void action.run(async () => {
         if (version === null) return;
-        unwrap(await props.client.call(endpoints.identityLink, { params: { provider: provider.id }, query: {}, body: { expectedVersion: version } }));
-        await load(); await props.refresh(); action.setMessage("Link request accepted. The list shows the server’s saved linked identities.");
+        const response = await props.client.callWithMetadata(endpoints.identityLink, { params: { provider: provider.id }, query: {}, body: { expectedVersion: version } });
+        unwrap(response.result);
+        const redirect = response.metadata.headers["location"];
+        if (!redirect) throw new Error("Identity provider authorization redirect was not returned.");
+        location.assign(redirect);
       }); }}>Link {provider.label}</Button>
     </div>)}
     {availability.options?.passwordEnabled ? <a href="/reset-password">Reset your password</a> : availability.options && <p>Password sign-in is disabled by this server.</p>}

@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../apps/web/src/features/account/auth.tsx",
+    "../../../../apps/web/src/features/account/PasswordStrength.tsx",
+    "../../../../packages/runtime/src/assets.d.ts"
+  ],
+  "exclude": ["../../../../node_modules"]
+}

@@ -5,6 +5,7 @@ import { Button, Field } from "../../ui";
 import { listInput, mutationHeaders, Notice, Panel, readInput, Select, unwrap, useAction, value } from "./shared";
 import type { SettingsProps } from "./settings";
 import { Payments } from "./payments";
+import { checkoutDestination } from "./billing-navigation";
 
 export function Billing(props: SettingsProps) {
   const [catalog, setCatalog] = useState<ResponseOf<typeof endpoints.billingCatalog> | null>(null);
@@ -56,7 +57,9 @@ export function Billing(props: SettingsProps) {
         {quote && <div className="account-stack"><h3>Plan quote</h3><p>{new Intl.NumberFormat(undefined, { style: "currency", currency: quote.currency }).format(quote.amountMinor / 100)} · Valid until {new Date(quote.expiresAt).toLocaleString()}</p>
           <Button busy={action.busy} onClick={() => { void action.run(async () => {
             const operation = unwrap(await props.client.call(endpoints.billingCheckout, { params: { o: organization.id }, query: {}, body: { quoteId: quote.quoteId, expectedVersion: billing.version }, headers: mutationHeaders() }));
-            action.setMessage(`Checkout request ${operation.status}. Payment is not confirmed.`);
+            const destination = checkoutDestination(operation);
+            action.setMessage(`Checkout request ${operation.status}. Payment is not confirmed.${operation.result?.["reconciliation"] === "awaiting_webhook" ? " Awaiting provider webhook reconciliation." : ""}`);
+            if (destination) location.assign(destination);
           }); }}>Request checkout</Button></div>}
         <h3>Invoice details</h3>
         <form key={billing.id + ":" + billing.version} className="account-form" onSubmit={event => {

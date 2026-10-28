@@ -12,7 +12,7 @@ for (const email of ["sam@quire.local", "alex@quire.local"]) {
     const owner = await fixture.login();
     const reader = await fixture.login(email);
     const scope = { projectId: ids.project, branch: "main" };
-    const source = fixture.service.loadDocument(scope, ids.mainFile);
+    const source = (await fixture.service.loadDocument(scope, ids.mainFile));
     const doc = sourceDoc(source.state);
     const edit = proposal(doc, { fileId: ids.mainFile, before: "article", after: "report", baseRevision: 0 });
     const created = await fixture.request(`/api/projects/${ids.project}/suggestions`,
@@ -38,8 +38,8 @@ for (const email of ["sam@quire.local", "alex@quire.local"]) {
     expect(restored.status).toBe(403);
     expect(history.status).toBe(200);
     expect(await error).toMatchObject({ type: "error", code: "FORBIDDEN" });
-    expect(fixture.service.loadDocument(scope, ids.mainFile).text).toBe(source.text);
-    expect(fixture.service.getBranch(scope).revision).toBe(0);
+    expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toBe(source.text);
+    expect((await fixture.service.getBranch(scope)).revision).toBe(0);
     doc.destroy();
   });
 }

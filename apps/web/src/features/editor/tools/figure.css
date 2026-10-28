@@ -1,0 +1,5 @@
+.q-figure-panel{min-inline-size:0;color:var(--q-ink);padding:var(--q-space-3)}
+.q-figure-panel p{overflow-wrap:anywhere;color:var(--q-secondary)}
+.q-figure-panel label{display:grid;gap:var(--q-space-2);min-inline-size:0}
+.q-figure-panel select,.q-figure-panel input[type="file"]{inline-size:100%;min-inline-size:0;max-inline-size:100%;min-block-size:var(--q-touch-target);font:inherit;color:inherit}
+.q-figure-panel select{background:var(--q-surface);border:1px solid var(--q-control-border);border-radius:var(--q-radius-sm);padding:var(--q-space-3)}

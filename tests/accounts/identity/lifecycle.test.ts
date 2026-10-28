@@ -68,10 +68,10 @@ test("requires complete project reassignment before anonymizing and revoking a d
   expect(errorEnvelope.parse(await blocked.json()).error.code).toBe("REASSIGNMENT_REQUIRED");
   expect(deleted.status).toBe(200);
   expect(okEnvelope.parse(await deleted.json()).data.version).toBe(1);
-  const project = z.object({ owner_id: z.string() }).parse(fixture.runtime.db.query("SELECT owner_id FROM projects WHERE id=?").get(fixtureIds.project));
+  const project = z.object({ owner_id: z.string() }).parse((await fixture.runtime.db.get("SELECT owner_id FROM projects WHERE id=?", [fixtureIds.project])));
   expect(project.owner_id).toBe(fixtureIds.mai);
   expect((await fixture.request("/api/me", { headers: login.headers })).status).toBe(401);
   const user = z.object({ name: z.string(), password_hash: z.null(), deleted_at: z.string() })
-    .parse(fixture.runtime.db.query("SELECT * FROM users WHERE id=?").get(fixtureIds.kien));
+    .parse((await fixture.runtime.db.get("SELECT * FROM users WHERE id=?", [fixtureIds.kien])));
   expect(user.name).toBe("Deleted account");
 });

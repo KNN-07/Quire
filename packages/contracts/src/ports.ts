@@ -4,6 +4,7 @@ import type { CompileRequest, CompileJob, Publication, Operation } from "./work"
 
 export interface ProjectPort {
   authorize(actorId: Id, scope: Scope, action: string): Promise<void>;
+  authorizeRequest(request: Request, scope: Scope, action: string): Promise<Id | null>;
   snapshot(actorId: Id, scope: Scope, expectedRevision: number): Promise<Snapshot>;
   readSnapshot(snapshotId: Id): Promise<{ readonly files: readonly FileEntry[]; readonly tree: GitOid }>;
   applyEdits(actorId: Id, scope: Scope, edits: readonly ProposedEdit[],
@@ -26,9 +27,12 @@ export interface AiProvider {
   }>;
 }
 export interface ExternalAdapter {
+  availability(): Promise<Capability>;
   capabilities(): Readonly<Record<string, Capability>>;
-  test(grantId: Id): Promise<{ readonly ok: boolean; readonly reason?: string }>;
+  test(grantId: Id, actorId: Id): Promise<{ readonly ok: boolean; readonly reason?: string }>;
   execute(input: {
+    readonly actorId: Id; readonly parameters: Readonly<Record<string, unknown>>;
+    readonly expectedVersion: number;
     readonly action: string; readonly grantId: Id; readonly projectId?: Id;
     readonly expectedCursor: string | null; readonly key: string;
   }): Promise<Operation>;

@@ -14,14 +14,14 @@ for (const valid of [true, false]) {
     const project = await fixture.create(owner.headers);
     const scope = { projectId: project.id, branch: "main" };
     const service = fixture.service();
-    await service.patch(owner.user.id, { projectId: project.id, expectedVersion: service.getProject(project.id).version,
+    await service.patch(owner.user.id, { projectId: project.id, expectedVersion: (await service.getProject(project.id)).version,
       settings: { ...project.settings, environmentId: nativeEnvironmentId } });
     await fixture.status(owner.headers, project.id);
-    const original = service.readDocument(scope, project.settings.mainFileId).text;
+    const original = (await service.readDocument(scope, project.settings.mainFileId)).text;
     const changed = original.replace("\\end{document}", `${valid ? "Compiled Git source." : "\\QuireMissingCommand"}\n\\end{document}`);
-    await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-      expectedRevision: service.getBranch(scope).revision,
-      inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
+    await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+      expectedRevision: (await service.getBranch(scope)).revision,
+      inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
     const status = await fixture.status(owner.headers, project.id);
     const staged = await fixture.request(`/api/projects/${project.id}/git/stage`, { method: "PUT",
       headers: { ...owner.headers, "if-match": `"v${status.revision}"` },
@@ -35,7 +35,7 @@ for (const valid of [true, false]) {
     expect(response.status, JSON.stringify(fixture.failures)).toBe(valid ? 202 : 409);
     const after = await fixture.status(owner.headers, project.id);
     expect(after.head === status.head).toBe(!valid);
-    const rows = fixture.runtime.db.query("SELECT id FROM compile_jobs").all();
+    const rows = await fixture.runtime.db.all("SELECT id FROM compile_jobs");
     const jobId = z.array(z.object({ id: z.string() })).parse(rows)[0]?.id;
     if (!jobId) throw new TypeError("Expected real compile job");
     const result = await fixture.request(`/api/compiles/${jobId}`, { headers: owner.headers });
@@ -52,18 +52,18 @@ test("T11 compiles only staged bytes while invalid unstaged source remains untou
   const project = await fixture.create(owner.headers);
   const service = fixture.service();
   const scope = { projectId: project.id, branch: "main" };
-  await service.patch(owner.user.id, { projectId: project.id, expectedVersion: service.getProject(project.id).version,
+  await service.patch(owner.user.id, { projectId: project.id, expectedVersion: (await service.getProject(project.id)).version,
     settings: { ...project.settings, environmentId: nativeEnvironmentId } });
   const original = "\\documentclass{article}\n\\begin{document}\nOriginal text.\n"
     + Array.from({ length: 24 }, (_, i) => `% spacing ${i}\n`).join("") + "\\end{document}\n";
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: service.getBranch(scope).revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(original) })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: (await service.getBranch(scope)).revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(original) })) }));
   await fixture.status(owner.headers, project.id);
   const changed = original.replace("Original text.", "Staged text.").replace("\\end{document}", "\\InvalidUnstagedCommand\n\\end{document}");
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: service.getBranch(scope).revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: (await service.getBranch(scope)).revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
   const status = await fixture.status(owner.headers, project.id);
   const first = status.hunks[0];
   if (!first) throw new TypeError("Expected stageable hunk");
@@ -78,8 +78,8 @@ test("T11 compiles only staged bytes while invalid unstaged source remains untou
   // Then: the actual compiler succeeds on exactly the named tree and never overwrites live source.
   expect(response.status, JSON.stringify(fixture.failures)).toBe(202);
   const committed = await run({ path: repositoryPath(service.context, project.id), args: ["rev-parse", "main^{tree}"] });
-  const compiled = z.object({ tree: z.string() }).parse(fixture.runtime.db.query(
-    "SELECT s.tree FROM compile_jobs j JOIN snapshots s ON s.id=j.snapshot_id").get());
+  const compiled = z.object({ tree: z.string() }).parse(await fixture.runtime.db.get(
+    "SELECT s.tree FROM compile_jobs j JOIN snapshots s ON s.id=j.snapshot_id"));
   expect(raw(compiled.tree)).toBe(committed.text);
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(changed);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(changed);
 });

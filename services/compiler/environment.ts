@@ -10,6 +10,7 @@ export async function probeEnvironment(signal?: AbortSignal): Promise<Environmen
   const root = await mkdtemp(join(tmpdir(), "quire-toolchain-"));
   try {
     const result = await sandbox({ source: root, limits: defaultLimits,
+      installationWork: { kind: "environment-metadata" },
       ...(signal ? { signal } : {}), command: ["/bin/sh", "-c",
       `pdflatex --version && latex --version && xelatex --version && lualatex --version &&
       bibtex --version && biber --version && latexmk -v && synctex --version &&

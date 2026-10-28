@@ -1,0 +1,106 @@
+# Single-node fixture only: this one RWO filesystem is shared by both API pods.
+# Multi-node production placement requires an operator-provisioned RWX claim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: backup-shared}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres}
+spec:
+  selector: {quire-deployment-fixture: postgres}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: postgres}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {quire-deployment-fixture: postgres}}
+  template:
+    metadata: {labels: {quire-deployment-fixture: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4
+          imagePullPolicy: IfNotPresent
+          envFrom: [{secretRef: {name: quire-p2o-deployment}}]
+          readinessProbe:
+            exec: {command: [pg_isready, -U, quire, -d, quire]}
+            periodSeconds: 2
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redis}
+spec:
+  selector: {quire-deployment-fixture: redis}
+  ports: [{port: 6379, targetPort: 6379}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: redis}
+spec:
+  serviceName: redis
+  replicas: 1
+  selector: {matchLabels: {quire-deployment-fixture: redis}}
+  template:
+    metadata: {labels: {quire-deployment-fixture: redis}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine@sha256:6ba19c50b56777f5c11c58eff8ddb69d0d5f27ba131cffb63f180ccfd43c66af
+          imagePullPolicy: IfNotPresent
+          args: [redis-server, --appendonly, "yes"]
+          readinessProbe:
+            exec: {command: [redis-cli, ping]}
+            periodSeconds: 2
+          volumeMounts: [{name: data, mountPath: /data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: s3}
+spec:
+  selector: {quire-deployment-fixture: s3}
+  ports: [{port: 9000, targetPort: 9000}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: s3}
+spec:
+  serviceName: s3
+  replicas: 1
+  selector: {matchLabels: {quire-deployment-fixture: s3}}
+  template:
+    metadata: {labels: {quire-deployment-fixture: s3}}
+    spec:
+      securityContext: {runAsUser: 1000, fsGroup: 1000}
+      containers:
+        - name: s3
+          image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+          imagePullPolicy: Never
+          args: [server, /data]
+          envFrom: [{secretRef: {name: quire-p2o-deployment}}]
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: 9000}
+            periodSeconds: 2
+          volumeMounts: [{name: data, mountPath: /data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}

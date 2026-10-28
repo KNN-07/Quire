@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../apps/web/src/features/account/billing.tsx",
+    "../../../../apps/web/src/features/account/billing-navigation.ts"
+  ],
+  "exclude": ["../../../../node_modules"]
+}

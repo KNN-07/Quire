@@ -1,0 +1,28 @@
+# Install into an explicitly owned namespace; supply an existing Secret.
+image: ""
+imagePullPolicy: IfNotPresent
+existingSecret: ""
+existingTLSSecret: ""
+existingBackupSigningSecret: ""
+# Same durable filesystem for every API, ReadWriteMany when scheduled across nodes.
+existingBackupClaim: ""
+apiReplicas: 2
+storageClass: ""
+repositoryStorage: 10Gi
+apiStorage: 1Gi
+publicUrl: https://quire.example.invalid
+resources:
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {cpu: "2", memory: 1Gi}
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tlsSecret: ""
+# The cluster must reach real external PostgreSQL, Redis and pre-provisioned S3.
+# Worker deployment is opt-in only with a verified confined container runner.
+worker:
+  enabled: false
+  image: ""
+  environmentIds: ""
+  replicas: 1

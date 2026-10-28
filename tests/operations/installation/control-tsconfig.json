@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../services/operations/installation/model.ts",
+    "../../../services/operations/installation/protocol.ts",
+    "../../../services/operations/installation/control-store.ts",
+    "../../../services/operations/installation/control-migrations.ts",
+    "../../../services/operations/installation/legacy-import.ts",
+    "./control-*.ts"
+  ],
+  "exclude": []
+}

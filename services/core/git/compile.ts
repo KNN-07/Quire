@@ -13,12 +13,12 @@ export async function compileStaged(repo: GitRepository, actorId: Id, input: {
 }) {
   const scope = { projectId: input.scope.projectId, branch: `quire-stage-${stableId(`${actorId}:${input.key}:${input.tree}`)}` };
   const context = repo.service.context;
-  await repo.service.serialized(scope, async () => {
-    const exists = context.db.query("SELECT 1 FROM branch_workspaces WHERE project_id=? AND branch=?").get(scope.projectId, scope.branch);
-    if (!exists) await hydrate(repo.service, { actorId, scope,
-      inputs: await treeInputs(repo.service, { scope, path: repo.path(input.scope), commit: input.tree }) });
+  await repo.service.serialized(scope, async lease => {
+    const exists = await context.db.get("SELECT 1 FROM branch_workspaces WHERE project_id=? AND branch=?", [scope.projectId, scope.branch]);
+    if (!exists) await hydrate(repo.service, { actorId, scope, lease,
+      inputs: await treeInputs(repo.service, { scope, commit: input.tree }) });
   });
-  return compileGate(context, actorId, { scope, expectedVersion: repo.service.getBranch(scope).revision, key: input.key });
+  return compileGate(context, actorId, { scope, expectedVersion: (await repo.service.getBranch(scope)).revision, key: input.key });
 }
 
 /** Subscribe before enqueue; do not hold the source queue while the compiler snapshots. */

@@ -6,8 +6,7 @@ test("reads the persisted editor maintenance version for an operator", async () 
   // Given: a nonzero saved instance policy and a real operator session.
   await using app = await governanceFixture();
   const operator = await app.login("operator@quire.local");
-  app.runtime.db.query("INSERT INTO operator_settings(key,value_json,version,updated_at) VALUES('editor-state',?,8,?)")
-    .run(JSON.stringify({ closed: true, message: "Scheduled maintenance" }), app.runtime.clock.now());
+  await app.runtime.db.run("INSERT INTO operator_settings(key,value_json,version,updated_at) VALUES('editor-state',?,8,?)", [JSON.stringify({ closed: true, message: "Scheduled maintenance" }), app.runtime.clock.now()]);
   // When: the operator opens the maintenance controls.
   const response = await operator.get("/api/admin/editor-state");
   // Then: the actual guard and state are available without a guessed version.

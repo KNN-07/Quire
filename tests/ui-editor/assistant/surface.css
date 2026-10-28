@@ -1,0 +1,9 @@
+html,body,#root{block-size:100%;margin:0}
+.fixture-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;block-size:100dvb}
+.fixture-source{padding:var(--q-space-9);overflow:auto}
+.fixture-source h1{font-size:var(--q-text-dialog)}
+.fixture-source p{color:var(--q-secondary)}
+.fixture-source label{display:block}
+.fixture-source textarea{inline-size:100%;min-block-size:200px;background:var(--q-surface);color:var(--q-ink);border:1px solid var(--q-control-border);border-radius:var(--q-radius-md);font:var(--q-text-base)/var(--q-line-code) var(--q-font-mono)}
+.fixture-source pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:650px){.fixture-layout{grid-template-columns:minmax(0,1fr)}.fixture-source{display:none}}

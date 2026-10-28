@@ -4,11 +4,12 @@ import { IdSchema as id, InstantSchema, CountSchema, CapabilitySchema, OkSchema,
 import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, PreferencesSchema, SessionSchema, OrganizationSchema, MembershipSchema,
   MemberRoleSchema, PolicySchema, AuditEntrySchema, BillingAccountSchema, IdentityConfigSchema,
-  AuthOptionsSchema, LinkedIdentitySchema, NotificationPreferencesSchema, InvoiceSchema } from "./accounts";
+  AuthOptionsSchema, LinkedIdentitySchema, NotificationPreferencesSchema, InvoiceSchema, ProjectBenefitsSchema } from "./accounts";
 import { OperationSchema } from "./work";
 import { AvatarUploadSchema, SamlCallbackSchema } from "./multipart";
 
 const r = routesFor("A");
+const operator = routesFor("O");
 const adapter = routesFor("X");
 const email = z.email();
 const password = z.string().min(12).max(1024);
@@ -18,15 +19,24 @@ const org = z.strictObject({ o: id });
 const orgId = org.extend({ id });
 const existing = z.strictObject(version);
 const ok = OkSchema;
+const benefitParams = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("deployment"), key: z.literal("local") }),
+  z.strictObject({ kind: z.literal("user"), key: id }),
+  z.strictObject({ kind: z.literal("plan"), key: z.string().regex(/^(manual|configured):\S+$/) }),
+]);
+const benefitSet = z.strictObject({ benefits: ProjectBenefitsSchema.nullable(), version: CountSchema });
 const metrics = z.strictObject({
   from: InstantSchema, to: InstantSchema, activeUsers: CountSchema, activeProjects: CountSchema,
   compileCount: CountSchema, compileMs: CountSchema, storageBytes: CountSchema, aiUses: CountSchema,
 });
 export const accountEndpoints = {
+  adminProjectBenefitsGet: r("GET", "/api/admin/project-benefits/:kind/:key", { params: benefitParams, query: none, body: noBody, output: benefitSet }),
+  adminProjectBenefitsPut: r("PUT", "/api/admin/project-benefits/:kind/:key", { params: benefitParams, query: none, body: z.strictObject({ benefits: ProjectBenefitsSchema.nullable(), ...version }), output: benefitSet }),
   authOptions: r("GET", "/api/auth/options", { params: none, query: none, body: noBody, output: AuthOptionsSchema }),
   authRegister: r("POST", "/api/auth/register", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), email, password }), output: z.strictObject({ verificationRequired: z.boolean() }), ...key }),
   authVerifyEmail: r("POST", "/api/auth/verify-email", { params: none, query: none, body: z.strictObject({ token }), output: ok }),
   authLogin: r("POST", "/api/auth/login", { params: none, query: none, body: z.strictObject({ email, password: z.string() }), output: UserSchema }),
+  ldapLogin: r("POST", "/api/auth/ldap/login", { params: none, query: none, body: z.strictObject({ username: z.string().min(1), password: z.string().min(1), returnTo: z.string() }), output: UserSchema }),
   authLogout: r("POST", "/api/auth/logout", { params: none, query: none, body: none, output: ok }),
   me: r("GET", "/api/me", { params: none, query: none, body: noBody, output: z.strictObject({ user: UserSchema, preferences: PreferencesSchema, capabilities: z.record(z.string(), CapabilitySchema), csrfToken: z.string() }) }),
   passwordReset: r("POST", "/api/auth/password-reset", { params: none, query: none, body: z.strictObject({ email }), output: ok }),
@@ -86,9 +96,11 @@ export const accountEndpoints = {
   billingCancel: r("POST", "/api/organizations/:o/billing/cancel", { params: org, query: none, body: z.strictObject({ atPeriodEnd: z.boolean(), ...version }), output: OperationSchema, ...key, successStatus: 202 }),
   invoiceDownload: r("GET", "/api/organizations/:o/billing/invoices/:id/download", { params: orgId, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
   billingWebhook: r("POST", "/api/webhooks/billing/:provider", { params: provider, query: none, body: BytesSchema, output: ok, transport: "bytes" }),
-  identityConfigGet: r("GET", "/api/admin/identity", { params: none, query: none, body: noBody, output: IdentityConfigSchema }),
-  identityConfigPut: r("PUT", "/api/admin/identity", { params: none, query: none, body: IdentityConfigSchema.unwrap().omit({ version: true }).extend({ ...version, oidcSecret: z.string().optional(), ldapSecret: z.string().optional() }), output: IdentityConfigSchema, ifMatch: true }),
-  identityTest: r("POST", "/api/admin/identity/test", { params: none, query: none, body: z.strictObject({ draftConfig: IdentityConfigSchema, nonce: z.string(), oidcSecret: z.string().optional(), ldapSecret: z.string().optional() }), output: OperationSchema, ...key, successStatus: 202 }),
-  identityMetadata: r("GET", "/api/admin/identity/metadata.xml", { params: none, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
-  scimToken: r("POST", "/api/admin/scim/token", { params: none, query: none, body: none, output: z.strictObject({ id, secretOnce: z.string() }), ...key }),
+  identityConfigGet: operator("GET", "/api/admin/identity", { params: none, query: none, body: noBody, output: IdentityConfigSchema }),
+  identityConfigPut: operator("PUT", "/api/admin/identity", { params: none, query: none, body: IdentityConfigSchema.unwrap().omit({ version: true }).extend({ ...version, oidcSecret: z.string().optional(), ldapSecret: z.string().optional() }), output: IdentityConfigSchema, ifMatch: true }),
+  identityTest: operator("POST", "/api/admin/identity/test", { params: none, query: none, body: z.strictObject({ draftConfig: IdentityConfigSchema, nonce: z.string(), oidcSecret: z.string().optional(), ldapSecret: z.string().optional(), ldapUsername: z.string().min(1).optional(), ldapPassword: z.string().min(1).optional() }), output: OperationSchema, ...key, successStatus: 202 }),
+  identityMetadata: operator("GET", "/api/admin/identity/metadata.xml", { params: none, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),
+  scimToken: operator("POST", "/api/admin/scim/token", { params: none, query: none, body: none, output: z.strictObject({ id, secretOnce: z.string() }), ...key }),
+  identityBreakGlass: operator("POST", "/api/admin/identity/break-glass", { params: none, query: none, body: z.strictObject({ password }), output: ok }),
+  identityCertificates: operator("POST", "/api/admin/identity/certificates", { params: none, query: none, body: z.strictObject({ certificates: z.array(z.string().min(1)).min(1), ...version }), output: IdentityConfigSchema }),
 } as const;

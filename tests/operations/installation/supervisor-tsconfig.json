@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../services/operations/installation/*.ts",
+    "../../../packages/runtime/src/assets.d.ts",
+    "./supervisor-*.ts"
+  ],
+  "exclude": []
+}

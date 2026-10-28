@@ -47,7 +47,7 @@ test("revoke-others closes only removed authenticated sessions and keeps retaine
   const unrelated = await fixture.login("mai@quire.local");
   const removedPrincipal = await fixture.runtime.services.get("identity").require(new Request(fixture.url, { headers: removed.headers }));
   const scope = { projectId: ids.project, branch: "main" };
-  const source = fixture.service.loadDocument(scope, ids.mainFile);
+  const source = (await fixture.service.loadDocument(scope, ids.mainFile));
   await using keptSocket = await peer(fixture.url, scope, retained.headers);
   await using removedSocket = await peer(fixture.url, scope, removed.headers);
   await using otherSocket = await peer(fixture.url, scope, unrelated.headers);
@@ -64,7 +64,7 @@ test("revoke-others closes only removed authenticated sessions and keeps retaine
   expect(await ended).not.toContain("session.revoked");
   const retainedUpdate = keptSocket.next(message => message.type === "update");
   const otherUpdate = otherSocket.next(message => message.type === "update");
-  const checkpoint = await fixture.service.snapshot(retained.user.id, scope, fixture.service.getBranch(scope).revision);
+  const checkpoint = await fixture.service.snapshot(retained.user.id, scope, (await fixture.service.getBranch(scope)).revision);
   const [retainedStream, otherStream] = await Promise.all([keptEvents.through(checkpoint.id), otherEvents.through(checkpoint.id)]);
   await Promise.all([retainedUpdate, otherUpdate]);
   // Then: committed targeting is exact, the retained session works, and the control event never leaks.
@@ -74,7 +74,7 @@ test("revoke-others closes only removed authenticated sessions and keeps retaine
   expect(otherStream).not.toContain("session.revoked");
   expect(keptSocket.socket.readyState).toBe(WebSocket.OPEN);
   expect(otherSocket.socket.readyState).toBe(WebSocket.OPEN);
-  const revoked = fixture.runtime.events.after(0, { limit: 200 }).filter(event => event.topic === "session.revoked");
+  const revoked = (await fixture.runtime.events.read(0, { limit: 200 })).filter(event => event.topic === "session.revoked");
   expect(revoked.map(event => ({ aggregateId: event.aggregateId, ...event.payload }))).toEqual([
     { aggregateId: ids.kien, userId: ids.kien, sessionId: removedPrincipal.sessionId },
   ]);
@@ -87,8 +87,7 @@ test("wildcard revocation closes existing matching WS/SSE but not later sessions
   const second = await fixture.login();
   const unrelated = await fixture.login("mai@quire.local");
   const operator = await fixture.login("operator@quire.local");
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=?")
-    .run(JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true }));
+  (await fixture.runtime.db.run("UPDATE organizations SET policy_json=?", [JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true })]));
   const grant = mutation(first.headers, { role: "viewer", expectedVersion: 0 });
   const shared = await fixture.request(`/api/projects/${ids.project}/link`, { ...grant, method: "PUT",
     headers: { ...Object.fromEntries(new Headers(grant.headers)), "if-match": resourceVersionTag(0) } });
@@ -97,7 +96,7 @@ test("wildcard revocation closes existing matching WS/SSE but not later sessions
   if (!token) throw new TypeError("Expected actual anonymous Viewer credential");
   const anonymousHeaders = { "x-project-token": token };
   const scope = { projectId: ids.project, branch: "main" };
-  const source = fixture.service.loadDocument(scope, ids.mainFile);
+  const source = (await fixture.service.loadDocument(scope, ids.mainFile));
   await using firstSocket = await peer(fixture.url, scope, first.headers);
   await using secondSocket = await peer(fixture.url, scope, second.headers);
   await using otherSocket = await peer(fixture.url, scope, unrelated.headers);
@@ -119,7 +118,7 @@ test("wildcard revocation closes existing matching WS/SSE but not later sessions
   expect((await Promise.all(ended)).every(text => !text.includes("session.revoked"))).toBe(true);
   const otherUpdate = otherSocket.next(message => message.type === "update");
   const anonymousUpdate = anonymousSocket.next(message => message.type === "update");
-  const checkpoint = await fixture.service.snapshot(unrelated.user.id, scope, fixture.service.getBranch(scope).revision);
+  const checkpoint = await fixture.service.snapshot(unrelated.user.id, scope, (await fixture.service.getBranch(scope)).revision);
   const [otherStream, anonymousStream] = await Promise.all([
     otherEvents.through(checkpoint.id), anonymousEvents.through(checkpoint.id),
   ]);
@@ -132,7 +131,7 @@ test("wildcard revocation closes existing matching WS/SSE but not later sessions
   expect(anonymousStream).not.toContain("session.revoked");
   expect(otherSocket.socket.readyState).toBe(WebSocket.OPEN);
   expect(anonymousSocket.socket.readyState).toBe(WebSocket.OPEN);
-  const revoked = fixture.runtime.events.after(0, { limit: 200 }).filter(event => event.topic === "session.revoked");
+  const revoked = (await fixture.runtime.events.read(0, { limit: 200 })).filter(event => event.topic === "session.revoked");
   expect(revoked.map(event => ({ aggregateId: event.aggregateId, ...event.payload }))).toEqual([
     { aggregateId: ids.kien, userId: ids.kien, sessionId: null },
   ]);
@@ -142,7 +141,7 @@ test("wildcard revocation closes existing matching WS/SSE but not later sessions
   await subscribe(freshSocket, source);
   await using freshEvents = await events(fixture, fresh.headers);
   const freshUpdate = freshSocket.next(message => message.type === "update");
-  const freshCheckpoint = await fixture.service.snapshot(fresh.user.id, scope, fixture.service.getBranch(scope).revision);
+  const freshCheckpoint = await fixture.service.snapshot(fresh.user.id, scope, (await fixture.service.getBranch(scope)).revision);
   const freshStream = await freshEvents.through(freshCheckpoint.id);
   await freshUpdate;
   expect((await fixture.request("/api/me", { headers: fresh.headers })).status).toBe(200);

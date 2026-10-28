@@ -1,0 +1,5 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": ["./**/*.ts", "../../../deploy/runtime/**/*.ts", "../../../scripts/ops/install.ts", "../../../scripts/ops/airgap.ts", "../../../packages/runtime/src/assets.d.ts", "../environments/assets.d.ts"],
+  "exclude": ["../../../node_modules", "../../../dist"]
+}

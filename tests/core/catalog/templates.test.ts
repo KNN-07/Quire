@@ -35,7 +35,7 @@ test("denies approval when an actor has only a publisher grant", async () => {
   })).json()).data;
   version = templateEnvelope.parse(await (await fixture.mutate(`/api/templates/${version.templateId}/submit`, owner.headers,
     { expectedVersion: version.version })).json()).data;
-  fixture.runtime.db.query("INSERT INTO catalog_roles(user_id,role) VALUES(?,'template-publisher')").run(publisher.user.id);
+  (await fixture.runtime.db.run("INSERT INTO catalog_roles(user_id,role) VALUES(?,'template-publisher')", [publisher.user.id]));
   // When: publishing authority is presented as approval authority.
   const result = await fixture.mutate(`/api/templates/${version.templateId}/approve`, publisher.headers,
     { expectedVersion: version.version, versionId: version.id });
@@ -108,7 +108,7 @@ test("rejects version snapshots when they belong to another project", async () =
   const a = await fixture.create(owner.headers, "A");
   const b = await fixture.create(owner.headers, "B");
   const scope = { projectId: b.id, branch: "main" };
-  const snapshot = await fixture.service.snapshot(owner.user.id, scope, fixture.service.getBranch(scope).revision);
+  const snapshot = await fixture.service.snapshot(owner.user.id, scope, (await fixture.service.getBranch(scope)).revision);
   const version = templateEnvelope.parse(await (await fixture.mutate("/api/templates", owner.headers, {
     name: "A", category: "", description: "", license: "MIT", visibility: "private", sourceProjectId: a.id,
   })).json()).data;

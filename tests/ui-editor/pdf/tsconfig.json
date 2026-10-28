@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/pdf/**/*.ts",
+    "../../../apps/web/src/features/editor/pdf/**/*.tsx",
+    "./**/*.ts",
+    "./**/*.tsx"
+  ]
+}

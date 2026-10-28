@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/tools/FigurePanel.tsx",
+    "../../../apps/web/src/features/editor/visual/**/*.ts",
+    "../../../apps/web/src/features/editor/visual/**/*.tsx",
+    "./**/*.ts",
+    "./**/*.tsx"
+  ]
+}

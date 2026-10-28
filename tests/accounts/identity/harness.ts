@@ -1,7 +1,7 @@
 import { createRuntime } from "@quire/runtime";
 import type { Clock } from "@quire/contracts";
 import { z } from "zod";
-import { isolatedData } from "../../fixtures/runtime";
+import { isolatedData } from "../fixture";
 import { register, migrations } from "../../../services/accounts/identity";
 import { seed } from "../../../scripts/seed";
 import { UserSchema, PreferencesSchema } from "@quire/contracts";
@@ -38,7 +38,7 @@ export async function identityFixture(options: {
     runtime, request, login, path: sandbox.path,
     [Symbol.asyncDispose]: async () => {
       await server.stop(true);
-      runtime.close();
+      await runtime.close();
       await sandbox[Symbol.asyncDispose]();
     },
   };

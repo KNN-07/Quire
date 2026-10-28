@@ -4,7 +4,7 @@ import { AuthOptionsSchema, IdSchema, LinkedIdentitySchema } from "@quire/contra
 import { createApplication } from "../../../apps/server/src/composition";
 import { register, migrations } from "../../../services/accounts/identity";
 import { seed } from "../../../scripts/seed";
-import { isolatedData } from "../../fixtures/runtime";
+import { isolatedData } from "../fixture";
 import { fixtureIds } from "../../fixtures/foundation";
 import { password } from "./harness";
 
@@ -23,6 +23,7 @@ async function composedIdentity() {
     [Symbol.asyncDispose]: async () => {
       await server.stop(true);
       await app.close();
+      await app.runtime.close();
       await sandbox[Symbol.asyncDispose]();
     },
   };
@@ -45,10 +46,8 @@ test("registers caller-scoped persisted linked identity reads through actual app
   await seed(app.runtime, password);
   const id = IdSchema.parse(crypto.randomUUID());
   const createdAt = app.runtime.clock.now();
-  app.runtime.db.query("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)")
-    .run(id, fixtureIds.kien, "https://own.example.test", "own-subject", createdAt);
-  app.runtime.db.query("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)")
-    .run(crypto.randomUUID(), fixtureIds.mai, "https://other.example.test", "other-subject", createdAt);
+  await app.runtime.db.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [id, fixtureIds.kien, "https://own.example.test", "own-subject", createdAt]);
+  await app.runtime.db.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [crypto.randomUUID(), fixtureIds.mai, "https://other.example.test", "other-subject", createdAt]);
   const login = await app.request("/api/auth/login", { method: "POST",
     headers: { origin: "http://localhost:5173", "content-type": "application/json" },
     body: JSON.stringify({ email: "kien@quire.local", password }) });

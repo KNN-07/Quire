@@ -1,0 +1,5 @@
+.visual-harness{display:grid;grid-template-rows:auto minmax(0,1fr);block-size:100dvh;min-inline-size:0}
+.visual-harness>header{display:flex;flex-wrap:wrap;align-items:center;gap:var(--q-space-5);padding:var(--q-space-3);border-bottom:1px solid var(--q-border)}
+.visual-harness h1{font-size:var(--q-text-dialog);margin:0}
+.visual-harness header button{min-block-size:var(--q-touch-target);padding:var(--q-space-3);background:var(--q-surface);color:var(--q-ink);border:1px solid var(--q-control-border);border-radius:var(--q-radius-sm)}
+.visual-harness-source{min-block-size:0;inline-size:100%;padding:var(--q-space-7);font-family:var(--q-font-mono);background:var(--q-surface);color:var(--q-ink)}

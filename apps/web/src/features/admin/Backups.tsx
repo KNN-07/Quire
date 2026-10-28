@@ -28,20 +28,21 @@ export function Backups({ client, navigate }: { readonly client: AdminClient; re
     finally { setBusy(false); }
   }
   async function perform() {
-    const version = backups.resource?.version;
-    if (!selected || version === undefined || version === null) return;
+    if (!selected) return;
     setBusy(true); setMessage("");
     try {
       if (selected.kind === "verify") {
         const result = await client.call(endpoints.backupVerify, {
-          params: { id: selected.backup.id }, query: {}, body: { expectedVersion: version },
+          params: { id: selected.backup.id }, query: {}, body: { expectedVersion: 0 },
           headers: { "idempotency-key": selected.key },
         });
         if ("error" in result) { setMessage(result.error.message); return; }
         setMessage(`Verification request: ${result.data.status}.`);
       } else {
         const result = await client.call(endpoints.backupRestore, {
-          params: { id: selected.backup.id }, query: {}, body: { target, confirmation: "RESTORE", expectedVersion: version },
+          params: { id: selected.backup.id }, query: {}, body: {
+            target, confirmation: `RESTORE ${selected.backup.id} TO ${target}`, expectedVersion: 0,
+          },
           headers: { "idempotency-key": selected.key },
         });
         if ("error" in result) { setMessage(result.error.message); return; }
@@ -64,9 +65,9 @@ export function Backups({ client, navigate }: { readonly client: AdminClient; re
           <td data-label="Destination"><code>{backup.destination}</code></td><td data-label="Status">{backup.status}</td>
           <td data-label="Verification">{backup.verifiedAt ? <time dateTime={backup.verifiedAt}>{new Date(backup.verifiedAt).toLocaleString()}</time> : "Not verified"}</td>
           <td data-label="Actions"><div className="admin-row">
-            <Button size="small" disabled={backup.status !== "succeeded" || backups.resource?.version === null}
+            <Button size="small" disabled={backup.status !== "succeeded"}
               onClick={() => { setSelected({ backup, kind: "verify", key: crypto.randomUUID() }); setMessage(""); }}>Verify</Button>
-            <Button size="small" disabled={!backup.verifiedAt || backup.status !== "succeeded" || backups.resource?.version === null}
+            <Button size="small" disabled={!backup.verifiedAt || backup.status !== "succeeded"}
               onClick={() => { setSelected({ backup, kind: "restore", key: crypto.randomUUID() }); setTarget(""); setConfirmed(false); setMessage(""); }}>Restore</Button>
             <Button size="small" onClick={() => navigate(`/admin/support?operation=${backup.operationId}`)}>Details</Button>
           </div></td>

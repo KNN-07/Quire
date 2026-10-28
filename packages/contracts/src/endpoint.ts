@@ -12,6 +12,7 @@ export const ProjectParamsSchema = z.strictObject({ p: IdSchema });
 export const FileParamsSchema = ProjectParamsSchema.extend({ f: IdSchema });
 export const ProjectIdParamsSchema = ProjectParamsSchema.extend({ id: IdSchema });
 export const MutationHeadersSchema = z.object({
+  "x-project-token": z.string().min(1).optional(),
   "idempotency-key": z.string().min(1).max(255).optional(),
   "if-match": z.string().min(1).optional(),
 });

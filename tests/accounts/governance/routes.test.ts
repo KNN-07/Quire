@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { z } from "zod";
 import { MembershipSchema, OrganizationSchema, PolicySchema } from "@quire/contracts";
@@ -46,8 +47,8 @@ test("acknowledges a notification only at its own optimistic version", async () 
   // Given: an actual private in-app notification.
   await using app = await governanceFixture();
   const user = await app.login("mai@quire.local");
-  const id = app.runtime.uow.local(() => enqueueNotification(app.context, { userId: ids.mai, kind: "reply",
-    resourceId: ids.project, dedupeKey: "ack", mail: { subject: "Reply", body: "Reply" } }));
+  const id = await app.runtime.uow.run(async (tx) => (await enqueueNotification({ ...app.context, db: tx }, { userId: ids.mai, kind: "reply",
+    resourceId: ids.project, dedupeKey: "ack", mail: { subject: "Reply", body: "Reply" } })));
   if (!id) throw new TypeError("Notification missing");
   // When: its recipient acknowledges it.
   const response = await user.write(`/api/notifications/${id}/read`, { expectedVersion: 0 });
@@ -72,5 +73,5 @@ test("persists an editor closure and emits project-scoped refresh events", async
   // Then: transport consumers receive the actual project scope and the domain guard denies writes.
   expect(response.status).toBe(200);
   expect(events).toEqual([ids.project]);
-  expect(() => requireEditorOpen(app.context)).toThrow();
+  await rejects(requireEditorOpen(app.context), { code: "EDITOR_CLOSED" });
 });

@@ -1,0 +1,9 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../services/operations/storage/s3/**/*.ts",
+    "./**/*.ts"
+  ],
+  "exclude": []
+}

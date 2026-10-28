@@ -63,12 +63,30 @@ export const GitHunkSchema = z.strictObject({
   staged: z.boolean(),
 }).readonly();
 export const GitStatusSchema = z.strictObject({
-  head: GitOidSchema, branch: z.string(), ahead: CountSchema, behind: CountSchema,
+  head: GitOidSchema, branch: z.string(), upstream: z.string().nullable(), base: GitOidSchema,
+  ahead: CountSchema, behind: CountSchema,
   files: z.array(z.strictObject({
     fileId: IdSchema, path: ProjectPathSchema,
     status: z.enum(["added", "modified", "deleted", "conflicted"]),
   }).readonly()).readonly(),
   hunks: z.array(GitHunkSchema).readonly(), staged: z.array(z.string()).readonly(),
+}).readonly();
+export const GitBranchSchema = z.strictObject({
+  name: z.string(), head: GitOidSchema, current: z.boolean(),
+  upstream: z.string().nullable(), base: GitOidSchema, ahead: CountSchema, behind: CountSchema,
+}).readonly();
+export const GitConflictFileSchema = z.strictObject({
+  fileId: IdSchema, path: ProjectPathSchema, binary: z.boolean(),
+  base: z.string().nullable(), ours: z.string().nullable(), theirs: z.string().nullable(),
+  merged: z.string().nullable(),
+}).readonly();
+export const GitConflictSchema = z.strictObject({
+  id: IdSchema, scope: ScopeSchema, from: z.string(), head: GitOidSchema,
+  fromHead: GitOidSchema, base: GitOidSchema, version: CountSchema,
+  files: z.array(GitConflictFileSchema).min(1).readonly(),
+}).readonly();
+export const GitComparisonSchema = z.strictObject({
+  kind: z.enum(["working", "staged"]), base: SnapshotSchema, target: SnapshotSchema,
 }).readonly();
 export const TemplateVersionSchema = z.strictObject({
   id: IdSchema, templateId: IdSchema, snapshotId: IdSchema, name: z.string(), category: z.string(),
@@ -92,6 +110,10 @@ export type Thread = z.infer<typeof ThreadSchema>;
 export type HistoryVersion = z.infer<typeof HistoryVersionSchema>;
 export type GitHunk = z.infer<typeof GitHunkSchema>;
 export type GitStatus = z.infer<typeof GitStatusSchema>;
+export type GitBranch = z.infer<typeof GitBranchSchema>;
+export type GitConflictFile = z.infer<typeof GitConflictFileSchema>;
+export type GitConflict = z.infer<typeof GitConflictSchema>;
+export type GitComparison = z.infer<typeof GitComparisonSchema>;
 export type TemplateVersion = z.infer<typeof TemplateVersionSchema>;
 export type Tag = z.infer<typeof TagSchema>;
 export type Comment = z.infer<typeof CommentSchema>;

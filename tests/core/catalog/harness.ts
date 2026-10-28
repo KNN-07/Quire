@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createRuntime, loadConfig } from "@quire/runtime";
+import type { Runtime, RuntimeOptions } from "@quire/runtime";
 import { InstantSchema, UserSchema, ProjectSchema, LibraryEntrySchema, TemplateVersionSchema, FileEntrySchema } from "@quire/contracts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -19,8 +20,8 @@ export const secondBib = '@book{second, title="Independent Second Record", year=
 export const publication = { provider: "manual", providerId: "first", title: "An Actual Uploaded Source",
   authors: ["Kien Nguyen"], year: 2026, doi: null, url: null, bibtex: bib };
 const password = "catalog-test-password-2026";
-export async function catalogFixture() {
-  const path = await mkdtemp(join(tmpdir(), "quire-catalog-"));
+export async function catalogFixture(options: Pick<RuntimeOptions, "createAdapters"> = {}) {
+  const path = await mkdtemp(join(tmpdir(), "quire-p1s-catalog-"));
   const config = loadConfig({ QUIRE_DATA_DIR: path });
   const modules = [
     { id: "010-a-identity", lane: "A", order: 10, register: identity, migrations: identityMigrations },
@@ -28,8 +29,15 @@ export async function catalogFixture() {
     { id: "024-k-catalog", lane: "K", order: 24, register, migrations },
   ] as const;
   const clock = { now: () => InstantSchema.parse("2026-10-26T12:00:00.000Z") };
-  let runtime = await createRuntime(config, { modules, clock });
-  await seed(runtime, password);
+  let runtime: Runtime;
+  try {
+    runtime = await createRuntime(config, { ...options, modules, clock });
+    try { await seed(runtime, password); }
+    catch (error) { await runtime.close(); throw error; }
+  } catch (error) {
+    await rm(path, { recursive: true, force: true });
+    throw error;
+  }
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: request => runtime.routes.fetch(request) });
   const request = (route: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
@@ -60,7 +68,12 @@ export async function catalogFixture() {
     async create(headers: HeadersInit, name = "Catalog source") {
       return projectEnvelope.parse(await (await mutate("/api/projects", headers, { name, origin: { kind: "blank" } })).json()).data;
     },
-    async restart() { runtime.close(); runtime = await createRuntime(config, { modules, clock }); },
-    [Symbol.asyncDispose]: async () => { await server.stop(true); runtime.close(); await rm(path, { recursive: true, force: true }); },
+    async restart() { await runtime.close(); runtime = await createRuntime(config, { ...options, modules, clock }); },
+    [Symbol.asyncDispose]: async () => {
+      await server.stop(true);
+      await runtime.close();
+      await rm(path, { recursive: true, force: true });
+      console.info("catalog.fixture.cleaned", path, server.port);
+    },
   };
 }

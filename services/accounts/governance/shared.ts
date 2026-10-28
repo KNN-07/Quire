@@ -2,7 +2,7 @@ import { z } from "zod";
 import { IdSchema, OrganizationSchema, MembershipSchema, PolicySchema } from "@quire/contracts";
 import type { Endpoint, Id, Policy } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
-import type { ModuleContext, Principal, RequestContext } from "@quire/runtime";
+import type { ModuleContext, Principal, RequestContext, Transaction } from "@quire/runtime";
 
 export const newId = () => IdSchema.parse(crypto.randomUUID());
 export const initialPolicy: Policy = PolicySchema.parse({
@@ -14,8 +14,8 @@ export function conflict(actual: number, expected: number): void {
 }
 export const missing = () => new ServiceError("NOT_FOUND", 404, "Resource not found");
 export const denied = () => new ServiceError("FORBIDDEN", 403, "Insufficient permission");
-export function organization(context: ModuleContext, id: Id) {
-  const value = context.db.query("SELECT * FROM organizations WHERE id=?").get(id);
+export async function organization(context: ModuleContext, id: Id) {
+  const value = (await context.db.get("SELECT * FROM organizations WHERE id=?", [id]));
   if (!value) throw missing();
   const row = z.object({ id: IdSchema, slug: z.string(), name: z.string(), kind: z.string(),
     domains_json: z.string(), policy_json: z.string(), version: z.number() }).parse(value);
@@ -28,13 +28,12 @@ export function membership(value: unknown) {
   return MembershipSchema.parse({ id: row.id, organizationId: row.organization_id,
     userId: row.user_id, role: row.role, licensed: Boolean(row.licensed), version: row.version });
 }
-export function authorize(context: ModuleContext, principal: Principal, access: {
+export async function authorize(context: ModuleContext, principal: Principal, access: {
   readonly organizationId: Id; readonly level: "member" | "manager" | "admin";
 }) {
-  const org = organization(context, access.organizationId);
+  const org = (await organization(context, access.organizationId));
   if (principal.operator) return org;
-  const row = context.db.query("SELECT * FROM members WHERE organization_id=? AND user_id=?")
-    .get(org.id, principal.user.id);
+  const row = (await context.db.get("SELECT * FROM members WHERE organization_id=? AND user_id=?", [org.id, principal.user.id]));
   if (!row) throw denied();
   const member = membership(row);
   const ranks = { member: 0, manager: 1, admin: 2 } as const;
@@ -45,57 +44,53 @@ export function page<T extends { readonly id: string }>(items: readonly T[], lim
   const visible = items.slice(0, limit);
   return { items: visible, nextCursor: items.length > limit ? visible.at(-1)?.id ?? null : null };
 }
-export function audit(context: ModuleContext, principal: Principal, input: {
+export async function audit(context: TransactionContext, principal: Principal, input: {
   readonly organizationId: Id | null; readonly event: string; readonly targetId: Id;
   readonly details?: Readonly<Record<string, string | number | boolean | null>>;
-}): void {
-  context.db.query("INSERT INTO audit_entries(id,at,actor_id,organization_id,event,target_id,details_json) VALUES(?,?,?,?,?,?,?)")
-    .run(newId(), context.clock.now(), principal.user.id, input.organizationId, input.event, input.targetId,
-      JSON.stringify(input.details ?? {}));
+}): Promise<void> {
+  await context.db.lock("quire:accounts");
+  await context.db.run("INSERT INTO audit_entries(id,at,actor_id,organization_id,event,target_id,details_json) VALUES(?,?,?,?,?,?,?)", [newId(), context.clock.now(), principal.user.id, input.organizationId, input.event, input.targetId, JSON.stringify(input.details ?? {})]);
 }
-export function publishPolicyChange(context: ModuleContext, input: {
+export async function publishPolicyChange(context: TransactionContext, input: {
   readonly organizationId?: Id; readonly userId?: Id; readonly version: number;
-}): void {
-  const rows = z.array(z.object({ id: IdSchema })).parse(context.db.query(`
+}): Promise<void> {
+  await context.db.lock("quire:accounts");
+  const rows = z.array(z.object({ id: IdSchema })).parse((await context.db.all(`
 SELECT p.id FROM projects p WHERE p.deleted_at IS NULL AND (
-  (? IS NULL AND ? IS NULL) OR p.workspace_id=? OR p.owner_id=? OR
+  (CAST(? AS TEXT) IS NULL AND CAST(? AS TEXT) IS NULL) OR p.workspace_id=? OR p.owner_id=? OR
   p.owner_id IN (SELECT user_id FROM members WHERE organization_id=?) OR
   EXISTS(SELECT 1 FROM project_members m WHERE m.project_id=p.id AND
-    (m.user_id=? OR m.user_id IN (SELECT user_id FROM members WHERE organization_id=?))))`)
-    .all(input.organizationId ?? null, input.userId ?? null, input.organizationId ?? null, input.userId ?? null,
-      input.organizationId ?? null, input.userId ?? null, input.organizationId ?? null));
-  for (const row of rows) context.events.append(context.db, { topic: "policy.changed", aggregateId: row.id,
+    (m.user_id=? OR m.user_id IN (SELECT user_id FROM members WHERE organization_id=?))))`, [input.organizationId ?? null, input.userId ?? null, input.organizationId ?? null, input.userId ?? null, input.organizationId ?? null, input.userId ?? null, input.organizationId ?? null])));
+  for (const row of rows) await context.events.record(context.db, { topic: "policy.changed", aggregateId: row.id,
     payload: { resourceId: row.id, version: input.version } });
 }
-// Every handler authenticates before accessing durable state. Mutations, their audit/outbox
-// records and their replay receipt share one synchronous SQLite transaction.
+// The action receives its transaction context explicitly; SQL, receipts and events commit together.
+export type TransactionContext = Omit<ModuleContext, "db"> & { readonly db: Transaction };
 export function route<I extends z.ZodType, O extends z.ZodType>(context: ModuleContext,
-  endpoint: Endpoint<I, O>, action: (input: z.output<I>, principal: Principal, request: RequestContext) => z.input<NoInfer<O>>): void {
+  endpoint: Endpoint<I, O>, action: (input: z.output<I>, principal: Principal, request: RequestContext, context: TransactionContext) => Promise<z.input<NoInfer<O>>>): void {
   context.routes.register(endpoint, async (input, request) => {
     const identity = context.services.get("identity");
     const principal = await identity.require(request.request);
-    if (endpoint.method === "GET") return action(input, principal, request);
-    await identity.verifyMutation(request.request, principal);
-    const result = context.uow.local<unknown>(() => {
+    if (endpoint.method !== "GET") await identity.verifyMutation(request.request, principal);
+    const result = await context.uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+      const bound = { ...context, db: tx };
       const key = request.request.headers.get("idempotency-key");
       const digest = new Bun.CryptoHasher("sha256").update(JSON.stringify(input)).digest("hex");
       if (endpoint.idempotent && key) {
-        const prior = context.db.query("SELECT request_digest,response_json FROM idempotency_results WHERE actor_id=? AND key=? AND route=?")
-          .get(principal.user.id, key, endpoint.path);
+        const prior = await tx.get("SELECT request_digest,response_json FROM idempotency_results WHERE actor_id=? AND key=? AND route=?", [principal.user.id, key, endpoint.path]);
         if (prior) {
           const row = z.object({ request_digest: z.string(), response_json: z.string() }).parse(prior);
           if (row.request_digest !== digest) throw new ServiceError("IDEMPOTENCY_CONFLICT", 409, "Key already used for different input");
           return endpoint.output.parse(JSON.parse(row.response_json));
         }
       }
-      const output = action(input, principal, request);
+      const output = await action(input, principal, request, bound);
       endpoint.output.parse(output);
-      if (endpoint.idempotent && key) context.db.query(
-        "INSERT INTO idempotency_results(actor_id,key,route,request_digest,status,response_json,created_at) VALUES(?,?,?,?,?,?,?)")
-        .run(principal.user.id, key, endpoint.path, digest, endpoint.successStatus, JSON.stringify(output), context.clock.now());
+      if (endpoint.idempotent && key) await tx.run("INSERT INTO idempotency_results(actor_id,key,route,request_digest,status,response_json,created_at) VALUES(?,?,?,?,?,?,?)", [principal.user.id, key, endpoint.path, digest, endpoint.successStatus, JSON.stringify(output), context.clock.now()]);
       return output;
     });
-    context.events.dispatch();
+    await context.events.dispatch();
     return endpoint.output.encode(endpoint.output.parse(result));
   });
 }

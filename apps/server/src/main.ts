@@ -1,7 +1,9 @@
-import { createApplication } from "./composition";
+import { assertUncontrolledEntrypoint } from "../../../services/operations/installation/launch";
 import type { RealtimeSocketData } from "@quire/runtime";
 
 if (import.meta.main) {
+  await assertUncontrolledEntrypoint();
+  const { createApplication } = await import("./composition");
   const app = await createApplication();
   await app.start();
   const server = Bun.serve<RealtimeSocketData>({

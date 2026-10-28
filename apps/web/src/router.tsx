@@ -3,6 +3,7 @@ import { AccountPage } from "./features/account";
 import { ProjectsPage } from "./features/projects";
 import { AdminPage } from "./features/admin";
 import { MarketingPage } from "./features/marketing";
+import { EditorPage } from "./features/editor";
 import { Button, Spinner } from "./ui";
 import { createSession } from "./session";
 import type { SessionSnapshot } from "./session";
@@ -69,7 +70,7 @@ export function AppRouter() {
   if (pathname === "/projects") return <ProjectsPage {...props} />;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return <AdminPage {...props} />;
   if (/^\/projects\/[^/]+\/(edit|git|agent|history|review|logs|pdf-diff)$/.test(pathname)) {
-    return <main><h1>Editor workspace unavailable</h1><p>The editor workspace is part of P2 and is not installed in this build. Project source remains stored on the server.</p><Button onClick={() => navigate("/projects")}>Back to projects</Button></main>;
+    return <EditorPage {...props} />;
   }
   return <main><h1>Page not found</h1><Button onClick={() => navigate("/")}>Go home</Button></main>;
 }

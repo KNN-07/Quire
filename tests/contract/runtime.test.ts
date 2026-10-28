@@ -10,9 +10,9 @@ test("uses durable connection settings when SQLite opens", async () => {
   await using fixture = await runtimeFixture();
   // When: its effective connection policy is queried.
   const actual = [
-    fixture.db.query("PRAGMA journal_mode").get(),
-    fixture.db.query("PRAGMA foreign_keys").get(),
-    fixture.db.query("PRAGMA synchronous").get(),
+    await fixture.db.get("PRAGMA journal_mode"),
+    await fixture.db.get("PRAGMA foreign_keys"),
+    await fixture.db.get("PRAGMA synchronous"),
   ];
   // Then: WAL, referential integrity and full durability are active.
   expect(actual).toEqual([{ journal_mode: "wal" }, { foreign_keys: 1 }, { synchronous: 2 }]);
@@ -25,14 +25,14 @@ test("retains blobs and key when the database is reopened", async () => {
   // When: durable data is written and the runtime is reopened.
   const digest = await first.blobs.put(bytes);
   const key = first.secretKey;
-  first.close();
+  await first.close();
   const second = await createRuntime(sandbox.config);
   try {
     // Then: both bytes and encryption identity survive.
     expect(await second.blobs.get(digest)).toEqual(bytes);
     expect(second.secretKey).toEqual(key);
     expect((await stat(join(sandbox.path, "secret.key"))).mode & 0o777).toBe(0o600);
-  } finally { second.close(); }
+  } finally { await second.close(); }
 });
 test("rolls back SQL and outbox when a transaction fails", async () => {
   // Given: a real SQLite transaction and subscribed event listener.
@@ -40,14 +40,15 @@ test("rolls back SQL and outbox when a transaction fails", async () => {
   const events: number[] = [];
   const unsubscribe = fixture.events.subscribe((event) => { events.push(event.seq); });
   // When: a change fails before commit.
-  expect(() => fixture.uow.local((tx) => {
-    fixture.events.append(tx, { topic: "tree.changed", aggregateId: ids.project, payload: { resourceId: ids.project, version: 1 } });
+  const failure = await fixture.uow.run(async (tx) => {
+    await fixture.events.record(tx, { topic: "tree.changed", aggregateId: ids.project, payload: { resourceId: ids.project, version: 1 } });
     throw new StorageError("TEST_ROLLBACK", "fixture");
-  })).toThrow(StorageError);
-  fixture.events.dispatch();
+  }).then(() => null, (error: unknown) => error);
+  expect(failure).toBeInstanceOf(StorageError);
+  await fixture.events.dispatch();
   unsubscribe();
   // Then: neither replay nor live delivery exposes uncommitted state.
-  expect(fixture.events.after(0)).toEqual([]);
+  expect(await fixture.events.read(0)).toEqual([]);
   expect(events).toEqual([]);
 });
 test("delivers committed events when the outbox is dispatched", async () => {
@@ -56,22 +57,23 @@ test("delivers committed events when the outbox is dispatched", async () => {
   const seen: number[] = [];
   const unsubscribe = fixture.events.subscribe((event) => { seen.push(event.seq); });
   // When: the aggregate mutation and outbox commit.
-  const event = fixture.uow.local((tx) => fixture.events.append(tx, {
+  const event = await fixture.uow.run((tx) => fixture.events.record(tx, {
     topic: "document.saved", aggregateId: ids.project, payload: { resourceId: ids.mainFile, revision: 1, epoch: 0 },
   }));
-  fixture.events.dispatch();
+  await fixture.events.dispatch();
   unsubscribe();
   // Then: delivery and durable replay refer to the same sequence.
   expect(seen).toEqual([event.seq]);
-  expect(fixture.events.after(0)).toEqual([event]);
+  expect(await fixture.events.read(0)).toEqual([event]);
 });
 test("refuses changed migrations when an applied migration is edited", async () => {
   // Given: an already migrated database.
   await using fixture = await runtimeFixture();
   // When: the same migration ID is supplied with different SQL.
-  const apply = () => migrateDatabase(fixture.db, [{ id: "001-f-identity", sql: "SELECT 1;" }]);
+  const failure = await migrateDatabase(fixture.uow, [{ id: "001-f-identity", sql: "SELECT 1;" }])
+    .then(() => null, (error: unknown) => error);
   // Then: immutable migration history is enforced.
-  expect(apply).toThrow("MIGRATION_CHANGED");
+  expect(failure).toMatchObject({ code: "MIGRATION_CHANGED" });
 });
 test("detects damaged blob bytes when content is retrieved", async () => {
   // Given: a blob stored under its content digest.

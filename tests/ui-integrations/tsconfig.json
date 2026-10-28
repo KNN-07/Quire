@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../packages/runtime/src/assets.d.ts",
+    "../../apps/web/src/features/account/git.tsx",
+    "../../apps/web/src/features/account/connections.tsx",
+    "../../apps/web/src/features/account/connection-forms.tsx",
+    "../../apps/web/src/features/account/dropbox-policy.tsx"
+  ],
+  "exclude": ["../../node_modules", "./evidence"]
+}

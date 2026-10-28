@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/contracts/src",
+    "../../../packages/runtime/src",
+    "../../../scripts/seed.ts",
+    "../../fixtures/foundation.ts",
+    "../../fixtures/capture-portable-baseline.ts",
+    "../../fixtures/repository-git-probe.ts",
+    "./**/*.ts"
+  ],
+  "exclude": []
+}

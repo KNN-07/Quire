@@ -1,0 +1,12 @@
+.connection-providers strong{display:block}
+.connection-settings .q-button{min-height:var(--q-touch-target)}
+.connection-requirements{color:var(--q-secondary);overflow-wrap:anywhere;padding-top:var(--q-space-4)}
+.connection-form,.connection-confirm{margin-top:var(--q-space-7);padding:var(--q-space-7);background:var(--q-inset);border-radius:var(--q-radius-md)}
+.connection-confirm{display:flex;flex-direction:column;gap:var(--q-space-5)}
+.dropbox-settings .q-input{width:100%;min-width:0;box-sizing:border-box}
+.dropbox-settings .q-button{min-height:var(--q-touch-target)}
+.dropbox-settings select{overflow:hidden;text-overflow:ellipsis}
+.dropbox-result{display:flex;flex-direction:column;gap:var(--q-space-4);overflow-wrap:anywhere}
+.dropbox-result dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--q-space-4);margin:0}
+.dropbox-result dd{margin:0}
+@media(max-width:650px){.connection-settings .connection-grants .account-row>span:first-child{flex-basis:100%}}

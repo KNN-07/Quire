@@ -1,0 +1,7 @@
+\documentclass{article}
+\begin{document}
+Quire actual R and knitr fixture.
+<<calculation,echo=FALSE,results='asis'>>=
+cat("Computed result:", sum(1:10))
+@
+\end{document}

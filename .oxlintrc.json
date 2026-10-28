@@ -20,5 +20,9 @@
     "files": ["apps/*/src/**/*", "packages/*/src/**/*"],
     "rules": { "programming/no-em-dash-copy": "error" }
   }],
-  "ignorePatterns": ["node_modules/**", "dist/**", "docs/**"]
+  "ignorePatterns": [
+    "node_modules/**", "dist/**", "docs/**",
+    "tests/ui-editor/assembly/evidence/frame/**",
+    "tests/ui-editor/source/evidence/browser/**"
+  ]
 }

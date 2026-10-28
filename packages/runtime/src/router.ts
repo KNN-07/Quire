@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { endpointRegistry, IdSchema, resultSchema } from "@quire/contracts";
-import type { Endpoint, Id, Lane } from "@quire/contracts";
+import { endpointRegistry, endpoints, IdSchema, resultSchema } from "@quire/contracts";
+import type { Endpoint, Id, Lane, MutationAdmission } from "@quire/contracts";
 import { ServiceError } from "./errors";
 
 export type RequestContext = {
@@ -55,7 +55,7 @@ async function readBody(request: Request): Promise<unknown> {
 export class RouteRegistry {
   private readonly handlers = new Map<Endpoint, Registered>();
   private readonly routes: readonly Endpoint[];
-  constructor(routes: readonly Endpoint[] = endpointRegistry) {
+  constructor(routes: readonly Endpoint[] = endpointRegistry, private readonly admission?: MutationAdmission) {
     this.routes = [...routes].sort((a, b) => routePriority(b) - routePriority(a));
   }
   forLane(lane: Lane) {
@@ -111,7 +111,11 @@ export class RouteRegistry {
         if (!params) continue;
         const handler = this.handlers.get(route);
         if (!handler) throw new ServiceError("NOT_IMPLEMENTED", 501, `${route.method} ${route.path} is not registered`);
-        return await handler.invoke({ request, requestId, responseHeaders }, params);
+        const invoke = () => handler.invoke({ request, requestId, responseHeaders }, params);
+        // Backup owns exclusive admission itself. SSE outlives its HTTP response;
+        // its replay/delivery SQL takes admission at the storage boundary.
+        return await (this.admission && route !== endpoints.backupCreate && route !== endpoints.events
+          ? this.admission.writer(invoke) : invoke());
       }
       throw new ServiceError("NOT_FOUND", 404, "Route not found");
     } catch (error) {

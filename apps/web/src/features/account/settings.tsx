@@ -36,7 +36,7 @@ export function Settings(props: AccountPageProps) {
     return () => controller.abort();
   }, [load]);
   const requestedTab = new URL(props.path, location.origin).pathname.split("/")[2] ?? "profile";
-  const tab = requestedTab === "notif" ? "notifications" : requestedTab;
+  const tab = requestedTab === "notif" ? "notifications" : requestedTab === "identities" ? "security" : requestedTab;
   const settingsProps = account ? { ...props, account, userVersion: version, refresh } : null;
   return <>
     <AppHeader actions={<a href="/projects">Back to projects</a>}>Account</AppHeader>

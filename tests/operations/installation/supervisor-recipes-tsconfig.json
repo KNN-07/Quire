@@ -1,0 +1,8 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "./supervisor-recipes.test.ts"
+  ],
+  "exclude": []
+}

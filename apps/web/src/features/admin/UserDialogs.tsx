@@ -5,6 +5,7 @@ import { Button, Field, Modal } from "../../ui";
 import type { AdminClient } from "./api";
 import { errorMessage } from "./api";
 import { TransferProject } from "./TransferProject";
+import { ProjectRecovery } from "./ProjectRecovery";
 
 type DialogProps = {
   readonly client: AdminClient;
@@ -151,5 +152,6 @@ export function ManageUser({ client, user, onClose, onComplete }: DialogProps & 
       <TransferProject client={client} user={user} onComplete={onComplete} />
       {error && <p role="alert">{error}</p>}
     </form>
+    <ProjectRecovery client={client} user={user} onComplete={onComplete} />
   </Modal>;
 }

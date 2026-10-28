@@ -4,6 +4,8 @@ export * from "./accounts";
 export * from "./work";
 export * from "./events";
 export * from "./ports";
+export * from "./storage";
+export * from "./admission";
 export * from "./endpoint";
 export * from "./registry";
 export * from "./client";

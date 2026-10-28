@@ -8,8 +8,7 @@ test("authorizes anonymous SSE by its live Viewer token, replays Last-Event-ID a
   // Given: a real anonymous Viewer grant and an actual SSE stream scoped by that credential.
   await using fixture = await reviewFixture();
   const owner = await fixture.login();
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=?")
-    .run(JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true }));
+  (await fixture.runtime.db.run("UPDATE organizations SET policy_json=?", [JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true })]));
   const input = mutation(owner.headers, { role: "viewer", expectedVersion: 0 });
   const grant = await fixture.request(`/api/projects/${ids.project}/link`, { ...input, method: "PUT",
     headers: { ...Object.fromEntries(new Headers(input.headers)), "if-match": resourceVersionTag(0) } });
@@ -44,7 +43,7 @@ test("authorizes anonymous SSE by its live Viewer token, replays Last-Event-ID a
     if (part.done) throw new TypeError("Replay ended before the new checkpoint");
     replayText += new TextDecoder().decode(part.value);
   }
-  const version = fixture.service.getProject(ids.project).version;
+  const version = (await fixture.service.getProject(ids.project)).version;
   const revoke = mutation(owner.headers, { role: "off", expectedVersion: version });
   const revoked = await fixture.request(`/api/projects/${ids.project}/link`, { ...revoke, method: "PUT",
     headers: { ...Object.fromEntries(new Headers(revoke.headers)), "if-match": resourceVersionTag(version) } });

@@ -1,0 +1,11 @@
+export { SourcePanel } from "./SourcePanel";
+export type { SourceTool, SourceToolsHandle } from "../shared";
+export { createSourceEditor, sourceCommand } from "./editor";
+export type { SourceEditor, SourceEditorOptions, SourceCommand } from "./editor";
+export { texIndex, maskedTex, sourceOffset, sourceSelection, lineOffset } from "./tex";
+export type { TexIndex, TexHeading } from "./tex";
+export { codeCheck } from "./check";
+export type { CheckIssue, CheckRule } from "./check";
+export { texCompletion, texCommands, texEnvironments } from "./completion";
+export { createSpeller, spellingIssues } from "./spelling";
+export type { SpellingState, SpellingIssue, Speller } from "./spelling";

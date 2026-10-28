@@ -1,3 +1,4 @@
+import { rejects } from "node:assert/strict";
 import { expect, test } from "bun:test";
 import { z } from "zod";
 import { BillingAccountSchema, IdSchema, InvoiceSchema } from "@quire/contracts";
@@ -30,7 +31,7 @@ test("keeps billing details under their own optimistic counter", async () => {
   // Then: details and counter persist without changing membership or organization counters.
   expect(account.version).toBe(1);
   expect(account.invoiceEmail).toBe("invoices@example.test");
-  expect(z.object({ version: z.number() }).parse(app.runtime.db.query("SELECT version FROM organizations WHERE id=?").get(ids.team)).version).toBe(0);
+  expect(z.object({ version: z.number() }).parse((await app.runtime.db.get("SELECT version FROM organizations WHERE id=?", [ids.team]))).version).toBe(0);
   expect((await user.write(`/api/organizations/${ids.team}/billing/details`,
     { invoiceEmail: "stale@example.test", taxId: "", address: "", expectedVersion: 0 }, { method: "PATCH" })).status).toBe(409);
 });
@@ -52,9 +53,7 @@ test("returns only persisted organization invoices rather than placeholder billi
   const first = await data(await user.get(`/api/organizations/${ids.team}/billing`), BillingAccountSchema);
   const second = await data(await operator.get(`/api/organizations/${ids.institution}/billing`), BillingAccountSchema);
   const invoiceId = IdSchema.parse(crypto.randomUUID());
-  for (const account of [first, second]) app.runtime.db.query(
-    "INSERT INTO invoices(id,billing_account_id,amount_minor,currency,status,issued_at) VALUES(?,?,12500,'USD','open',?)")
-    .run(account.id === first.id ? invoiceId : crypto.randomUUID(), account.id, app.runtime.clock.now());
+  for (const account of [first, second]) await app.runtime.db.run("INSERT INTO invoices(id,billing_account_id,amount_minor,currency,status,issued_at) VALUES(?,?,12500,'USD','open',?)", [account.id === first.id ? invoiceId : crypto.randomUUID(), account.id, app.runtime.clock.now()]);
   // When: the organization admin reads invoices.
   const page = await data(await user.get(`/api/organizations/${ids.team}/billing/invoices`),
     z.object({ items: z.array(InvoiceSchema) }));
@@ -67,13 +66,13 @@ test("rejects a local billing capacity reduction below allocated seats", async (
   await using app = await governanceFixture();
   const operator = await app.login("operator@quire.local");
   // When: the operator tries to reduce capacity below the occupied seat count.
-  const transition = () => applyBillingTransition(app.context, operator.principal, {
+  const transition = async () => (await applyBillingTransition(app.context, operator.principal, {
     organizationId: ids.team, expectedVersion: 0, planId: "manual", period: "month",
     seats: 0, status: "active", renewsAt: null,
-  });
+  }));
   // Then: the transaction is rejected, with no partially initialized billing record.
-  expect(transition).toThrow();
-  expect(app.runtime.db.query("SELECT id FROM billing_accounts WHERE organization_id=?").get(ids.team)).toBeNull();
+  await rejects(transition(), { code: "SEATS_IN_USE" });
+  expect((await app.runtime.db.get("SELECT id FROM billing_accounts WHERE organization_id=?", [ids.team]))).toBeNull();
 });
 test("records a verified adapter transition without manufacturing a user session", async () => {
   // Given: an initialized billing account whose adapter boundary has verified a provider event.
@@ -81,13 +80,12 @@ test("records a verified adapter transition without manufacturing a user session
   const admin = await app.login();
   await admin.get(`/api/organizations/${ids.team}/billing`);
   // When: the adapter records its trusted transition inside the caller's transaction.
-  const result = app.runtime.uow.local(() => recordBillingTransition(app.context, {
+  const result = await app.runtime.uow.run(async (tx) => (await recordBillingTransition({ ...app.context, db: tx }, {
     actorId: null, organizationId: ids.team, expectedVersion: 0, planId: "configured-plan",
     provider: "configured", period: "year", seats: 3, status: "active", renewsAt: null,
-  }));
+  })));
   // Then: real persisted billing changes and a provider-origin audit entry has no fake actor.
   expect(result.provider).toBe("configured");
   expect(result.version).toBe(1);
-  expect(z.object({ actor_id: z.null() }).parse(app.runtime.db.query(
-    "SELECT actor_id FROM audit_entries WHERE event='billing.transitioned'").get()).actor_id).toBeNull();
+  expect(z.object({ actor_id: z.null() }).parse((await app.runtime.db.get("SELECT actor_id FROM audit_entries WHERE event='billing.transitioned'", []))).actor_id).toBeNull();
 });

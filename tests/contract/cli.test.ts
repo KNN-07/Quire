@@ -21,11 +21,11 @@ test("persists example source when migrate and seed run through their real CLI",
   expect({ code, stderr: code === 0 ? "" : stderr }).toEqual({ code: 0, stderr: "" });
   const runtime = await createRuntime(sandbox.config);
   try {
-    expect(runtime.db.query("SELECT id FROM users").all()).toHaveLength(6);
+    expect(await runtime.db.all("SELECT id FROM users")).toHaveLength(6);
     const row = z.strictObject({ blob: DigestSchema }).parse(
-      runtime.db.query("SELECT blob FROM files WHERE id=?").get(ids.mainFile));
+      await runtime.db.get("SELECT blob FROM files WHERE id=?", [ids.mainFile]));
     const actual = await runtime.blobs.get(row.blob);
     const original = await Bun.file(new URL("../fixtures/example/main.tex", import.meta.url)).bytes();
     expect(actual).toEqual(original);
-  } finally { runtime.close(); }
+  } finally { await runtime.close(); }
 });

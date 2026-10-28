@@ -20,7 +20,7 @@ test("persists uploaded bibliography copies independently across Library and two
   for (const project of [a, b]) {
     const scope = { projectId: project.id, branch: "main" };
     const citation = await fixture.mutate(`/api/projects/${project.id}/citations`, owner.headers,
-      { scope, publication: { ...publication, bibtex: entry.bibtex }, command: "cite", expectedVersion: fixture.service.getBranch(scope).revision });
+      { scope, publication: { ...publication, bibtex: entry.bibtex }, command: "cite", expectedVersion: (await fixture.service.getBranch(scope)).revision });
     copied.push({ scope, file: fileEnvelope.parse(await citation.json()).data });
   }
   // When: the Library record changes and one project's actual .bib source changes, then the runtime restarts.
@@ -30,15 +30,16 @@ test("persists uploaded bibliography copies independently across Library and two
   const first = copied[0];
   const other = copied[1];
   if (!first || !other) throw new TypeError("Expected two copied projects");
-  await fixture.service.serialized(first.scope, () => fixture.service.commitSource({
-    actorId: owner.user.id, scope: first.scope, expectedRevision: fixture.service.getBranch(first.scope).revision,
-    inputs: fixture.service.listFiles(first.scope).map(file => file.id === first.file.id
+  await fixture.service.serialized(first.scope, async lease => fixture.service.commitSource({
+    lease,
+    actorId: owner.user.id, scope: first.scope, expectedRevision: (await fixture.service.getBranch(first.scope)).revision,
+    inputs: (await fixture.service.listFiles(first.scope)).map(file => file.id === first.file.id
       ? { file, bytes: new TextEncoder().encode("@article{first,title={Project A only}}") } : { file }),
   }));
   await fixture.restart();
   // Then: independently persistent project bytes and the account record retain their own edits.
-  expect(fixture.service.readDocument(first.scope, first.file.id).text).toContain("Project A only");
-  expect(fixture.service.readDocument(other.scope, other.file.id).text.trim()).toBe(bib);
+  expect((await fixture.service.readDocument(first.scope, first.file.id)).text).toContain("Project A only");
+  expect((await fixture.service.readDocument(other.scope, other.file.id)).text.trim()).toBe(bib);
   const persisted = await fixture.request(`/api/me/library/${entry.id}`, { headers: owner.headers });
   expect(entryEnvelope.parse(await persisted.json()).data.bibtex).toContain("Library only");
 });
@@ -52,7 +53,7 @@ test("copies approved uploaded template source into independent projects when a 
   const scope = { projectId: source.id, branch: "main" };
   const form = new FormData();
   form.set("scope", JSON.stringify(scope));
-  form.set("expectedVersion", String(fixture.service.getBranch(scope).revision));
+  form.set("expectedVersion", String((await fixture.service.getBranch(scope)).revision));
   form.append("files", new File(["\\documentclass{article}\n\\begin{document}Uploaded original\\end{document}"], "uploaded.tex"));
   form.append("files", new File([bib], "actual.bib"));
   form.set("paths", JSON.stringify(["uploaded.tex", "actual.bib"]));
@@ -74,11 +75,12 @@ test("copies approved uploaded template source into independent projects when a 
   });
   const copy = projectEnvelope.parse(await copyResponse.json()).data;
   // When: the source changes and a new immutable snapshot version is approved and published.
-  const main = fixture.service.listFiles(scope).find(file => file.path === "uploaded.tex");
+  const main = (await fixture.service.listFiles(scope)).find(file => file.path === "uploaded.tex");
   if (!main) throw new TypeError("Expected uploaded source");
-  const snapshot = await fixture.service.serialized(scope, () => fixture.service.commitSource({
-    actorId: owner.user.id, scope, expectedRevision: fixture.service.getBranch(scope).revision,
-    inputs: fixture.service.listFiles(scope).map(file => file.id === main.id
+  const snapshot = await fixture.service.serialized(scope, async lease => fixture.service.commitSource({
+    lease,
+    actorId: owner.user.id, scope, expectedRevision: (await fixture.service.getBranch(scope)).revision,
+    inputs: (await fixture.service.listFiles(scope)).map(file => file.id === main.id
       ? { file, bytes: new TextEncoder().encode("\\documentclass{article}\n\\begin{document}New version\\end{document}") } : { file }),
   }));
   const next = await fixture.mutate(`/api/templates/${version.templateId}/versions`, owner.headers,
@@ -92,12 +94,12 @@ test("copies approved uploaded template source into independent projects when a 
   await fixture.restart();
   // Then: copied uploaded bytes remain pinned and independently editable after restart.
   const copyScope = { projectId: copy.id, branch: "main" };
-  const uploaded = fixture.service.listFiles(copyScope).find(file => file.path === "uploaded.tex");
+  const uploaded = (await fixture.service.listFiles(copyScope)).find(file => file.path === "uploaded.tex");
   if (!uploaded) throw new TypeError("Expected copied uploaded source");
-  expect(fixture.service.readDocument(copyScope, uploaded.id).text).toContain("Uploaded original");
-  const bibliography = fixture.service.listFiles(copyScope).find(file => file.path === "actual.bib");
+  expect((await fixture.service.readDocument(copyScope, uploaded.id)).text).toContain("Uploaded original");
+  const bibliography = (await fixture.service.listFiles(copyScope)).find(file => file.path === "actual.bib");
   if (!bibliography) throw new TypeError("Expected copied bibliography");
-  expect(fixture.service.readDocument(copyScope, bibliography.id).text).toBe(bib);
+  expect((await fixture.service.readDocument(copyScope, bibliography.id)).text).toBe(bib);
   expect(bibliography.link).toBeNull();
   expect(bibliography.editable).toBe(true);
 });

@@ -48,10 +48,6 @@ export async function build(input: BuildInput): Promise<BuildResult> {
     if (!main || main.kind !== "file" || !main.editable || main.link || !main.path.endsWith(".tex")) {
       throw new ServiceError("INVALID_MAIN", 422, "Main must be an editable unlinked .tex file");
     }
-    const source = await Bun.file(join(root, main.path)).text();
-    if (input.settings.engine !== "plain" && !/\\documentclass(?:\[.*?\])?\s*\{/.test(source)) {
-      throw new ServiceError("INVALID_MAIN", 422, "Main must contain documentclass");
-    }
     const projectRc = input.files.some((file) => file.path === ".latexmkrc") ? ".latexmkrc" :
       input.files.some((file) => file.path === "latexmkrc") ? "latexmkrc" : null;
     let engineFlags: readonly string[];
@@ -76,6 +72,8 @@ export async function build(input: BuildInput): Promise<BuildResult> {
       source: root, limits: input.limits ?? defaultLimits,
       ...(input.signal ? { signal: input.signal } : {}),
       ...(input.unitId ? { unitId: input.unitId } : {}),
+      installationWork: { kind: "compile", engine: input.settings.engine, mainFile: main.path,
+        draft: input.settings.draft, stopOnFirstError: input.settings.stopOnFirstError },
       command: ["/bin/sh", "-c",
         'latexmk "$@" >&2; code=$?; if [ "$code" = 0 ]; then mkdir -p /work/.validation; pdfinfo /work/output.pdf >&2 && pdftoppm -scale-to 16 /work/output.pdf /work/.validation/page >&2 || code=65; fi; printf "%s" "$code" >/work/exit-code; cd /work; tar --format=ustar -cf - -- *; exit "$code"',
         "build", ...flags, `/src/${main.path}`],

@@ -10,7 +10,7 @@ import { operationEndpoints } from "./routes-operations";
 import { transportEndpoints } from "./routes-transports";
 
 export const HealthSchema = z.strictObject({
-  status: z.literal("ok"), runtime: z.string(), database: z.literal("sqlite"), at: InstantSchema,
+  status: z.literal("ok"), runtime: z.string(), database: z.enum(["sqlite", "postgres"]), at: InstantSchema,
 });
 export const endpoints = {
   health: endpoint({ method: "GET", path: "/api/health", lane: "F" }, { input: noInput, output: HealthSchema }),

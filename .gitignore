@@ -14,3 +14,10 @@ coverage/
 tmp/
 docs/evidence/
 docs/discovery/design-source/
+apps/web/public/extensions/pyodide/
+apps/web/public/dictionaries/
+tests/ui-editor/assembly/evidence/frame/
+tests/ui-editor/source/evidence/browser/
+tests/**/evidence*/
+tests/fixtures/*.fixture-shm
+tests/fixtures/*.fixture-wal

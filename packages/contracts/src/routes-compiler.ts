@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { routesFor, none, noBody, list, version, key } from "./route-builders";
-import { IdSchema as id, CountSchema, ScopeSchema, OkSchema } from "./primitives";
+import { IdSchema as id, CountSchema, ScopeSchema, OkSchema, BranchSchema } from "./primitives";
 import { IdParamsSchema as ids, ProjectParamsSchema as p, BytesSchema } from "./endpoint";
 import { CompileJobSchema, CompileRequestSchema, OperationSchema, EnvironmentSchema,
-  DiagnosticSchema } from "./work";
-import { CompileSettingsSchema } from "./projects";
+  DiagnosticSchema, ArtifactSchema } from "./work";
+import { CompileSettingsSchema, SnapshotSchema } from "./projects";
 
 const r = routesFor("C");
 export const WorkerLeaseSchema = z.strictObject({
@@ -22,6 +22,11 @@ export const compilerEndpoints = {
   environmentsList: r("GET", "/api/environments", { params: none, query: none, body: noBody, output: z.array(EnvironmentSchema) }),
   compileCreate: r("POST", "/api/projects/:p/compiles", { params: p, query: none, body: CompileRequestSchema, output: CompileJobSchema, ...key, successStatus: 202 }),
   compileGet: r("GET", "/api/compiles/:id", { params: ids, query: none, body: noBody, output: CompileJobSchema }),
+  compilePreview: r("GET", "/api/projects/:p/compile-preview", { params: p,
+    query: z.strictObject({ branch: BranchSchema }), body: noBody,
+    output: z.strictObject({ job: CompileJobSchema.nullable(),
+      preview: z.strictObject({ artifact: ArtifactSchema, snapshot: SnapshotSchema, stale: z.boolean() }).readonly().nullable(),
+    }).readonly() }),
   compileCancel: r("POST", "/api/compiles/:id/cancel", { params: ids, query: none, body: z.strictObject(version), output: OkSchema }),
   compileLog: r("GET", "/api/compiles/:id/log", { params: ids, query: list, body: noBody, output: BytesSchema, transport: "bytes" }),
   artifactContent: r("GET", "/api/artifacts/:id/content", { params: ids, query: none, body: noBody, output: BytesSchema, transport: "bytes" }),

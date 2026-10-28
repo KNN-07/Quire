@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { compilerFixture, fixturePassword } from "./fixtures";
 
-export async function compilerHttp() {
-  const runtime = await compilerFixture({ integrated: true });
+export async function compilerHttp(options: Parameters<typeof compilerFixture>[0] = {}) {
+  const runtime = await compilerFixture({ ...options, integrated: true });
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     fetch: (request) => runtime.routes.fetch(request) });
   const request = (path: string, init: RequestInit = {}) => {

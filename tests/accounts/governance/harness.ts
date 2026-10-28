@@ -5,7 +5,7 @@ import type { ModuleContext } from "@quire/runtime";
 import { register as identity, migrations as identityMigrations } from "../../../services/accounts/identity";
 import { register, migrations } from "../../../services/accounts/governance";
 import { register as core, migrations as coreMigrations } from "../../../services/core/base";
-import { isolatedData } from "../../fixtures/runtime";
+import { isolatedData } from "../fixture";
 import { seed } from "../../../scripts/seed";
 
 export async function governanceFixture(options: { readonly core?: boolean } = {}) {
@@ -18,6 +18,9 @@ export async function governanceFixture(options: { readonly core?: boolean } = {
       { id: "011-a-governance", lane: "A", order: 11, register, migrations },
       ...(options.core ? [{ id: "020-k-core-base", lane: "K" as const, order: 20, register: core, migrations: coreMigrations }] : []),
     ],
+  }).catch(async (error: unknown) => {
+    await sandbox[Symbol.asyncDispose]();
+    throw error;
   });
   const password = "governance-test-password-2026";
   await seed(runtime, password);
@@ -48,7 +51,7 @@ export async function governanceFixture(options: { readonly core?: boolean } = {
   }
   const context: ModuleContext = { ...runtime, routes: runtime.routes.forLane("A") };
   return { runtime, context, request, login, setTime: (value: string) => { now = value; },
-    [Symbol.asyncDispose]: async () => { await server.stop(true); runtime.close(); await sandbox[Symbol.asyncDispose](); } };
+    [Symbol.asyncDispose]: async () => { await server.stop(true); await runtime.close(); await sandbox[Symbol.asyncDispose](); } };
 }
 export async function data<T extends z.ZodType>(response: Response, schema: T): Promise<z.output<T>> {
   if (!response.ok) throw new TypeError(`HTTP ${response.status}: ${await response.text()}`);

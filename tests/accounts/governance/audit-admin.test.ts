@@ -43,7 +43,7 @@ test("exports a private persisted audit operation rather than a backup or leaked
   const result = z.object({ format: z.literal("csv"), csv: z.string(), rows: z.number() }).parse(operation.result);
   expect(result.rows).toBe(1);
   expect(result.csv).not.toContain("password_hash");
-  expect(z.object({ actor_id: IdSchema }).parse(app.runtime.db.query("SELECT actor_id FROM operations WHERE id=?").get(operation.id)).actor_id).toBe(ids.kien);
+  expect(z.object({ actor_id: IdSchema }).parse((await app.runtime.db.get("SELECT actor_id FROM operations WHERE id=?", [operation.id]))).actor_id).toBe(ids.kien);
   expect((await admin.get("/api/admin/audit")).status).toBe(403);
 });
 test("filters operator user listings by persisted membership and lifecycle state", async () => {
@@ -51,7 +51,7 @@ test("filters operator user listings by persisted membership and lifecycle state
   await using app = await governanceFixture();
   const operator = await app.login("operator@quire.local");
   const admin = await app.login();
-  app.runtime.db.query("UPDATE users SET suspended=1 WHERE id=?").run(ids.sam);
+  await app.runtime.db.run("UPDATE users SET suspended=1 WHERE id=?", [ids.sam]);
   // When: the operator searches for the suspended guest by case-insensitive name.
   const page = await data(await operator.get("/api/admin/users?state=suspended&role=guest&q=SAM"),
     z.object({ items: z.array(AdminUserSummarySchema) }));
@@ -78,7 +78,7 @@ test("invites an account through real verification and password setup links", as
   await using app = await governanceFixture();
   const operator = await app.login("operator@quire.local");
   const invited = await data(await operator.write("/api/admin/users/invite", { name: "New user", email: "new@example.test" }), UserSchema);
-  const mail = z.object({ body: z.string() }).parse(app.runtime.db.query("SELECT body FROM mail_outbox WHERE recipient='new@example.test'").get());
+  const mail = z.object({ body: z.string() }).parse((await app.runtime.db.get("SELECT body FROM mail_outbox WHERE recipient='new@example.test'", [])));
   const urls = mail.body.match(/http:\/\/[^\s]+/g) ?? [];
   const verify = urls.find((url) => new URL(url).pathname === "/verify-email");
   const reset = urls.find((url) => new URL(url).pathname === "/reset-password");
@@ -91,6 +91,6 @@ test("invites an account through real verification and password setup links", as
   // Then: the created account has verified email and a real Argon2 password, not a fabricated success.
   expect(verification.status).toBe(200);
   expect(setup.status).toBe(200);
-  const row = z.object({ password_hash: z.string() }).parse(app.runtime.db.query("SELECT password_hash FROM users WHERE id=?").get(invited.id));
+  const row = z.object({ password_hash: z.string() }).parse((await app.runtime.db.get("SELECT password_hash FROM users WHERE id=?", [invited.id])));
   expect(await Bun.password.verify("new-invited-password-2026", row.password_hash)).toBe(true);
 });

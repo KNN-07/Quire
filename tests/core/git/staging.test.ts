@@ -12,14 +12,14 @@ test("T11 commits only a user's selected hunk while preserving unstaged browser 
   const scope = { projectId: project.id, branch: "main" };
   const service = fixture.service();
   const baseline = "\\documentclass{article}\n" + Array.from({ length: 24 }, (_, i) => `line ${i}\n`).join("");
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: service.getBranch(scope).revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(baseline) })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: (await service.getBranch(scope)).revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(baseline) })) }));
   await fixture.status(owner.headers, project.id);
   const changed = baseline.replace("line 1\n", "first edit\n").replace("line 22\n", "last edit\n");
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: service.getBranch(scope).revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: (await service.getBranch(scope)).revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(changed) })) }));
   const status = await fixture.status(owner.headers, project.id);
   const selected = status.hunks[0];
   if (!selected) throw new TypeError("Expected separated hunks");
@@ -39,7 +39,7 @@ test("T11 commits only a user's selected hunk while preserving unstaged browser 
   const committed = await run({ path: repositoryPath(service.context, project.id), args: ["show", "main:main.tex"] });
   expect(committed.text).toContain("first edit");
   expect(committed.text).toContain("line 22");
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(changed);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(changed);
   expect((await fixture.status(owner.headers, project.id)).hunks).toHaveLength(1);
 });
 
@@ -51,9 +51,9 @@ test("T11 rejects stale hunk selection and discards only a current selected hunk
   const scope = { projectId: project.id, branch: "main" };
   const before = await fixture.status(owner.headers, project.id);
   const service = fixture.service();
-  const original = service.readDocument(scope, project.settings.mainFileId).text;
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: before.revision, inputs: service.listFiles(scope).map(file => ({
+  const original = (await service.readDocument(scope, project.settings.mainFileId)).text;
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: before.revision, inputs: (await service.listFiles(scope)).map(file => ({
       file, bytes: new TextEncoder().encode(`${original}% browser edit\n`),
     })) }));
   const status = await fixture.status(owner.headers, project.id);
@@ -66,7 +66,7 @@ test("T11 rejects stale hunk selection and discards only a current selected hunk
   // Then: stale writes fail and the browser source returns to the named tree.
   expect(stale.status).toBe(409);
   expect(discard.status).toBe(200);
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(original);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(original);
   expect((await fixture.status(owner.headers, project.id)).head).toBe(before.head);
 });
 
@@ -77,12 +77,12 @@ test("T11 keeps staging private to each authenticated editor", async () => {
   const editor = await fixture.login("alex@quire.local");
   const project = await fixture.create(owner.headers);
   const scope = { projectId: project.id, branch: "main" };
-  fixture.runtime.db.query("INSERT INTO project_members(id,project_id,user_id,role,created_at) VALUES(?,?,?,'editor',?)")
-    .run(crypto.randomUUID(), project.id, editor.user.id, "2026-10-26T12:00:00.000Z");
+  await fixture.runtime.db.run("INSERT INTO project_members(id,project_id,user_id,role,created_at) VALUES(?,?,?,'editor',?)",
+    [crypto.randomUUID(), project.id, editor.user.id, "2026-10-26T12:00:00.000Z"]);
   const service = fixture.service();
   const before = await fixture.status(owner.headers, project.id);
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope, expectedRevision: before.revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(service.readDocument(scope, file.id).text + "% staged\n") })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope, expectedRevision: before.revision,
+    inputs: await Promise.all((await service.listFiles(scope)).map(async file => ({ file, bytes: new TextEncoder().encode((await service.readDocument(scope, file.id)).text + "% staged\n") }))) }));
   const status = await fixture.status(owner.headers, project.id);
   // When: only the owner stages the changed hunk.
   const response = await fixture.request(`/api/projects/${project.id}/git/stage`, { method: "PUT",
@@ -107,8 +107,8 @@ test("T11 stages an actual binary addition into real Git objects", async () => {
   const bytes = new Uint8Array([0, 255, 3, 0, 37, 91]);
   const file = FileEntrySchema.parse({ id: IdSchema.parse(crypto.randomUUID()), path: "figure.bin", kind: "file",
     mime: "application/octet-stream", blob: null, bytes: bytes.length, editable: false, link: null, version: { revision: 0, epoch: 0 } });
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope,
-    expectedRevision: before.revision, inputs: [...service.listFiles(scope).map(entry => ({ file: entry })), { file, bytes }] }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope,
+    expectedRevision: before.revision, inputs: [...(await service.listFiles(scope)).map(entry => ({ file: entry })), { file, bytes }] }));
   const status = await fixture.status(owner.headers, project.id);
   await fixture.request(`/api/projects/${project.id}/git/stage`, { method: "PUT",
     headers: { ...owner.headers, "if-match": `"v${status.revision}"` },
@@ -130,15 +130,15 @@ test("T11 preserves staged bytes when browser edits continue before commit", asy
   const scope = { projectId: project.id, branch: "main" };
   const service = fixture.service();
   const before = await fixture.status(owner.headers, project.id);
-  const original = service.readDocument(scope, project.settings.mainFileId).text;
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope, expectedRevision: before.revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% staged value\n`) })) }));
+  const original = (await service.readDocument(scope, project.settings.mainFileId)).text;
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope, expectedRevision: before.revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% staged value\n`) })) }));
   const staged = await fixture.status(owner.headers, project.id);
   await fixture.request(`/api/projects/${project.id}/git/stage`, { method: "PUT",
     headers: { ...owner.headers, "if-match": `"v${staged.revision}"` },
     body: JSON.stringify({ scope, head: staged.head, hunkIds: staged.hunks.map(hunk => hunk.id), staged: true, expectedVersion: staged.revision }) });
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope, expectedRevision: staged.revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% later browser value\n`) })) }));
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope, expectedRevision: staged.revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% later browser value\n`) })) }));
   await fixture.restart();
   const current = await fixture.status(owner.headers, project.id);
   // When: the user commits the persisted staging area after restart.
@@ -149,7 +149,7 @@ test("T11 preserves staged bytes when browser edits continue before commit", asy
   expect(response.status, JSON.stringify(fixture.failures)).toBe(202);
   expect((await run({ path: repositoryPath(fixture.service().context, project.id), args: ["show", "main:main.tex"] })).text)
     .toContain("% staged value");
-  expect(fixture.service().readDocument(scope, project.settings.mainFileId).text).toBe(`${original}% later browser value\n`);
+  expect((await fixture.service().readDocument(scope, project.settings.mainFileId)).text).toBe(`${original}% later browser value\n`);
 });
 
 test("T11 unstages a selected hunk without changing working source or named history", async () => {
@@ -160,9 +160,9 @@ test("T11 unstages a selected hunk without changing working source or named hist
   const scope = { projectId: project.id, branch: "main" };
   const service = fixture.service();
   const before = await fixture.status(owner.headers, project.id);
-  const text = service.readDocument(scope, project.settings.mainFileId).text + "% keep source\n";
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope, expectedRevision: before.revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(text) })) }));
+  const text = (await service.readDocument(scope, project.settings.mainFileId)).text + "% keep source\n";
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope, expectedRevision: before.revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(text) })) }));
   const status = await fixture.status(owner.headers, project.id);
   const body = { scope, head: status.head, hunkIds: status.hunks.map(hunk => hunk.id), staged: true, expectedVersion: status.revision };
   const headers = { ...owner.headers, "if-match": `"v${status.revision}"` };
@@ -176,5 +176,5 @@ test("T11 unstages a selected hunk without changing working source or named hist
   expect(after.staged).toHaveLength(0);
   expect(after.hunks).toHaveLength(1);
   expect(after.head).toBe(before.head);
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(text);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(text);
 });

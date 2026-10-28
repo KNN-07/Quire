@@ -6,6 +6,7 @@ import { mutationHeaders, Notice, unwrap, useAction, value } from "./shared";
 import type { AccountPageProps } from "./shared";
 import { StartingPoint } from "./starting-point";
 import { ProviderOptions, useAuthOptions } from "./auth-options";
+import { PasswordCreationField } from "./PasswordStrength";
 
 function AuthShell({ signup = false, children }: { readonly signup?: boolean; readonly children: ReactNode }) {
   return <div className={`account-auth${signup ? " account-signup" : ""}`}>
@@ -82,7 +83,7 @@ export function SignUp(props: AccountPageProps) {
         <fieldset disabled={action.busy || !availability.options?.registrationEnabled || !availability.options.passwordEnabled}>
           <Field label="Full name" name="name" required autoComplete="name" />
           <Field label="Email" name="email" type="email" required autoComplete="email" />
-          <Field label="Password" name="password" type="password" minLength={12} maxLength={1024} required autoComplete="new-password" hint="At least 12 characters" />
+          <PasswordCreationField label="Password" />
           <Notice {...action} /><Button type="submit" variant="primary" busy={action.busy}>Create account</Button>
         </fieldset>
       </form>
@@ -110,7 +111,7 @@ export function ResetPassword(props: AccountPageProps) {
         if (value(form, "password") !== value(form, "confirm")) { action.setError("Passwords do not match."); return; }
         void action.run(async () => { unwrap(await props.client.call(endpoints.passwordResetConfirm, { params: {}, query: {}, body: { token: token ?? "", password: value(form, "password") } })); await props.onSessionChange(); setState("done"); });
       }}>
-        <Field label="New password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={1024} required disabled={!availability.options?.passwordEnabled} hint="At least 12 characters" />
+        <PasswordCreationField label="New password" disabled={!availability.options?.passwordEnabled} />
         <Field label="Confirm password" name="confirm" type="password" autoComplete="new-password" minLength={12} required disabled={!availability.options?.passwordEnabled} />
         <Notice {...action} /><Button type="submit" variant="primary" busy={action.busy} disabled={!availability.options?.passwordEnabled}>Save new password</Button>
       </form>

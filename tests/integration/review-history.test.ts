@@ -13,7 +13,7 @@ test("accepts only selected anchored suggestions without overwriting a subscribe
   const editor = await fixture.login("mai@quire.local");
   const reviewer = await fixture.login("sam@quire.local");
   const scope = { projectId: ids.project, branch: "main" };
-  const base = fixture.service.loadDocument(scope, ids.mainFile);
+  const base = (await fixture.service.loadDocument(scope, ids.mainFile));
   const doc = sourceDoc(base.state);
   const chosen = proposal(doc, { fileId: ids.mainFile, before: "article", after: "report", baseRevision: base.revision });
   const omitted = proposal(doc, { fileId: ids.mainFile, before: "\\begin{document}",
@@ -39,7 +39,7 @@ test("accepts only selected anchored suggestions without overwriting a subscribe
   const rightChanged = right.next(message => message.type === "update" && message.revision === base.revision + 2);
   // When: the editor accepts just one edit after the independent collaborator save.
   const decision = mutation(owner.headers, { ids: [suggestion.id], editIds: [selectedId], decision: "accept",
-    expectedVersion: fixture.service.getBranch(scope).revision });
+    expectedVersion: (await fixture.service.getBranch(scope)).revision });
   const decided = await fixture.request(`/api/projects/${ids.project}/suggestions/decide`, decision);
   const result = z.object({ data: z.array(SuggestionSchema) }).parse(await decided.json()).data;
   await Promise.all([leftChanged, rightChanged]);
@@ -47,7 +47,7 @@ test("accepts only selected anchored suggestions without overwriting a subscribe
   // Then: only the selected proposal applied, both live clients saw it, and the concurrent work survived.
   expect(z.object({ data: z.array(SuggestionSchema) }).parse(await retry.json()).data).toEqual(result);
   expect(result[0]?.edits.map(edit => edit.status)).toEqual(["accepted", "pending"]);
-  const text = fixture.service.loadDocument(scope, ids.mainFile).text;
+  const text = (await fixture.service.loadDocument(scope, ids.mainFile)).text;
   expect(text).toContain(base.text.replace("article", "report"));
   expect(text).toContain("COLLABORATOR");
   expect(text).not.toContain("UNSELECTED");
@@ -61,7 +61,7 @@ test("restores deleted files and immutable history without resurrecting permanen
   const owner = await fixture.login();
   const reviewer = await fixture.login("sam@quire.local");
   const scope = { projectId: ids.project, branch: "main" };
-  const baseline = fixture.service.loadDocument(scope, ids.mainFile);
+  const baseline = (await fixture.service.loadDocument(scope, ids.mainFile));
   const doc = sourceDoc(baseline.state);
   const anchored = proposal(doc, { fileId: ids.mainFile, before: "article", after: "report", baseRevision: baseline.revision });
   const threadResponse = await fixture.request(`/api/projects/${ids.project}/threads`,
@@ -72,7 +72,7 @@ test("restores deleted files and immutable history without resurrecting permanen
   const extraResponse = await fixture.request(`/api/projects/${ids.project}/files`,
     mutation(owner.headers, { scope, path: "recover.tex", kind: "file", text: "RECOVER ME", expectedVersion: baseline.revision }));
   const extra = z.object({ data: FileEntrySchema }).parse(await extraResponse.json()).data;
-  const checkpoint = await fixture.service.snapshot(owner.user.id, scope, fixture.service.getBranch(scope).revision);
+  const checkpoint = await fixture.service.snapshot(owner.user.id, scope, (await fixture.service.getBranch(scope)).revision);
   const list = await fixture.request(`/api/projects/${ids.project}/history?branch=main`, { headers: owner.headers });
   const versions = z.object({ data: z.object({ items: z.array(HistoryVersionSchema) }) }).parse(await list.json()).data.items;
   const saved = versions.find(version => version.snapshot.id === checkpoint.id);
@@ -84,26 +84,26 @@ test("restores deleted files and immutable history without resurrecting permanen
   expect(deleted.status).toBe(200);
   const removed = await fixture.request(`/api/projects/${ids.project}/files/${extra.id}`, {
     method: "DELETE", headers: owner.headers,
-    body: JSON.stringify({ scope, expectedVersion: fixture.service.getBranch(scope).revision }),
+    body: JSON.stringify({ scope, expectedVersion: (await fixture.service.getBranch(scope)).revision }),
   });
   expect(removed.status).toBe(200);
-  const mainBefore = fixture.service.loadDocument(scope, ids.mainFile);
-  const restore = mutation(owner.headers, { scope, fileIds: [extra.id], expectedVersion: fixture.service.getBranch(scope).revision });
+  const mainBefore = (await fixture.service.loadDocument(scope, ids.mainFile));
+  const restore = mutation(owner.headers, { scope, fileIds: [extra.id], expectedVersion: (await fixture.service.getBranch(scope)).revision });
   const response = await fixture.request(`/api/projects/${ids.project}/history/${saved.id}/restore`, restore);
   const restored = z.object({ data: HistoryVersionSchema }).parse(await response.json()).data;
   const replay = await fixture.request(`/api/projects/${ids.project}/history/${saved.id}/restore`, restore);
   // Then: recovered source is a new checkpoint, unrelated source is byte-identical, and tombstones survive restart.
   expect(z.object({ data: HistoryVersionSchema }).parse(await replay.json()).data.id).toBe(restored.id);
   expect(restored.id).not.toBe(saved.id);
-  expect(fixture.service.loadDocument(scope, extra.id).text).toBe("RECOVER ME");
-  expect(fixture.service.loadDocument(scope, ids.mainFile)).toEqual(mainBefore);
+  expect((await fixture.service.loadDocument(scope, extra.id)).text).toBe("RECOVER ME");
+  expect((await fixture.service.loadDocument(scope, ids.mainFile))).toEqual(mainBefore);
   await fixture.restart();
   const full = await fixture.request(`/api/projects/${ids.project}/history/${saved.id}/restore`,
-    mutation(owner.headers, { scope, expectedVersion: fixture.service.getBranch(scope).revision }));
+    mutation(owner.headers, { scope, expectedVersion: (await fixture.service.getBranch(scope)).revision }));
   expect(full.status).toBe(200);
   const current = await fixture.request(`/api/projects/${ids.project}/threads/${thread.id}?branch=main`, { headers: owner.headers });
   expect(z.object({ data: ThreadSchema }).parse(await current.json()).data.comments).toEqual([]);
-  expect(fixture.runtime.db.query("SELECT 1 FROM permanent_comment_tombstones WHERE comment_id=?").get(comment.id)).not.toBeNull();
+  expect((await fixture.runtime.db.get("SELECT 1 FROM permanent_comment_tombstones WHERE comment_id=?", [comment.id]))).not.toBeNull();
   doc.destroy();
 });
 
@@ -112,7 +112,7 @@ test("rejects stale offline epochs after project restore and enforces history la
   await using fixture = await reviewFixture();
   const owner = await fixture.login();
   const scope = { projectId: ids.project, branch: "main" };
-  const baseline = fixture.service.loadDocument(scope, ids.mainFile);
+  const baseline = (await fixture.service.loadDocument(scope, ids.mainFile));
   const snapshot = await fixture.service.snapshot(owner.user.id, scope, baseline.revision);
   await using client = await peer(fixture.url, scope, owner.headers);
   const initialSync = client.next(message => message.type === "update");
@@ -138,7 +138,7 @@ test("rejects stale offline epochs after project restore and enforces history la
   const zip = await fixture.request(`/api/projects/${ids.project}/history/${snapshot.id}/source.zip?branch=main`, { headers: owner.headers });
   // Then: source never accepts old epochs, and real history endpoints expose immutable content.
   expect(await error).toMatchObject({ type: "error", code: "EPOCH_CHANGED", recoveryText: baseline.text });
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text).toBe(baseline.text);
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toBe(baseline.text);
   expect(comparison.status).toBe(200);
   expect(z.object({ data: z.object({ hunks: z.array(z.unknown()) }) }).parse(await comparison.json()).data.hunks).toEqual([]);
   const bytes = new Uint8Array(await zip.arrayBuffer());

@@ -10,7 +10,7 @@ test("converges two subscribed editors with overlapping updates, durable duplica
   const owner = await fixture.login();
   const editor = await fixture.login("mai@quire.local");
   const scope = { projectId: ids.project, branch: "main" };
-  const baseline = fixture.service.loadDocument(scope, ids.mainFile);
+  const baseline = (await fixture.service.loadDocument(scope, ids.mainFile));
   const first = sourceDoc(baseline.state);
   const second = sourceDoc(baseline.state);
   await using left = await peer(fixture.url, scope, owner.headers);
@@ -42,7 +42,7 @@ test("converges two subscribed editors with overlapping updates, durable duplica
   const duplicate = left.next(message => message.type === "ack");
   left.send(update);
   expect(await duplicate).toEqual(ack);
-  expect(fixture.service.getBranch(scope).revision).toBe(baseline.revision + 2);
+  expect((await fixture.service.getBranch(scope)).revision).toBe(baseline.revision + 2);
   await fixture.restart();
   await using reconnected = await peer(fixture.url, scope, owner.headers);
   const replay = reconnected.next(message => message.type === "ack");
@@ -56,7 +56,7 @@ test("converges two subscribed editors with overlapping updates, durable duplica
   Y.applyUpdate(first, Buffer.from(leftState.updateBase64, "base64"));
   Y.applyUpdate(second, Buffer.from(leftState.updateBase64, "base64"));
   expect(first.getText("source").toJSON()).toBe(second.getText("source").toJSON());
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text).toBe(first.getText("source").toJSON());
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toBe(first.getText("source").toJSON());
   expect(first.getText("source").toJSON()).toContain("left😀");
   expect(first.getText("source").toJSON()).toContain("right漢");
   const reconnectVector = Y.encodeStateVector(first);
@@ -65,7 +65,7 @@ test("converges two subscribed editors with overlapping updates, durable duplica
   reconnected.send({ ...update, clientSeq: 2,
     updateBase64: Buffer.from(Y.encodeStateAsUpdate(first, reconnectVector)).toString("base64") });
   await resumed;
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text.match(/OFFLINE RECONNECT/g)).toHaveLength(1);
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text.match(/OFFLINE RECONNECT/g)).toHaveLength(1);
   first.destroy(); second.destroy();
 });
 
@@ -75,7 +75,7 @@ test("rejects reviewer socket mutation and closes a live editor transport after 
   const editor = await fixture.login("mai@quire.local");
   const reviewer = await fixture.login("sam@quire.local");
   const scope = { projectId: ids.project, branch: "main" };
-  const baseline = fixture.service.loadDocument(scope, ids.mainFile);
+  const baseline = (await fixture.service.loadDocument(scope, ids.mainFile));
   await using writable = await peer(fixture.url, scope, editor.headers);
   await using readonly = await peer(fixture.url, scope, reviewer.headers);
   const synced = writable.next(message => message.type === "update");
@@ -91,16 +91,16 @@ test("rejects reviewer socket mutation and closes a live editor transport after 
   readonly.send(update);
   const error = await denied;
   const closed = new Promise<CloseEvent>(resolve => writable.socket.addEventListener("close", resolve, { once: true }));
-  fixture.runtime.uow.local(tx => {
-    tx.query("DELETE FROM project_members WHERE project_id=? AND user_id=?").run(ids.project, ids.mai);
-    fixture.runtime.events.append(tx, { topic: "access.changed", aggregateId: ids.project,
+  await fixture.runtime.uow.run(async tx => {
+    (await tx.run("DELETE FROM project_members WHERE project_id=? AND user_id=?", [ids.project, ids.mai]));
+    await fixture.runtime.events.record(tx, { topic: "access.changed", aggregateId: ids.project,
       payload: { resourceId: ids.project, version: 1 } });
   });
-  fixture.runtime.events.dispatch();
+  await fixture.runtime.events.dispatch();
   // Then: revocation is event-driven, and neither unauthorized update changed durable source.
   expect(error).toMatchObject({ type: "error", code: "FORBIDDEN" });
   expect((await closed).code).toBe(1008);
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text).toBe(baseline.text);
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toBe(baseline.text);
   doc.destroy();
 });
 

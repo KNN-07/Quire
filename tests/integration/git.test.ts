@@ -27,7 +27,7 @@ test("T11 real CLI clone fetch push materializes source and rejects revoked cred
   url.password = token.secretOnce;
   const work = join(fixture.path, "work");
   const cloned = await cli(["clone", url.toString(), work], fixture.path);
-  expect(cloned.code).toBe(0);
+  expect(cloned.code, JSON.stringify(cloned)).toBe(0);
   const original = await readFile(join(work, "main.tex"), "utf8");
   await writeFile(join(work, "main.tex"), `${original}% local Git change\n`);
   await cli(["add", "main.tex"], work);
@@ -39,7 +39,7 @@ test("T11 real CLI clone fetch push materializes source and rejects revoked cred
   // Then: the server has real Git ancestry and browser bytes, and revocation blocks the next fetch.
   expect({ code: pushed.code, failures: pushed.code ? fixture.failures : [] }).toEqual({ code: 0, failures: [] });
   expect(fetched.code).toBe(0);
-  expect(fixture.service().readDocument({ projectId: project.id, branch: "main" }, project.settings.mainFileId).text)
+  expect((await fixture.service().readDocument({ projectId: project.id, branch: "main" }, project.settings.mainFileId)).text)
     .toBe(`${original}% local Git change\n`);
   const head = await run({ path: repositoryPath(fixture.service().context, project.id), args: ["rev-parse", "main^"] });
   expect(`sha1:${head.text}`).toBe(status.head);
@@ -62,9 +62,9 @@ test("T11 quarantine rejects dirty-browser push without changing refs or running
   expect((await cli(["clone", url.toString(), work], fixture.path)).code).toBe(0);
   const service = fixture.service();
   const scope = { projectId: project.id, branch: "main" };
-  const original = service.readDocument(scope, project.settings.mainFileId).text;
-  await service.serialized(scope, () => service.commitSource({ actorId: owner.user.id, scope, expectedRevision: before.revision,
-    inputs: service.listFiles(scope).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% browser\n`) })) }));
+  const original = (await service.readDocument(scope, project.settings.mainFileId)).text;
+  await service.serialized(scope, async lease => service.commitSource({ lease, actorId: owner.user.id, scope, expectedRevision: before.revision,
+    inputs: (await service.listFiles(scope)).map(file => ({ file, bytes: new TextEncoder().encode(`${original}% browser\n`) })) }));
   const hookDir = join(repositoryPath(service.context, project.id), "hooks");
   await mkdir(hookDir, { recursive: true });
   const hook = join(hookDir, "pre-receive");
@@ -80,8 +80,8 @@ test("T11 quarantine rejects dirty-browser push without changing refs or running
   expect(separate.code).toBe(0);
   const after = await fixture.status(owner.headers, project.id);
   expect(after.head).toBe(before.head);
-  expect(service.readDocument(scope, project.settings.mainFileId).text).toBe(`${original}% browser\n`);
-  expect(service.readDocument({ ...scope, branch: "offline" }, project.settings.mainFileId).text).toBe(`${original}% local\n`);
+  expect((await service.readDocument(scope, project.settings.mainFileId)).text).toBe(`${original}% browser\n`);
+  expect((await service.readDocument({ ...scope, branch: "offline" }, project.settings.mainFileId)).text).toBe(`${original}% local\n`);
 });
 
 test("T11 fetch advertisement never leaks private checkpoint refs and current ACL is enforced", async () => {
@@ -102,11 +102,11 @@ test("T11 fetch advertisement never leaks private checkpoint refs and current AC
   expect((await cli(["init", attacker], fixture.path)).code).toBe(0);
   const hidden = await cli(["fetch", url.toString(), privateOid], attacker);
   const other = await fixture.login("alex@quire.local");
-  fixture.runtime.db.query("UPDATE projects SET owner_id=? WHERE id=?").run(other.user.id, project.id);
+  await fixture.runtime.db.run("UPDATE projects SET owner_id=? WHERE id=?", [other.user.id, project.id]);
   const denied = await cli(["ls-remote", url.toString()], fixture.path);
   // Then: only named refs are visible and an old token cannot retain the old ACL.
   expect(advertised.code).toBe(0);
-  expect(advertised.out).toContain("refs/heads/main");
+  expect(advertised.out, JSON.stringify(advertised)).toContain("refs/heads/main");
   expect(advertised.out).not.toContain("refs/quire/");
   expect(hidden.code).not.toBe(0);
   expect(denied.code).not.toBe(0);

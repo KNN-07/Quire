@@ -17,12 +17,14 @@ import { Environments } from "./Environments";
 import { Audit } from "./Audit";
 import { Templates } from "./Templates";
 import { EditorMaintenance } from "./EditorMaintenance";
+import { ProjectBenefits } from "./ProjectBenefits";
 import "./admin.css";
 
 export type { AdminPageProps } from "./api";
 type Overview = ResponseOf<typeof endpoints.adminOverview>;
 const navigation = [
   { id: "overview", label: "Overview" }, { id: "identity", label: "Authentication" },
+  { id: "benefits", label: "Project benefits" },
   { id: "users", label: "Users & groups" }, { id: "workers", label: "Compile workers" },
   { id: "tex", label: "TeX Live images" }, { id: "ai", label: "AI provider" },
   { id: "templates", label: "Templates" }, { id: "storage", label: "Storage & backups" },
@@ -80,6 +82,7 @@ export function AdminPage({ path, client, navigate }: AdminPageProps) {
           : <div className="admin-content">
             {section === "overview" ? <><Overview data={overview} refresh={() => setRefresh(previous => previous + 1)} navigate={navigate} /><EditorMaintenance client={client} /></>
               : section === "users" ? <Users client={client} />
+              : section === "benefits" ? <ProjectBenefits client={client} />
               : section === "workers" ? <Workers client={client} />
                 : section === "tex" ? <Environments client={client} navigate={navigate} />
                 : section === "ai" ? <Provider client={client} />

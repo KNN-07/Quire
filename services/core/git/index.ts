@@ -7,6 +7,7 @@ import { registerHttp } from "./http";
 export { migrations } from "./migrations";
 export { GitRepository } from "./repository";
 export { GitJournal } from "./journal";
+export { serveGitSession } from "./session";
 export { registerCredentials, credentialHash, tokenActor, sshFingerprint, sshActor } from "./credentials";
 export async function register(context: ModuleContext): Promise<void> {
   const projects = context.services.get("projects");

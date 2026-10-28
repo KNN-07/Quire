@@ -7,13 +7,15 @@ import { ServiceError } from "@quire/runtime";
 import type { Server, ServerWebSocket } from "bun";
 import { DocumentUpdates } from "./updates";
 import { fail, uuid } from "./store";
+import { PresenceQueue } from "./presence";
 
 type Socket = ServerWebSocket<RealtimeSocketData>;
-type Connection = { readonly request: Request; readonly files: Map<Id, number>; readonly presence: Map<string, number> };
+type Connection = { readonly request: Request; readonly files: Map<Id, number>; readonly presence: Map<string, PresenceQueue> };
 const upgradePath = /^\/api\/projects\/([^/]+)\/realtime\/?$/;
 export class RealtimeService extends DocumentUpdates implements RealtimePort {
   private readonly sockets = new Map<Socket, Connection>();
   private readonly pending = new Map<string, Request>();
+  private readonly tasks = new Set<Promise<unknown>>();
   private readonly unsubscribe: () => void;
   constructor(context: ModuleContext) {
     super(context);
@@ -30,12 +32,14 @@ export class RealtimeService extends DocumentUpdates implements RealtimePort {
         case "tree.changed": {
           for (const [socket, connection] of this.sockets) {
             if (socket.data.scope.projectId !== event.aggregateId) continue;
-            void this.refresh(socket, connection, event.topic === "tree.changed");
+            void this.track(context.admission.background(() => this.refresh(socket, connection, event.topic === "tree.changed")));
           }
           return;
         }
         case "policy.changed": {
-          for (const [socket, connection] of this.sockets) void this.refresh(socket, connection, false);
+          for (const [socket, connection] of this.sockets) {
+            void this.track(context.admission.background(() => this.refresh(socket, connection, false)));
+          }
           return;
         }
         case "document.saved":
@@ -62,17 +66,15 @@ export class RealtimeService extends DocumentUpdates implements RealtimePort {
         if (!connection) return;
         const parsed: unknown = JSON.parse(typeof bytes === "string" ? bytes : Buffer.from(bytes).toString());
         const message = RealtimeClientMessageSchema.parse(parsed);
-        await this.receive(socket, connection, message);
+        await this.track(this.context.admission.writer(() => this.receive(socket, connection, message)));
       } catch (error) {
-        if (error instanceof ServiceError) {
-          this.send(socket, { type: "error", code: error.code, message: error.message, recoveryText: null });
-          if (error.status === 401 || error.status === 403 || error.status === 404) socket.close(1008, error.code);
-        } else if (error instanceof z.ZodError || error instanceof SyntaxError) {
-          this.send(socket, { type: "error", code: "INVALID_MESSAGE", message: "Invalid realtime message", recoveryText: null });
-        } else { throw error; }
+        this.report(socket, error);
       }
     },
-    close: socket => { this.sockets.delete(socket); },
+    close: socket => {
+      for (const queue of this.sockets.get(socket)?.presence.values() ?? []) queue.close();
+      this.sockets.delete(socket);
+    },
   };
   async upgrade(request: Request, server: Server<RealtimeSocketData>): Promise<Response | undefined> {
     try {
@@ -110,51 +112,69 @@ export class RealtimeService extends DocumentUpdates implements RealtimePort {
   private send(socket: Socket, message: RealtimeServerMessage): void {
     socket.send(JSON.stringify(RealtimeServerMessageSchema.parse(message)));
   }
+  private report(socket: Socket, error: unknown): void {
+    if (error instanceof ServiceError) {
+      this.send(socket, { type: "error", code: error.code, message: error.message, recoveryText: null });
+      if ([401, 403, 404].includes(error.status)) socket.close(1008, error.code);
+    } else if (error instanceof z.ZodError || error instanceof SyntaxError) {
+      this.send(socket, { type: "error", code: "INVALID_MESSAGE", message: "Invalid realtime message", recoveryText: null });
+    } else { throw error; }
+  }
+  private async broadcastPresence(socket: Socket, connection: Connection,
+    message: Extract<RealtimeClientMessage, { readonly type: "presence" }>): Promise<void> {
+    if (!this.sockets.has(socket)) return;
+    const { scope } = socket.data;
+    const principal = await this.context.services.get("identity").require(connection.request);
+    await this.authorizeRead(connection.request, scope);
+    for (const [peer, target] of this.sockets) {
+      if (peer.data.scope.projectId === scope.projectId && peer.data.scope.branch === scope.branch && target.files.has(message.fileId)) {
+        await this.authorizeRead(target.request, scope);
+        this.send(peer, { ...message, name: principal.user.name, userId: principal.user.id });
+      }
+    }
+  }
   private async receive(socket: Socket, connection: Connection, message: RealtimeClientMessage): Promise<void> {
     const { scope } = socket.data;
     if (socket.data.sessionId) await this.context.services.get("identity").require(connection.request);
     await this.authorizeRead(connection.request, scope);
-    const file = this.projects.getFile(scope, message.fileId);
+    const file = (await this.projects.getFile(scope, message.fileId));
     if (!file.editable) fail("NOT_EDITABLE", 422, "File is not editable");
     switch (message.type) {
       case "sync": {
         if (file.version.epoch !== message.epoch) {
           this.send(socket, { type: "error", code: "EPOCH_CHANGED",
-            message: "Recover offline changes against the new document epoch", recoveryText: this.projects.loadDocument(scope, file.id).text });
+            message: "Recover offline changes against the new document epoch", recoveryText: (await this.projects.loadDocument(scope, file.id)).text });
           return;
         }
         connection.files.set(file.id, message.epoch);
-        this.sync(socket, file.id, message.stateVectorBase64);
+        (await this.sync(socket, file.id, message.stateVectorBase64));
         return;
       }
       case "update": {
         await this.projects.authorizeRequest(connection.request, scope, "document.update");
         if (file.version.epoch !== message.epoch) {
           this.send(socket, { type: "error", code: "EPOCH_CHANGED", message: "Offline edits require explicit recovery",
-            recoveryText: this.projects.loadDocument(scope, file.id).text }); return;
+            recoveryText: (await this.projects.loadDocument(scope, file.id)).text }); return;
         }
         const ack = await this.update(connection.request, scope, message);
         this.send(socket, ack);
         return;
       }
       case "presence": {
-        const now = performance.now();
-        if (now - (connection.presence.get(file.id) ?? -Infinity) < 50) return;
-        connection.presence.set(file.id, now);
-        const principal = await this.context.services.get("identity").require(connection.request);
-        for (const [peer, target] of this.sockets) {
-          if (peer.data.scope.projectId === scope.projectId && peer.data.scope.branch === scope.branch && target.files.has(file.id)) {
-            await this.authorizeRead(target.request, scope);
-            this.send(peer, { ...message, name: principal.user.name, userId: principal.user.id });
-          }
+        let queue = connection.presence.get(file.id);
+        if (!queue) {
+          queue = new PresenceQueue(value => this.track(this.context.admission.background(() =>
+            this.broadcastPresence(socket, connection, value)).catch(error => this.report(socket, error))));
+          connection.presence.set(file.id, queue);
         }
+        queue.push(message);
         return;
       }
       default: assertNever(message);
     }
   }
-  private sync(socket: Socket, fileId: Id, vector?: string): void {
-    const source = this.projects.loadDocument(socket.data.scope, fileId);
+  private async sync(socket: Socket, fileId: Id, vector?: string): Promise<void> {
+    const source = (await this.projects.loadDocument(socket.data.scope, fileId));
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, Buffer.from(source.state, "base64"));
@@ -174,15 +194,17 @@ export class RealtimeService extends DocumentUpdates implements RealtimePort {
       await this.authorizeRead(connection.request, socket.data.scope);
       if (changed) {
         for (const [fileId, epoch] of connection.files) {
-          const file = this.projects.listFiles(socket.data.scope).find(entry => entry.id === fileId && entry.editable);
+          const file = (await this.projects.listFiles(socket.data.scope)).find(entry => entry.id === fileId && entry.editable);
           if (!file) {
             connection.files.delete(fileId);
+            connection.presence.get(fileId)?.close();
+            connection.presence.delete(fileId);
             this.send(socket, { type: "error", code: "FILE_REMOVED", message: "The subscribed file was removed", recoveryText: null });
           } else if (file.version.epoch !== epoch) {
             connection.files.delete(fileId);
             this.send(socket, { type: "error", code: "EPOCH_CHANGED", message: "Recover local edits before synchronizing",
-              recoveryText: this.projects.loadDocument(socket.data.scope, fileId).text });
-          } else this.sync(socket, fileId);
+              recoveryText: (await this.projects.loadDocument(socket.data.scope, fileId)).text });
+          } else (await this.sync(socket, fileId));
         }
       }
     } catch (error) {
@@ -190,9 +212,18 @@ export class RealtimeService extends DocumentUpdates implements RealtimePort {
       throw error;
     }
   }
-  dispose(): void {
+  private async track<T>(task: Promise<T>): Promise<T> {
+    this.tasks.add(task);
+    try { return await task; }
+    finally { this.tasks.delete(task); }
+  }
+  async dispose(): Promise<void> {
     this.unsubscribe();
-    for (const socket of this.sockets.keys()) socket.close(1001, "Service stopped");
+    for (const [socket, connection] of this.sockets) {
+      for (const queue of connection.presence.values()) queue.close();
+      socket.close(1001, "Service stopped");
+    }
     this.sockets.clear(); this.pending.clear();
+    await Promise.all(this.tasks);
   }
 }

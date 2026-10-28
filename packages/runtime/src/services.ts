@@ -17,7 +17,8 @@ export type RealtimeSocketData = {
   readonly actorId: Id | null; readonly sessionId: Id | null; readonly connectionId: Id; readonly scope: Scope;
 };
 export interface RealtimePort {
-  readonly handlers: WebSocketHandler<RealtimeSocketData>;
+  readonly handlers: WebSocketHandler<RealtimeSocketData>
+    & Required<Pick<WebSocketHandler<RealtimeSocketData>, "message">>;
   upgrade(request: Request, server: Server<RealtimeSocketData>): Response | undefined | Promise<Response | undefined>;
 }
 export type ServicePorts = {

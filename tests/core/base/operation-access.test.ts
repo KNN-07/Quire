@@ -8,13 +8,17 @@ async function diagnosticOperation(fixture: Awaited<ReturnType<typeof baseFixtur
   const bytes = new Uint8Array([1, 3, 5, 7]);
   const blob = await fixture.runtime.blobs.put(bytes);
   const id = IdSchema.parse(crypto.randomUUID());
-  fixture.runtime.uow.local(tx => {
-    referenceBlob(tx, { digest: blob, bytes: bytes.length }, clock);
-    tx.query(`INSERT INTO operations(id,actor_id,kind,status,progress,result_json,idempotency_key,created_at,updated_at)
-      VALUES(?,?,'diagnostics','succeeded',1,?,?,?,?)`).run(id, actorId,
-      JSON.stringify({ blob, projectIds: [], operatorOnly: true,
-        filename: "private-diagnostic.bin", mime: "application/octet-stream" }), crypto.randomUUID(), clock.now(), clock.now());
-  });
+  (await fixture.runtime.uow.run(async (tx) => {
+    await tx.lock("quire:accounts");
+
+    (await referenceBlob(tx, { digest: blob, bytes: bytes.length }, clock));
+    (await tx.run(`INSERT INTO operations(id,actor_id,kind,status,progress,result_json,idempotency_key,created_at,updated_at)
+      VALUES(?,?,'diagnostics','succeeded',1,?,?,?,?)`, [id, actorId, JSON.stringify({
+      blob, projectIds: [], operatorOnly: true,
+      filename: "private-diagnostic.bin", mime: "application/octet-stream"
+    }), crypto.randomUUID(), clock.now(), clock.now()]));
+
+  }));
   return { id, bytes };
 }
 
@@ -37,7 +41,7 @@ test("denies an operator-only result after the owning account loses operator acc
   await using fixture = await baseFixture();
   const operator = await fixture.login("operator@quire.local");
   const operation = await diagnosticOperation(fixture, operator.user.id);
-  fixture.runtime.db.query("UPDATE users SET operator=0,version=version+1 WHERE id=?").run(operator.user.id);
+  (await fixture.runtime.db.run("UPDATE users SET operator=0,version=version+1 WHERE id=?", [operator.user.id]));
   // When: the same valid user session requests the privileged result.
   const response = await fixture.request(`/api/operations/${operation.id}/download`, { headers: operator.headers });
   // Then: historical ownership does not bypass current operator authorization.

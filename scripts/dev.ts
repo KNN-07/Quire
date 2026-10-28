@@ -1,6 +1,10 @@
+import { installPythonAssets } from "./python-assets";
+import { installSpellingAssets } from "./spelling-assets";
+
+await Promise.all([installPythonAssets(), installSpellingAssets()]);
 const children = [
   Bun.spawn(["bun", "--watch", "apps/server/src/main.ts"], { stdout: "inherit", stderr: "inherit" }),
-  Bun.spawn(["bun", "--bun", "vite", "--config", "apps/web/vite.config.ts"], { stdout: "inherit", stderr: "inherit" }),
+  Bun.spawn(["node", "node_modules/vite/bin/vite.js", "--config", "apps/web/vite.config.ts"], { stdout: "inherit", stderr: "inherit" }),
 ];
 const interrupted = new Promise<number>((resolve) => {
   process.once("SIGINT", () => { resolve(0); });

@@ -3,21 +3,23 @@ import { unzipSync } from "fflate";
 import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 import { WorkerLeaseSchema, FileEntrySchema, DigestSchema, IdSchema, EnvironmentSchema } from "@quire/contracts";
-import type { BlobStore, Id } from "@quire/contracts";
+import type { BlobStore, Id, Environment } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
-import { build } from "./build";
+import { workerEnvironments, assertEnvironmentIdentity, buildEnvironment } from "./profiles";
 import { parseDiagnostics } from "../../services/compiler/diagnostics";
-import { probeEnvironment } from "../../services/compiler/environment";
+import { pdfValidationReceipt } from "../../services/compiler/pdf-receipt";
+import { validateDockerPdf } from "./pdf-validation";
 
 export type WorkerOptions = {
   readonly baseUrl: string; readonly bearer: string; readonly workerId: Id;
   readonly environmentIds: readonly Id[]; readonly signal: AbortSignal;
+  readonly environments?: readonly Environment[];
 };
 export async function runRemoteWorker(options: WorkerOptions): Promise<void> {
-  const environment = await probeEnvironment(options.signal);
+  const environments = await workerEnvironments(options.environments, options.signal);
   if (options.signal.aborted) return;
-  if (!environment.available || options.environmentIds.some((id) => id !== environment.id)) {
-    throw new ServiceError("WORKER_ENVIRONMENT_MISMATCH", 503, "Worker environment has not passed the native confinement probe");
+  if (options.environmentIds.some(id => !environments.has(id))) {
+    throw new ServiceError("WORKER_ENVIRONMENT_MISMATCH", 503, "Worker environment has not passed its confinement probe");
   }
   const http = ky.create({ prefixUrl: options.baseUrl.replace(/\/?$/, "/"), retry: 0,
     timeout: 15000, headers: { authorization: `Bearer ${options.bearer}` } });
@@ -40,9 +42,11 @@ export async function runRemoteWorker(options: WorkerOptions): Promise<void> {
     if (!manifest) throw new ServiceError("SOURCE_MANIFEST_MISSING", 422, "Worker source archive lacks file identities");
     const metadata = z.strictObject({ files: z.array(FileEntrySchema), environment: EnvironmentSchema })
       .parse(JSON.parse(new TextDecoder().decode(manifest)));
-    if (metadata.environment.rootOrImageDigest !== environment.rootOrImageDigest) {
-      throw new ServiceError("WORKER_ENVIRONMENT_MISMATCH", 409, "Worker and coordinator toolchain digests differ");
+    const environment = environments.get(lease.environmentId);
+    if (!environment || metadata.environment.id !== lease.environmentId || lease.settings.environmentId !== lease.environmentId) {
+      throw new ServiceError("WORKER_ENVIRONMENT_MISMATCH", 409, "Worker lease and source manifest select different environments");
     }
+    assertEnvironmentIdentity(metadata.environment, environment);
     const { files } = metadata;
     const source = new Map<string, Uint8Array>();
     for (const file of files) if (file.blob) {
@@ -72,7 +76,7 @@ export async function runRemoteWorker(options: WorkerOptions): Promise<void> {
     }, 10000);
     const started = performance.now();
     try {
-      const result = await build({ files, blobs, settings: lease.settings, limits: lease.limits,
+      const result = await buildEnvironment({ files, blobs, settings: lease.settings, environment, limits: lease.limits,
         signal: controller.signal, unitId: lease.jobId });
       if (heartbeatError) throw heartbeatError;
       const artifacts = new Map(result.files);
@@ -81,8 +85,17 @@ export async function runRemoteWorker(options: WorkerOptions): Promise<void> {
       for (const [name, bytes] of artifacts) {
         if (/^(?:tmp|cache|texmf-var|texmf-config)\//.test(name) || name === "exit-code") continue;
         const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+        let validation: string | undefined;
+        if (name.endsWith(".pdf") && environment.backend === "docker") {
+          await validateDockerPdf(bytes, environment, controller.signal);
+          validation = pdfValidationReceipt(options.bearer, {
+            jobId: lease.jobId, ...query, environmentId: environment.id,
+            imageDigest: environment.rootOrImageDigest, name, digest,
+          });
+        }
         const uploaded = await http.put(`internal/jobs/${lease.jobId}/artifacts/${encodeURIComponent(name)}`, {
           searchParams: query, body: new Uint8Array(bytes), headers: { ...headers, "if-match": `"v${lease.fencingToken}"`,
+            ...(validation ? { "x-pdf-validation": validation } : {}),
             "x-content-sha256": digest }, signal: options.signal,
         }).json();
         artifactIds.push(z.object({ data: z.object({ id: IdSchema }) }).parse(uploaded).data.id);

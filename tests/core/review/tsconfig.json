@@ -1,0 +1,11 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../services/core/review/**/*.ts",
+    "./**/*.ts",
+    "../../integration/collaboration.test.ts",
+    "../../integration/review-history.test.ts"
+  ],
+  "exclude": []
+}

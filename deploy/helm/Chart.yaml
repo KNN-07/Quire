@@ -1,0 +1,6 @@
+apiVersion: v2
+name: quire
+description: Quire portable API, realtime and singleton repository roles
+type: application
+version: 0.1.0
+appVersion: "1.3.14"

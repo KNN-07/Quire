@@ -14,7 +14,7 @@ test("reads a persisted comment counter after reload and uses it for a real edit
   const thread = z.object({ data: ThreadSchema }).parse(await created.json()).data;
   const comment = thread.comments[0];
   if (!comment) throw new TypeError("Expected comment");
-  fixture.runtime.db.query("UPDATE comments SET version=7 WHERE id=?").run(comment.id);
+  (await fixture.runtime.db.run("UPDATE comments SET version=7 WHERE id=?", [comment.id]));
   const reloaded = await fixture.request(`/api/projects/${ids.project}/threads/${thread.id}?branch=main`, { headers: author.headers });
   const current = z.object({ data: ThreadSchema }).parse(await reloaded.json()).data.comments[0];
   if (!current) throw new TypeError("Expected persisted comment");
@@ -35,7 +35,7 @@ test("exposes the label aggregate counter rather than the source revision", asyn
   const first = await fixture.request(`/api/projects/${ids.project}/history?branch=main`, { headers: owner.headers });
   const version = z.object({ data: z.object({ items: z.array(HistoryVersionSchema) }) }).parse(await first.json()).data.items[0];
   if (!version) throw new TypeError("Expected immutable history");
-  fixture.runtime.db.query("UPDATE history_versions SET version=7 WHERE id=?").run(version.id);
+  (await fixture.runtime.db.run("UPDATE history_versions SET version=7 WHERE id=?", [version.id]));
   const reload = await fixture.request(`/api/projects/${ids.project}/history?branch=main`, { headers: owner.headers });
   const current = z.object({ data: z.object({ items: z.array(HistoryVersionSchema) }) }).parse(await reload.json()).data.items[0];
   if (!current) throw new TypeError("Expected persisted history counter");

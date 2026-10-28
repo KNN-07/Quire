@@ -16,10 +16,10 @@ export async function searchProject(service: CoreProjects, scope: Scope, query: 
   } catch (error) { if (error instanceof SyntaxError) fail("INVALID_REGEX", 400, error.message); throw error; }
   const excluded: { readonly fileId: Id; readonly reason: string }[] = [];
   const files: { readonly id: Id; readonly text: string }[] = [];
-  for (const file of service.listFiles(scope)) {
+  for (const file of (await service.listFiles(scope))) {
     if (file.kind === "folder") continue;
     if (!file.editable) { excluded.push({ fileId: file.id, reason: file.link ? "linked source" : "binary or edit-size limit" }); continue; }
-    files.push({ id: file.id, text: service.readDocument(scope, file.id).text });
+    files.push({ id: file.id, text: (await service.readDocument(scope, file.id)).text });
   }
   const worker = new Worker(new URL("./search-worker.ts", import.meta.url).href);
   const signal = AbortSignal.timeout(1000);

@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata: {name: bucket}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000}
+      containers:
+        - name: bucket
+          image: quire-p2o-deployment-app:shared-backups
+          imagePullPolicy: Never
+          command: [bun, deploy/runtime/bucket.ts]
+          envFrom: [{secretRef: {name: quire-p2o-deployment}}]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}

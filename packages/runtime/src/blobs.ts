@@ -1,8 +1,7 @@
 import { mkdir, open, readFile, link, unlink } from "node:fs/promises";
 import { join } from "node:path";
-import type { Database } from "bun:sqlite";
 import { DigestSchema } from "@quire/contracts";
-import type { BlobStore, Digest, Clock } from "@quire/contracts";
+import type { BlobStore, Digest, Clock, Transaction } from "@quire/contracts";
 import { StorageError } from "./errors";
 
 export class DiskBlobStore implements BlobStore {
@@ -35,9 +34,9 @@ export class DiskBlobStore implements BlobStore {
     return bytes;
   }
 }
-export function referenceBlob(db: Database, blob: {
+export async function referenceBlob(db: Transaction, blob: {
   readonly digest: Digest; readonly bytes: number;
-}, clock: Clock): void {
-  db.query("INSERT OR IGNORE INTO blobs(digest,bytes,created_at) VALUES(?,?,?)")
-    .run(blob.digest, blob.bytes, clock.now());
+}, clock: Clock): Promise<void> {
+  await db.run("INSERT INTO blobs(digest,bytes,created_at) VALUES(?,?,?) ON CONFLICT(digest) DO NOTHING",
+    [blob.digest, blob.bytes, clock.now()]);
 }

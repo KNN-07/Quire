@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/transport/**/*.ts",
+    "./**/*.ts"
+  ]
+}

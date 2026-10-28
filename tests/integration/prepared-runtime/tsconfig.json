@@ -1,0 +1,11 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../packages/runtime/src/context.ts",
+    "../../../packages/runtime/src/lifecycle.ts",
+    "../../../packages/runtime/src/prepared.ts",
+    "../../../apps/server/src/composition.ts",
+    "./**/*.ts"
+  ]
+}

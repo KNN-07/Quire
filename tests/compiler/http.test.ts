@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { z } from "zod";
-import { CompileJobSchema, EnvironmentSchema, parseResourceVersionTag, OperationSchema, IdSchema } from "@quire/contracts";
+import { CompileJobSchema, EnvironmentSchema, parseResourceVersionTag, OperationSchema, IdSchema, endpoints } from "@quire/contracts";
 import { compilerHttp } from "./http-fixture";
 import { fixtureIds as ids, terminalEvent, settings } from "./fixtures";
 import { pdfText } from "./pdf-text";
@@ -45,7 +45,7 @@ test("T09 HTTP Viewer reads existing jobs, PDFs, logs and SyncTeX through real c
       settings: { ...settings, stopOnFirstError: false }, clean: true }, "viewer-read");
   await done;
   const headers = await app.login("alex@quire.local");
-  const pdf = app.runtime.store.get(job.id).artifacts.find((item) => item.name === "output.pdf");
+  const pdf = (await app.runtime.store.get(job.id)).artifacts.find((item) => item.name === "output.pdf");
   if (!pdf) throw new TypeError("Successful compile did not produce a PDF");
   // When the Viewer requests the four read-only compiler surfaces.
   const [existing, content, log, navigation] = await Promise.all([
@@ -86,15 +86,17 @@ test("T10 HTTP returns an asynchronous operation for real snapshot PDF compariso
     expect(response.status).toBe(202);
     expect(operation.status).toBe("running");
     expect(await done.promise).toBe(operation.id);
-    const row = z.object({ status: z.string(), result_json: z.string() }).parse(app.runtime.db.query(
-      "SELECT status,result_json FROM operations WHERE id=?").get(operation.id));
+    const row = z.object({ status: z.string(), result_json: z.string() }).parse((await app.runtime.db.get("SELECT status,result_json FROM operations WHERE id=?", [operation.id])));
     expect(row.status).toBe("succeeded");
     const result = z.object({ artifactId: IdSchema, regions: z.array(z.unknown()) }).parse(JSON.parse(row.result_json));
     expect(result.regions).toEqual([]);
     const artifact = await app.request(`/api/artifacts/${result.artifactId}/content`, { headers });
     expect(await pdfText(new Uint8Array(await artifact.arrayBuffer()))).toContain("Latent Dynamics");
-    expect(z.object({ count: z.number() }).parse(app.runtime.db.query(
-      "SELECT count(*) AS count FROM compiler_previews").get()).count).toBe(0);
+    expect(z.object({ count: z.number() }).parse((await app.runtime.db.get("SELECT count(*) AS count FROM compiler_previews", []))).count).toBe(0);
+    const discovery = await app.request(`/api/projects/${ids.project}/compile-preview?branch=main`, { headers });
+    expect(discovery.status).toBe(200);
+    expect(z.object({ data: endpoints.compilePreview.output }).parse(await discovery.json()).data)
+      .toEqual({ job: null, preview: null });
   } finally { clearTimeout(deadline); unsubscribe(); }
 }, 90000);
 
@@ -116,7 +118,7 @@ test("T08 HTTP cancellation uses real session CSRF and version checks", async ()
   expect((await app.runtime.services.get("compiler").get(ids.kien, job.id)).status).toBe("canceled");
   const cleared = await app.request(`/api/projects/${ids.project}/compile-cache`, { method: "DELETE", headers,
     body: JSON.stringify({ scope: { projectId: ids.project, branch: "main" },
-      expectedVersion: z.object({ version: z.number() }).parse(app.runtime.db.query("SELECT version FROM projects WHERE id=?").get(ids.project)).version }) });
+      expectedVersion: z.object({ version: z.number() }).parse((await app.runtime.db.get("SELECT version FROM projects WHERE id=?", [ids.project]))).version }) });
   expect(cleared.status).toBe(200);
   expect((await app.request(`/api/compiles/${job.id}/cancel`, { method: "POST", headers: { cookie: headers.cookie },
     body: JSON.stringify({ expectedVersion: version }) })).status).toBe(403);
@@ -156,16 +158,16 @@ test("T08 HTTP cache clear removes real generated cache without altering immutab
     { scope: { projectId: ids.project, branch: "main" }, expectedRevision: 0,
       settings: { ...settings, stopOnFirstError: false }, clean: true }, "cache-clear");
   await done;
-  const count = () => z.object({ count: z.number() }).parse(app.runtime.db.query("SELECT count(*) AS count FROM compiler_cache").get()).count;
-  expect(count()).toBe(1);
+  const count = async () => z.object({ count: z.number() }).parse((await app.runtime.db.get("SELECT count(*) AS count FROM compiler_cache", []))).count;
+  expect(await count()).toBe(1);
   const projects = app.runtime.services.get("projects");
   const before = await projects.readSnapshot(job.snapshot.id);
-  const version = z.object({ version: z.number() }).parse(app.runtime.db.query("SELECT version FROM projects WHERE id=?").get(ids.project)).version;
+  const version = z.object({ version: z.number() }).parse((await app.runtime.db.get("SELECT version FROM projects WHERE id=?", [ids.project]))).version;
   // When the authorized HTTP cache mutation runs.
   const response = await app.request(`/api/projects/${ids.project}/compile-cache`, { method: "DELETE", headers,
     body: JSON.stringify({ scope: job.snapshot.scope, expectedVersion: version }) });
   // Then actual generated cache is gone while the source blob identities remain unchanged.
   expect(response.status).toBe(200);
-  expect(count()).toBe(0);
+  expect(await count()).toBe(0);
   expect((await projects.readSnapshot(job.snapshot.id)).files.map((file) => file.blob)).toEqual(before.files.map((file) => file.blob));
 }, 90000);

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "../../../apps/web/src/features/editor/source/**/*.ts",
+    "../../../apps/web/src/features/editor/source/**/*.tsx",
+    "./authoring.test.ts",
+    "./spelling.test.ts"
+  ]
+}

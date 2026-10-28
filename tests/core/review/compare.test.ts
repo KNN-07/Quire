@@ -9,13 +9,13 @@ test("compares real changed checkpoint content and retains intermediate authors 
   await using fixture = await reviewFixture();
   const owner = await fixture.login();
   const scope = { projectId: ids.project, branch: "main" };
-  const before = fixture.service.loadDocument(scope, ids.mainFile);
+  const before = (await fixture.service.loadDocument(scope, ids.mainFile));
   const from = await fixture.service.snapshot(owner.user.id, scope, 0);
   const original = sourceDoc(before.state);
   const first = ProposedEditSchema.parse({ ...proposal(original, { fileId: ids.mainFile, before: "article", after: "report", baseRevision: 0 }),
     id: crypto.randomUUID(), status: "pending" });
   await fixture.service.applyEdits(owner.user.id, scope, [first], "first-compare-edit");
-  const edited = sourceDoc(fixture.service.loadDocument(scope, ids.mainFile).state);
+  const edited = sourceDoc((await fixture.service.loadDocument(scope, ids.mainFile)).state);
   const second = ProposedEditSchema.parse({ ...proposal(edited, { fileId: ids.mainFile, before: "report", after: "book", baseRevision: 1 }),
     id: crypto.randomUUID(), status: "pending" });
   await fixture.service.applyEdits(ids.mai, scope, [second], "second-compare-edit");

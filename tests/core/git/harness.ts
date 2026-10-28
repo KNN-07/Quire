@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRuntime, loadConfig } from "@quire/runtime";
 import { GitStatusSchema, OperationSchema, ProjectSchema, UserSchema } from "@quire/contracts";
-import type { Id } from "@quire/contracts";
+import type { Id, Clock } from "@quire/contracts";
 import { register as identity, migrations as identityMigrations } from "../../../services/accounts/identity";
 import { register as base, migrations as baseMigrations, CoreProjects } from "../../../services/core/base";
 import { register, registerCredentials, migrations } from "../../../services/core/git";
@@ -14,7 +14,7 @@ import { clock, origin, password } from "../base/harness";
 
 export const statusEnvelope = z.object({ data: GitStatusSchema });
 export const operationEnvelope = z.object({ data: OperationSchema });
-export async function gitFixture(options: { readonly compiler?: boolean } = {}) {
+export async function gitFixture(options: { readonly compiler?: boolean; readonly clock?: Clock } = {}) {
   const path = await mkdtemp(join(tmpdir(), "quire-git-test-"));
   const config = loadConfig({ QUIRE_DATA_DIR: path });
   const modules = [
@@ -24,7 +24,7 @@ export async function gitFixture(options: { readonly compiler?: boolean } = {}) 
     { id: "025-a-git-credentials", lane: "A", order: 25, register: registerCredentials },
     ...(options.compiler ? [{ id: "030-c-compiler", lane: "C" as const, order: 30, register: compiler, migrations: compilerMigrations }] : []),
   ] as const;
-  let runtime = await createRuntime(config, { modules, clock });
+  let runtime = await createRuntime(config, { modules, clock: options.clock ?? clock });
   await seed(runtime, password);
   if (options.compiler) await startWorker(runtime);
   const failures: string[] = [];
@@ -74,13 +74,13 @@ export async function gitFixture(options: { readonly compiler?: boolean } = {}) 
     get runtime() { return runtime; },
     async restart() {
       if (options.compiler) await stopWorker(runtime);
-      runtime.close(); runtime = await createRuntime(config, { modules, clock });
+      await runtime.close(); runtime = await createRuntime(config, { modules, clock: options.clock ?? clock });
       if (options.compiler) await startWorker(runtime);
     },
     [Symbol.asyncDispose]: async () => {
       await server.stop(true);
       if (options.compiler) await stopWorker(runtime);
-      runtime.close(); await rm(path, { recursive: true, force: true });
+      await runtime.close(); await rm(path, { recursive: true, force: true });
     },
   };
 }

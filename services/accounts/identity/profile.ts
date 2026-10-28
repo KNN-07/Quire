@@ -4,7 +4,7 @@ import type { ModuleContext } from "@quire/runtime";
 import type { IdentityDependencies } from "./credentials";
 
 export function registerProfile(context: ModuleContext, dependencies: IdentityDependencies): void {
-  const { routes, db, uow, clock } = context;
+  const { routes, uow, clock } = context;
   const { repository, auth } = dependencies;
   routes.register(endpoints.avatarGet, async (_input, request) => {
     request.responseHeaders.set("cache-control", "private, no-store");
@@ -23,27 +23,29 @@ export function registerProfile(context: ModuleContext, dependencies: IdentityDe
     const principal = await auth.mutation(request.request);
     const { expectedVersion, ...patch } = body;
     const current = UserSchema.parse({ ...principal.user, ...patch });
-    uow.local(() => {
-      const version = repository.version(current.id, expectedVersion);
-      db.query("UPDATE users SET name=?,latex_name=?,affiliation=?,orcid=?,interface_language=? WHERE id=?")
-        .run(current.name, current.latexName, current.affiliation, current.orcid, current.interfaceLanguage, current.id);
+    await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const version = await repository.version(tx, current.id, expectedVersion);
+      await tx.run("UPDATE users SET name=?,latex_name=?,affiliation=?,orcid=?,interface_language=? WHERE id=?", [current.name, current.latexName, current.affiliation, current.orcid, current.interfaceLanguage, current.id]);
       request.responseHeaders.set("etag", resourceVersionTag(version));
     });
-    return repository.user(current.id);
+    return (await repository.user(current.id));
   });
   routes.register(endpoints.preferencesGet, async (_input, request) => {
     const principal = await auth.port.require(request.request);
-    const value = repository.preferences(principal.user.id);
+    const value = (await repository.preferences(principal.user.id));
     request.responseHeaders.set("etag", resourceVersionTag(value.version));
     return value;
   });
   routes.register(endpoints.preferencesPatch, async ({ body }, request) => {
     const principal = await auth.mutation(request.request);
     const { expectedVersion, ...patch } = body;
-    return uow.local(() => {
-      const value = PreferencesSchema.parse({ ...repository.preferences(principal.user.id), ...patch, version: expectedVersion + 1 });
-      if (db.query("UPDATE preferences SET value_json=?,version=version+1,updated_at=? WHERE user_id=? AND version=?")
-        .run(JSON.stringify(value), clock.now(), principal.user.id, expectedVersion).changes !== 1) {
+    return await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const value = PreferencesSchema.parse({ ...await repository.preferences(principal.user.id, tx), ...patch, version: expectedVersion + 1 });
+      if ((await tx.run("UPDATE preferences SET value_json=?,version=version+1,updated_at=? WHERE user_id=? AND version=?", [JSON.stringify(value), clock.now(), principal.user.id, expectedVersion])).changes !== 1) {
         throw new ServiceError("VERSION_CONFLICT", 409, "Preferences changed; fetch and retry");
       }
       request.responseHeaders.set("etag", resourceVersionTag(value.version));
@@ -63,19 +65,23 @@ export function registerProfile(context: ModuleContext, dependencies: IdentityDe
       throw new ServiceError("INVALID_AVATAR", 422, "Avatar must be PNG or JPEG");
     }
     const digest = await context.blobs.put(bytes);
-    uow.local((tx) => {
-      const version = repository.version(principal.user.id, body.expectedVersion);
-      referenceBlob(tx, { digest, bytes: bytes.length }, clock);
-      db.query("UPDATE users SET avatar_blob=? WHERE id=?").run(digest, principal.user.id);
+    await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const version = await repository.version(tx, principal.user.id, body.expectedVersion);
+      await referenceBlob(tx, { digest, bytes: bytes.length }, clock);
+      await tx.run("UPDATE users SET avatar_blob=? WHERE id=?", [digest, principal.user.id]);
       request.responseHeaders.set("etag", resourceVersionTag(version));
     });
-    return repository.user(principal.user.id);
+    return (await repository.user(principal.user.id));
   });
   routes.register(endpoints.avatarDelete, async ({ body }, request) => {
     const principal = await auth.mutation(request.request);
-    return uow.local(() => {
-      const version = repository.version(principal.user.id, body.expectedVersion);
-      db.query("UPDATE users SET avatar_blob=NULL WHERE id=?").run(principal.user.id);
+    return await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const version = await repository.version(tx, principal.user.id, body.expectedVersion);
+      await tx.run("UPDATE users SET avatar_blob=NULL WHERE id=?", [principal.user.id]);
       request.responseHeaders.set("etag", resourceVersionTag(version));
       return { ok: true as const, version };
     });
@@ -83,37 +89,41 @@ export function registerProfile(context: ModuleContext, dependencies: IdentityDe
   routes.register(endpoints.emailAdd, async ({ body }, request) => {
     const principal = await auth.mutation(request.request);
     const email = body.email.toLowerCase();
-    repository.limit("email-add", principal.user.id);
-    const result = uow.local(() => repository.idempotent({
-      actor: principal.user.id, route: "emailAdd", key: request.request.headers.get("idempotency-key") ?? "",
-      body, schema: OkSchema,
-    }, () => {
-      const row = repository.find(principal.user.id);
-      if (row.managed_by !== null) throw new ServiceError("MANAGED_ACCOUNT", 403, "Managed email changes require organization administration");
-      if (db.query("SELECT id FROM users WHERE primary_email=? UNION SELECT user_id FROM verified_emails WHERE email=?").get(email, email)) {
-        throw new ServiceError("EMAIL_UNAVAILABLE", 409, "Email is unavailable");
-      }
-      const version = repository.version(principal.user.id, body.expectedVersion);
-      repository.mail({ userId: principal.user.id, email, purpose: "verify" });
-      request.responseHeaders.set("etag", resourceVersionTag(version));
-      return { ok: true as const, version };
-    }));
+    await repository.limit("email-add", principal.user.id);
+    const result = await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+      return await repository.idempotent(tx, {
+        actor: principal.user.id, route: "emailAdd", key: request.request.headers.get("idempotency-key") ?? "",
+        body, schema: OkSchema,
+      }, async () => {
+        const row = await repository.find(principal.user.id, tx);
+        if (row.managed_by !== null) throw new ServiceError("MANAGED_ACCOUNT", 403, "Managed email changes require organization administration");
+        if ((await tx.get("SELECT id FROM users WHERE lower(primary_email)=lower(?) UNION SELECT user_id FROM verified_emails WHERE lower(email)=lower(?)", [email, email]))) {
+          throw new ServiceError("EMAIL_UNAVAILABLE", 409, "Email is unavailable");
+        }
+        const version = await repository.version(tx, principal.user.id, body.expectedVersion);
+        await repository.mail(tx, { userId: principal.user.id, email, purpose: "verify" });
+        request.responseHeaders.set("etag", resourceVersionTag(version));
+        return { ok: true as const, version };
+      });
+    });
     request.responseHeaders.set("etag", resourceVersionTag(result.version));
     return result;
   });
   routes.register(endpoints.emailDelete, async ({ body }, request) => {
     const principal = await auth.mutation(request.request);
-    return uow.local(() => {
-      const row = repository.find(principal.user.id);
+    return await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const row = await repository.find(principal.user.id, tx);
       if (row.managed_by !== null) throw new ServiceError("MANAGED_ACCOUNT", 403, "Managed email changes require organization administration");
       const email = body.email.toLowerCase();
-      const value = db.query("SELECT id FROM verified_emails WHERE email=? AND user_id=?").get(email, principal.user.id);
+      const value = (await tx.get("SELECT id FROM verified_emails WHERE lower(email)=lower(?) AND user_id=?", [email, principal.user.id]));
       if (!value) throw new ServiceError("NOT_FOUND", 404, "Email not found");
       if (email === row.primary_email.toLowerCase()) throw new ServiceError("PRIMARY_EMAIL_REQUIRED", 409, "Primary login email cannot be removed");
-      const version = repository.version(principal.user.id, body.expectedVersion);
-      db.query("DELETE FROM verified_emails WHERE email=? AND user_id=?").run(email, principal.user.id);
-      db.query("UPDATE one_time_tokens SET used_at=? WHERE user_id=? AND purpose='verify' AND json_extract(payload_json,'$.email')=?")
-        .run(clock.now(), principal.user.id, email);
+      const version = await repository.version(tx, principal.user.id, body.expectedVersion);
+      await tx.run("DELETE FROM verified_emails WHERE lower(email)=lower(?) AND user_id=?", [email, principal.user.id]);
+      await tx.run(tx.dialect === "postgres" ? "UPDATE one_time_tokens SET used_at=? WHERE user_id=? AND purpose='verify' AND lower(payload_json::jsonb->>'email')=lower(?)" : "UPDATE one_time_tokens SET used_at=? WHERE user_id=? AND purpose='verify' AND lower(json_extract(payload_json,'$.email'))=lower(?)", [clock.now(), principal.user.id, email]);
       request.responseHeaders.set("etag", resourceVersionTag(version));
       return { ok: true, version };
     });
@@ -121,16 +131,17 @@ export function registerProfile(context: ModuleContext, dependencies: IdentityDe
   routes.register(endpoints.aiConsent, async ({ body }, request) => {
     const principal = await auth.mutation(request.request);
     if (!body.termsVersion.trim()) throw new ServiceError("TERMS_REQUIRED", 400, "Terms version required");
-    const result = uow.local((tx) => {
-      const version = repository.version(principal.user.id, body.expectedVersion);
-      db.query("INSERT INTO identity_ai_consent(user_id,terms_version,accepted,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET terms_version=excluded.terms_version,accepted=excluded.accepted,updated_at=excluded.updated_at")
-        .run(principal.user.id, body.termsVersion, Number(body.accepted), clock.now());
-      context.events.append(tx, { topic: "policy.changed", aggregateId: principal.user.id,
+    const result = await uow.run(async (tx) => {
+      await tx.lock("quire:accounts");
+
+      const version = await repository.version(tx, principal.user.id, body.expectedVersion);
+      await tx.run("INSERT INTO identity_ai_consent(user_id,terms_version,accepted,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET terms_version=excluded.terms_version,accepted=excluded.accepted,updated_at=excluded.updated_at", [principal.user.id, body.termsVersion, Number(body.accepted), clock.now()]);
+      await context.events.record(tx, { topic: "policy.changed", aggregateId: principal.user.id,
         payload: { resourceId: principal.user.id, version } });
       request.responseHeaders.set("etag", resourceVersionTag(version));
       return { ok: true as const, version };
     });
-    context.events.dispatch();
+    await context.events.dispatch();
     return result;
   });
 }

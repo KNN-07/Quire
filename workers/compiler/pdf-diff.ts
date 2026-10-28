@@ -22,6 +22,7 @@ export async function renderedDifference(input: { readonly from: Uint8Array; rea
     await writeFile(join(root, "from.pdf"), input.from);
     await writeFile(join(root, "to.pdf"), input.to);
     const render = await sandbox({ source: root, limits: defaultLimits,
+      installationWork: { kind: "pdf-diff-render" },
       ...(input.signal ? { signal: input.signal } : {}), command: ["/bin/sh", "-c",
       "pdftoppm -r 72 /src/from.pdf /work/from >&2 && pdftoppm -r 72 /src/to.pdf /work/to >&2 && pdftoppm -png -r 72 /src/from.pdf /work/from >&2 && pdftoppm -png -r 72 /src/to.pdf /work/to >&2 && cd /work && tar --format=ustar -cf - -- *.ppm *.png"] });
     if (render.code !== 0 || render.canceled) throw new ServiceError("PDF_RENDER_FAILED", 422, render.stderr);
@@ -63,6 +64,7 @@ ${Array.from({ length: pages }, (_, index) => {
 }).join("\n")}\\end{document}`;
     await writeFile(join(root, "diff.tex"), tex);
     const generated = await sandbox({ source: root, limits: defaultLimits,
+      installationWork: { kind: "pdf-diff-compile" },
       ...(input.signal ? { signal: input.signal } : {}), command: ["/bin/sh", "-c",
       "pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error -output-directory=/work /src/diff.tex >&2 && pdftoppm -f 1 -l 1 -singlefile -png -scale-to 1600 /work/diff.pdf /work/comparison >&2 && cd /work && tar --format=ustar -cf - diff.pdf comparison.png"] });
     const output = readTar(generated.stdout);

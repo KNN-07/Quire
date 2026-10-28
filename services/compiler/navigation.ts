@@ -7,6 +7,7 @@ import { assertNever, IdSchema } from "@quire/contracts";
 import type { endpoints } from "@quire/contracts";
 import { sandbox, defaultLimits } from "../../workers/compiler/sandbox";
 import type { CompilerService } from "./service";
+import type { InstallationRecipe } from "../operations/installation/caller-execution-context";
 
 export async function syncTex(service: CompilerService, actor: Id,
   input: RequestOf<typeof endpoints.synctex>) {
@@ -21,19 +22,22 @@ export async function syncTex(service: CompilerService, actor: Id,
     const source = await service.context.services.get("projects").readSnapshot(job.snapshot.id);
     const query = input.body;
     let args: readonly string[];
+    let installationWork: InstallationRecipe;
     switch (query.direction) {
       case "forward": {
         const file = source.files.find((item) => item.id === query.fileId);
         if (!file) throw new ServiceError("FILE_NOT_IN_SNAPSHOT", 404, "File is not in this compile snapshot");
         args = ["synctex", "view", "-i", `${query.line}:${query.column}:/src/${file.path}`, "-o", "/src/output.pdf"];
+        installationWork = { kind: "synctex-forward", file: file.path, line: query.line, column: query.column };
         break;
       }
       case "reverse":
         args = ["synctex", "edit", "-o", `${query.page}:${query.xPt}:${query.yPt}:/src/output.pdf`];
+        installationWork = { kind: "synctex-reverse", page: query.page, xPt: query.xPt, yPt: query.yPt };
         break;
       default: return assertNever(query);
     }
-    const result = await sandbox({ source: root, limits: defaultLimits, command: args, signal: service.shutdown.signal });
+    const result = await sandbox({ source: root, limits: defaultLimits, command: args, installationWork, signal: service.shutdown.signal });
     if (result.code !== 0 || result.canceled) throw new ServiceError("SYNCTEX_FAILED", 422, result.stderr);
     const text = new TextDecoder().decode(result.stdout);
     const records = text.split(/(?=Output:)/).filter((part) => part.includes("Input:") || part.includes("Page:"));

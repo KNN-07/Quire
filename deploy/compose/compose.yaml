@@ -1,0 +1,144 @@
+name: ${QUIRE_PROJECT:-quire}
+x-app: &app
+  image: ${QUIRE_APP_IMAGE:?Set QUIRE_APP_IMAGE to the verified application image}
+  build:
+    context: ../..
+    dockerfile: deploy/runtime/Dockerfile
+    args:
+      BUN_IMAGE: ${QUIRE_BUN_IMAGE:?Set the digest-pinned Bun 1.4.4 Debian image}
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: ["/tmp:size=128m,mode=1777"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  env_file: ${QUIRE_ENV_FILE:?Set an absolute path to your private deployment env file}
+  secrets: [tls-ca]
+  environment: &env
+    NODE_ENV: production
+    QUIRE_PROFILE: scale
+    QUIRE_COMPILER_BACKEND: docker
+    QUIRE_HOST: 0.0.0.0
+    QUIRE_PORT: "8080"
+    QUIRE_DATA_DIR: /data
+    QUIRE_POSTGRES_URL: postgres://quire:${QUIRE_DB_PASSWORD:?Required}@postgres:5432/quire
+    QUIRE_REDIS_URL: redis://redis:6379
+    QUIRE_REDIS_NAMESPACE: ${QUIRE_PROJECT:-quire}
+    QUIRE_REPOSITORY_URL: https://repository:3443
+    NODE_EXTRA_CA_CERTS: /run/secrets/tls-ca
+    QUIRE_REPOSITORY_TLS_CERT: /run/secrets/tls-cert
+    QUIRE_REPOSITORY_TLS_KEY: /run/secrets/tls-key
+    QUIRE_BACKUP_SIGNING_KEY_FILE: /run/secrets/backup-signer
+    QUIRE_BACKUP_ROOT: /backups
+    QUIRE_REPOSITORY_HOST: 0.0.0.0
+    QUIRE_REPOSITORY_PORT: "3002"
+    QUIRE_REPOSITORY_VOLUME: /git
+    QUIRE_S3_ENDPOINT: http://s3:9000
+    QUIRE_S3_BUCKET: quire
+    QUIRE_S3_REGION: us-east-1
+    QUIRE_S3_ACCESS_KEY_ID: ${QUIRE_S3_ACCESS_KEY_ID:?Required}
+    QUIRE_S3_SECRET_ACCESS_KEY: ${QUIRE_S3_SECRET_ACCESS_KEY:?Required}
+services:
+  postgres:
+    image: ${QUIRE_POSTGRES_IMAGE:-postgres:17-alpine@sha256:0a8a1e76503c091f0feb387d51b10fcd746c2d61cf6cdd6e8356973a45e40a0f}
+    environment:
+      POSTGRES_USER: quire
+      POSTGRES_DB: quire
+      POSTGRES_PASSWORD: ${QUIRE_DB_PASSWORD:?Required}
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U quire -d quire"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: ${QUIRE_REDIS_IMAGE:-redis:7.4-alpine@sha256:1cf73a2f04808e55a8bd2f5706c2aa0ebb0f71938f93deb7af79f48311cd5cb9}
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  s3:
+    image: ${QUIRE_S3_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2}
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: ${QUIRE_S3_ACCESS_KEY_ID:?Required}
+      MINIO_ROOT_PASSWORD: ${QUIRE_S3_SECRET_ACCESS_KEY:?Required}
+    volumes: [s3:/data]
+    healthcheck:
+      test: [CMD, curl, --fail, http://127.0.0.1:9000/minio/health/ready]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  bucket:
+    <<: *app
+    restart: "no"
+    command: [bun, deploy/runtime/bucket.ts]
+    volumes: [bucket-private:/data]
+    depends_on:
+      s3: {condition: service_healthy}
+  migrate:
+    <<: *app
+    restart: "no"
+    command: [migrate]
+    volumes: [migration-private:/data]
+    depends_on:
+      postgres: {condition: service_healthy}
+  repository:
+    <<: *app
+    command: [repository]
+    secrets: [tls-ca, tls-cert, tls-key]
+    volumes: [git:/git, repository-private:/data]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, bun, deploy/runtime/readiness.ts, repository]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  api-a:
+    <<: *app
+    command: [api]
+    secrets: [tls-ca, backup-signer]
+    ports: ["127.0.0.1:${QUIRE_HTTP_PORT:-43182}:8080"]
+    volumes: [api-a-private:/data, backups:/backups]
+    depends_on: &api-dependencies
+      migrate: {condition: service_completed_successfully}
+      bucket: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      repository: {condition: service_healthy}
+    healthcheck: &api-health
+      test: [CMD, bun, deploy/runtime/readiness.ts, api]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+  api-b:
+    <<: *app
+    command: [api]
+    secrets: [tls-ca, backup-signer]
+    ports: ["127.0.0.1:${QUIRE_HTTP_SECOND_PORT:-43183}:8080"]
+    volumes: [api-b-private:/data, backups:/backups]
+    depends_on: *api-dependencies
+    healthcheck: *api-health
+volumes:
+  postgres:
+  redis:
+  s3:
+  git:
+  migration-private:
+  repository-private:
+  bucket-private:
+  api-a-private:
+  api-b-private:
+  backups:
+secrets:
+  tls-ca:
+    file: ${QUIRE_TLS_DIR:?Set private repository TLS directory}/ca.pem
+  tls-cert:
+    file: ${QUIRE_TLS_DIR:?Set private repository TLS directory}/cert.pem
+  tls-key:
+    file: ${QUIRE_TLS_DIR:?Set private repository TLS directory}/key.pem
+  backup-signer:
+    file: ${QUIRE_BACKUP_SIGNING_KEY_FILE:?Set a private independent Ed25519 backup signer}

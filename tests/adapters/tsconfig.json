@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "../../packages/runtime/src/assets.d.ts",
+    "../operations/environments/assets.d.ts",
+    "../../services/adapters/shared/**/*.ts",
+    "../../services/adapters/remote-git/**/*.ts",
+    "./shared/**/*.ts",
+    "./remote-git/**/*.ts"
+  ],
+  "exclude": ["../../node_modules", "../../dist"]
+}

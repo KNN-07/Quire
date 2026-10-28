@@ -8,10 +8,9 @@ test("publishes organization content when separate scoped curator and publisher 
   const owner = await fixture.login();
   const curator = await fixture.login("outsider@quire.local");
   const publisher = await fixture.login("mai@quire.local");
-  fixture.runtime.db.query("INSERT INTO members(id,organization_id,user_id,role,licensed,created_at) VALUES(?,?,?,'member',1,?)")
-    .run(crypto.randomUUID(), ids.team, publisher.user.id, fixture.runtime.clock.now());
-  fixture.runtime.db.query("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'curator',?)").run(curator.user.id, ids.team);
-  fixture.runtime.db.query("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'template-publisher',?)").run(publisher.user.id, ids.team);
+  (await fixture.runtime.db.run("INSERT INTO members(id,organization_id,user_id,role,licensed,created_at) VALUES(?,?,?,'member',1,?)", [crypto.randomUUID(), ids.team, publisher.user.id, fixture.runtime.clock.now()]));
+  (await fixture.runtime.db.run("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'curator',?)", [curator.user.id, ids.team]));
+  (await fixture.runtime.db.run("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'template-publisher',?)", [publisher.user.id, ids.team]));
   let version = templateEnvelope.parse(await (await fixture.mutate("/api/templates", owner.headers, {
     name: "Team", category: "", description: "", license: "MIT", visibility: "organization", sourceProjectId: ids.project,
   })).json()).data;
@@ -33,7 +32,7 @@ test("denies cross-organization approval when a curator grant belongs to a diffe
   await using fixture = await catalogFixture();
   const owner = await fixture.login();
   const curator = await fixture.login("outsider@quire.local");
-  fixture.runtime.db.query("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'curator',?)").run(curator.user.id, ids.institution);
+  (await fixture.runtime.db.run("INSERT INTO catalog_roles(user_id,role,scope) VALUES(?,'curator',?)", [curator.user.id, ids.institution]));
   let version = templateEnvelope.parse(await (await fixture.mutate("/api/templates", owner.headers, {
     name: "Team", category: "", description: "", license: "MIT", visibility: "organization", sourceProjectId: ids.project,
   })).json()).data;

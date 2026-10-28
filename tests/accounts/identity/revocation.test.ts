@@ -15,8 +15,8 @@ async function currentSession(fixture: Fixture, headers: HeadersInit) {
   if (!session) throw new TypeError("Expected current HTTP session");
   return session;
 }
-const revocations = (fixture: Fixture) =>
-  fixture.runtime.events.after(0).filter((event) => event.topic === "session.revoked");
+const revocations = async (fixture: Fixture) =>
+  (await fixture.runtime.events.read(0)).filter((event) => event.topic === "session.revoked");
 
 test("publishes logout revocation durably only after the session deletion commits", async () => {
   // Given: a session and an event subscriber observing committed state from a separate connection.
@@ -32,7 +32,7 @@ test("publishes logout revocation durably only after the session deletion commit
   const response = await fixture.request("/api/auth/logout", { method: "POST", headers: login.headers, body: "{}" });
   // Then: the matching durable event is delivered after deletion is visible to another connection.
   expect(response.status).toBe(200);
-  const events = revocations(fixture);
+  const events = (await revocations(fixture));
   expect(events).toHaveLength(1);
   expect(events[0]).toMatchObject({ aggregateId: login.user.id, payload: { userId: login.user.id, sessionId: session.id } });
   const observed = subscription.delivered.filter((receipt) => receipt.event.topic === "session.revoked");
@@ -51,7 +51,7 @@ test("records the exact session ID on checked session deletion", async () => {
     body: JSON.stringify({ expectedVersion: session.version }) });
   // Then: a durable session-specific revocation is available to transport consumers.
   expect(response.status).toBe(200);
-  expect(revocations(fixture).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
+  expect((await revocations(fixture)).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
     .toEqual([{ aggregateId: login.user.id, payload: { userId: login.user.id, sessionId: session.id } }]);
 });
 
@@ -68,7 +68,7 @@ test("revokes other sessions individually without broadcasting an all-session re
   const response = await fixture.request("/api/me/sessions/revoke-others", { method: "POST", headers: current.headers, body: "{}" });
   // Then: events name exactly the removed sessions and the requesting session stays authenticated.
   expect(response.status).toBe(200);
-  const events = revocations(fixture);
+  const events = (await revocations(fixture));
   expect(events).toHaveLength(2);
   expect(events.map((event) => event.payload.sessionId)).toEqual(expect.arrayContaining([firstSession.id, secondSession.id]));
   expect(events.every((event) => event.aggregateId === current.user.id && event.payload.userId === current.user.id)).toBe(true);
@@ -92,7 +92,7 @@ test("records all-session revocation when a recovery token changes the password"
     body: JSON.stringify({ token, password: `${password}-changed` }) });
   // Then: one durable wildcard revocation identifies that user and both old sessions stop authenticating.
   expect(response.status).toBe(200);
-  expect(revocations(fixture).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
+  expect((await revocations(fixture)).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
     .toEqual([{ aggregateId: first.user.id, payload: { userId: first.user.id, sessionId: null } }]);
   expect((await fixture.request("/api/me", { headers: first.headers })).status).toBe(401);
   expect((await fixture.request("/api/me", { headers: second.headers })).status).toBe(401);
@@ -108,7 +108,7 @@ test("records all-session revocation in the account deletion transaction", async
     body: JSON.stringify({ confirmation: second.user.primaryEmail, password, expectedVersion: 0 }) });
   // Then: the durable wildcard event closes every session for the tombstoned user.
   expect(response.status).toBe(200);
-  expect(revocations(fixture).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
+  expect((await revocations(fixture)).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
     .toEqual([{ aggregateId: second.user.id, payload: { userId: second.user.id, sessionId: null } }]);
   expect((await fixture.request("/api/me", { headers: first.headers })).status).toBe(401);
   expect((await fixture.request("/api/me", { headers: second.headers })).status).toBe(401);
@@ -124,7 +124,7 @@ test("rotates an existing cookie with a revocation scoped to its actual previous
     body: JSON.stringify({ email: "mai@quire.local", password }) });
   // Then: only the previous user's session is named in the durable rotation event.
   expect(response.status).toBe(200);
-  expect(revocations(fixture).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
+  expect((await revocations(fixture)).map((event) => ({ aggregateId: event.aggregateId, payload: event.payload })))
     .toEqual([{ aggregateId: previous.user.id, payload: { userId: previous.user.id, sessionId: session.id } }]);
   expect((await fixture.request("/api/me", { headers: previous.headers })).status).toBe(401);
 });
@@ -133,11 +133,11 @@ test("rolls back session removal when durable revocation persistence fails", asy
   // Given: a live session and an actual SQLite failure at the event insertion boundary.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.run("CREATE TRIGGER identity_test_revocation_failure BEFORE INSERT ON events WHEN NEW.topic='session.revoked' BEGIN SELECT RAISE(ABORT,'identity revocation persistence failure'); END");
+  await fixture.runtime.db.run("CREATE TRIGGER identity_test_revocation_failure BEFORE INSERT ON events WHEN NEW.topic='session.revoked' BEGIN SELECT RAISE(ABORT,'identity revocation persistence failure'); END");
   // When: logout cannot append its durable revocation event.
   const response = await fixture.request("/api/auth/logout", { method: "POST", headers: login.headers, body: "{}" });
   // Then: the failed write cannot silently remove a session without its event.
   expect(response.status).toBe(500);
-  expect(revocations(fixture)).toEqual([]);
+  expect((await revocations(fixture))).toEqual([]);
   expect((await fixture.request("/api/me", { headers: login.headers })).status).toBe(200);
 });

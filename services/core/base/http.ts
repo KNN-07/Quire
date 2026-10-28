@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { resourceVersionTag } from "@quire/contracts";
+import { IdSchema, resourceVersionTag } from "@quire/contracts";
 import type { Id } from "@quire/contracts";
 import type { ModuleContext, RequestContext } from "@quire/runtime";
 import { fail } from "./store";
+import { SourceService } from "./source";
+import { saveReceipt } from "./receipts";
+import type { HttpReceipt } from "./receipts";
 
 export async function actor(context: ModuleContext, request: RequestContext): Promise<Id> {
   const identity = context.services.get("identity");
@@ -18,35 +21,55 @@ export function checkMatch(request: RequestContext, version: number): void {
   if (match && match !== resourceVersionTag(version)) fail("STALE_VERSION", 409, "If-Match does not match resource");
 }
 const tails = new WeakMap<object, Promise<unknown>>();
-/** Serialize HTTP mutations across awaits; persist successful replay in the same DB as the aggregate. */
+const storedResponse = z.object({ data: z.unknown(), etag: z.string().nullable() });
+
+/** The handler attaches this identity to its aggregate finalization transaction. */
 export async function replay<T>(context: ModuleContext, input: {
   readonly actorId: Id; readonly request: RequestContext; readonly route: string; readonly body: unknown;
   readonly schema: z.ZodType<T>; readonly redact?: boolean;
-}, work: () => Promise<T>): Promise<T> {
+}, work: (receipt?: HttpReceipt) => Promise<T>): Promise<T> {
   const run = async () => {
     const key = input.request.request.headers.get("idempotency-key");
     if (!key) return work();
     const digest = new Bun.CryptoHasher("sha256").update(JSON.stringify(input.body)).digest("hex");
-    const cached = context.db.query<{ request_digest: string; response_json: string }, [string, string, string]>(
-      "SELECT request_digest,response_json FROM idempotency_results WHERE actor_id=? AND key=? AND route=?")
-      .get(input.actorId, key, input.route);
-    if (cached) {
-      if (cached.request_digest !== digest) fail("IDEMPOTENCY_CONFLICT", 409, "Key reused for another request");
-      const receipt = JSON.parse(cached.response_json);
-      const stored = storedResponse.parse(receipt);
-      if (stored.etag) input.request.responseHeaders.set("etag", stored.etag);
-      return input.schema.parse(stored.data);
-    }
-    const result = await work();
-    context.uow.local((tx) => tx.query(`INSERT INTO idempotency_results
-      (actor_id,key,route,request_digest,status,response_json,created_at) VALUES(?,?,?,?,200,?,?)`)
-      .run(input.actorId, key, input.route, digest, JSON.stringify({
-        data: input.redact ? {} : result, etag: input.request.responseHeaders.get("etag"),
-      }), context.clock.now()));
-    return result;
+    const receipt = { actorId: input.actorId, key, route: input.route, digest };
+    const hash = new Bun.CryptoHasher("sha256").update(JSON.stringify([input.actorId, input.route, key])).digest("hex");
+    const projectId = IdSchema.parse(`${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`);
+    const lease = await context.branches.acquire({ projectId, branch: "http-receipt" }, crypto.randomUUID(), 60_000);
+    if (!lease) fail("REQUEST_BUSY", 409, "The same request is still being finalized");
+    try {
+      await new SourceService(context).recoverReceipt(receipt);
+      const read = async () => {
+        const cached = await context.db.get<{ request_digest: string; response_json: string }>(
+          "SELECT request_digest,response_json FROM idempotency_results WHERE actor_id=? AND key=? AND route=?",
+          [input.actorId, key, input.route]);
+        if (!cached) return null;
+        if (cached.request_digest !== digest) fail("IDEMPOTENCY_CONFLICT", 409, "Key reused for another request");
+        return storedResponse.parse(JSON.parse(cached.response_json));
+      };
+      const cached = await read();
+      if (cached) {
+        if (cached.etag) input.request.responseHeaders.set("etag", cached.etag);
+        return input.schema.parse(cached.data);
+      }
+      const result = await work(receipt);
+      // Delegated adapters retain their own operation idempotency. Base producers
+      // have already saved the receipt with their aggregate before returning.
+      if (!await read()) {
+        await context.uow.run(async tx => {
+          await tx.lock("quire:accounts");
+          await context.branches.assert(tx, lease);
+          await saveReceipt({ ...context, db: tx }, {
+            ...receipt, response: JSON.stringify({
+              data: input.redact ? {} : result, etag: input.request.responseHeaders.get("etag"),
+            })
+          });
+        });
+      }
+      return result;
+    } finally { await context.branches.release(lease); }
   };
   const result = (tails.get(context.db) ?? Promise.resolve()).then(run);
   tails.set(context.db, result.then(() => undefined, () => undefined));
   return result;
 }
-const storedResponse = z.object({ data: z.unknown(), etag: z.string().nullable() });

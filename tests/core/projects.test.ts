@@ -17,9 +17,9 @@ test("T02 creates independent projects and persists idempotent creation across r
   const retry = await fixture.request("/api/projects", { method: "POST", headers, body });
   // Then: the project and its bytes survive without a second project.
   expect(projectEnvelope.parse(await retry.json()).data.id).toBe(project.id);
-  const files = fixture.service.listFiles({ projectId: project.id, branch: "main" });
+  const files = (await fixture.service.listFiles({ projectId: project.id, branch: "main" }));
   expect(files.map((file) => file.path)).toEqual(["main.tex", "sections/introduction.tex"]);
-  expect(fixture.service.readDocument({ projectId: project.id, branch: "main" }, project.settings.mainFileId).text)
+  expect((await fixture.service.readDocument({ projectId: project.id, branch: "main" }, project.settings.mainFileId)).text)
     .toContain("\\input{sections/introduction}");
   expect(project.ownerId).toBe(login.user.id);
 });
@@ -30,9 +30,11 @@ test("T02 archives selected projects per user without changing collaborator visi
   const owner = await fixture.login();
   const viewer = await fixture.login("alex@quire.local");
   // When: the viewer archives that project in their own dashboard.
-  const result = await fixture.request("/api/projects/bulk", { method: "POST",
+  const result = await fixture.request("/api/projects/bulk", {
+    method: "POST",
     headers: { ...viewer.headers, "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({ items: [{ id: ids.project, expectedVersion: 0 }], action: "archive" }) });
+    body: JSON.stringify({ items: [{ id: ids.project, expectedVersion: 0 }], action: "archive" })
+  });
   // Then: only the viewer's active list changes.
   expect(result.status).toBe(202);
   const schema = z.object({ data: z.object({ items: z.array(ProjectSummarySchema) }) });
@@ -49,13 +51,17 @@ test("T02 normalizes tags and exposes title owner filters with deterministic pag
   await using fixture = await baseFixture();
   const owner = await fixture.login();
   const project = await fixture.create(owner.headers, "A tagged paper");
-  const tagResponse = await fixture.request("/api/tags", { method: "POST",
+  const tagResponse = await fixture.request("/api/tags", {
+    method: "POST",
     headers: { ...owner.headers, "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({ name: "Research", colorHex: "#aabbcc" }) });
+    body: JSON.stringify({ name: "Research", colorHex: "#aabbcc" })
+  });
   const tag = z.object({ data: TagSchema }).parse(await tagResponse.json()).data;
   // When: the user assigns the tag and filters the dashboard.
-  const assignment = await fixture.request(`/api/projects/${project.id}/tags`, { method: "PUT",
-    headers: { ...owner.headers, "if-match": `"v${project.version}"` }, body: JSON.stringify({ tagIds: [tag.id], expectedVersion: project.version }) });
+  const assignment = await fixture.request(`/api/projects/${project.id}/tags`, {
+    method: "PUT",
+    headers: { ...owner.headers, "if-match": `"v${project.version}"` }, body: JSON.stringify({ tagIds: [tag.id], expectedVersion: project.version })
+  });
   const response = await fixture.request(`/api/projects?tag=${tag.id}&q=Kien&sort=title&direction=asc&limit=1`, { headers: owner.headers });
   // Then: the summary carries the actual owner, role and assigned tag.
   expect(assignment.status).toBe(200);
@@ -69,19 +75,21 @@ test("T02 copy drops collaborators history and user state while preserving sourc
   // Given: a viewer of a seeded project with immutable source.
   await using fixture = await baseFixture();
   const viewer = await fixture.login("alex@quire.local");
-  const source = fixture.service.getProject(ids.project);
+  const source = (await fixture.service.getProject(ids.project));
   // When: the viewer copies the source project.
-  const response = await fixture.request(`/api/projects/${source.id}/copy`, { method: "POST",
+  const response = await fixture.request(`/api/projects/${source.id}/copy`, {
+    method: "POST",
     headers: { ...viewer.headers, "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({ name: "Independent copy", expectedVersion: source.version }) });
+    body: JSON.stringify({ name: "Independent copy", expectedVersion: source.version })
+  });
   const copy = projectEnvelope.parse(await response.json()).data;
   // Then: the viewer owns a fresh aggregate and the source is not modified.
   expect(copy.ownerId).toBe(viewer.user.id);
   expect(copy.id).not.toBe(source.id);
-  expect(fixture.runtime.db.query("SELECT * FROM project_members WHERE project_id=?").all(copy.id)).toEqual([]);
-  expect(fixture.runtime.db.query("SELECT * FROM suggestions WHERE project_id=?").all(copy.id)).toEqual([]);
-  expect(fixture.service.readDocument({ projectId: copy.id, branch: "main" }, copy.settings.mainFileId).text)
-    .toBe(fixture.service.readDocument({ projectId: source.id, branch: "main" }, source.settings.mainFileId).text);
+  expect((await fixture.runtime.db.all("SELECT * FROM project_members WHERE project_id=?", [copy.id]))).toEqual([]);
+  expect((await fixture.runtime.db.all("SELECT * FROM suggestions WHERE project_id=?", [copy.id]))).toEqual([]);
+  expect((await fixture.service.readDocument({ projectId: copy.id, branch: "main" }, copy.settings.mainFileId)).text)
+    .toBe((await fixture.service.readDocument({ projectId: source.id, branch: "main" }, source.settings.mainFileId)).text);
 });
 
 test("T02 rejects stale project mutation and leaves a non-owner unable to delete", async () => {
@@ -89,33 +97,41 @@ test("T02 rejects stale project mutation and leaves a non-owner unable to delete
   await using fixture = await baseFixture();
   const owner = await fixture.login();
   const viewer = await fixture.login("alex@quire.local");
-  const project = fixture.service.getProject(ids.project);
+  const project = (await fixture.service.getProject(ids.project));
   // When: clients attempt a stale rename and a viewer deletion.
-  const stale = await fixture.request(`/api/projects/${project.id}`, { method: "PATCH", headers: owner.headers,
-    body: JSON.stringify({ name: "Wrong", expectedVersion: project.version + 1 }) });
-  const denied = await fixture.request(`/api/projects/${project.id}`, { method: "DELETE", headers: viewer.headers,
-    body: JSON.stringify({ confirmation: project.name, expectedVersion: project.version }) });
+  const stale = await fixture.request(`/api/projects/${project.id}`, {
+    method: "PATCH", headers: owner.headers,
+    body: JSON.stringify({ name: "Wrong", expectedVersion: project.version + 1 })
+  });
+  const denied = await fixture.request(`/api/projects/${project.id}`, {
+    method: "DELETE", headers: viewer.headers,
+    body: JSON.stringify({ confirmation: project.name, expectedVersion: project.version })
+  });
   // Then: neither request changes the durable project.
   expect(stale.status).toBe(409);
   expect(denied.status).toBe(403);
-  expect(fixture.service.getProject(project.id).name).toBe(project.name);
+  expect((await fixture.service.getProject(project.id)).name).toBe(project.name);
 });
 
 test("T02 transfers ownership only to a collaborator and allows the former owner to leave", async () => {
   // Given: an owned project with an existing editor.
   await using fixture = await baseFixture();
   const owner = await fixture.login();
-  const project = fixture.service.getProject(ids.project);
+  const project = (await fixture.service.getProject(ids.project));
   // When: ownership transfers to Mai and the former owner leaves.
-  const transfer = await fixture.request(`/api/projects/${project.id}/transfer`, { method: "POST",
+  const transfer = await fixture.request(`/api/projects/${project.id}/transfer`, {
+    method: "POST",
     headers: { ...owner.headers, "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({ newOwnerId: ids.mai, expectedVersion: project.version }) });
-  const left = await fixture.request(`/api/projects/${project.id}/leave`, { method: "POST", headers: owner.headers,
-    body: JSON.stringify({ expectedVersion: 0 }) });
+    body: JSON.stringify({ newOwnerId: ids.mai, expectedVersion: project.version })
+  });
+  const left = await fixture.request(`/api/projects/${project.id}/leave`, {
+    method: "POST", headers: owner.headers,
+    body: JSON.stringify({ expectedVersion: 0 })
+  });
   // Then: Mai is the sole owner and the former owner has no project membership.
   expect(okEnvelope.parse(await transfer.json()).data.ok).toBe(true);
   expect(left.status).toBe(200);
-  expect(fixture.service.getProject(project.id).ownerId).toBe(ids.mai);
+  expect((await fixture.service.getProject(project.id)).ownerId).toBe(ids.mai);
   expect((await fixture.request(`/api/projects/${project.id}?branch=main`, { headers: owner.headers })).status).toBe(404);
 });
 
@@ -124,9 +140,11 @@ test("T02 records bulk source download as a durable operation", async () => {
   await using fixture = await baseFixture();
   const owner = await fixture.login();
   // When: the selected project set is exported.
-  const response = await fixture.request("/api/projects/bulk", { method: "POST",
+  const response = await fixture.request("/api/projects/bulk", {
+    method: "POST",
     headers: { ...owner.headers, "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({ items: [{ id: ids.project, expectedVersion: 0 }], action: "download" }) });
+    body: JSON.stringify({ items: [{ id: ids.project, expectedVersion: 0 }], action: "download" })
+  });
   // Then: the operation is durable and points at actual downloadable ZIP bytes.
   const operation = z.object({ data: OperationSchema }).parse(await response.json()).data;
   await fixture.restart();

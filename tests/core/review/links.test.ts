@@ -10,8 +10,7 @@ test("closes a subscribed editor-link client immediately when its actual share t
   await using fixture = await reviewFixture();
   const owner = await fixture.login();
   const guest = await fixture.login("outsider@quire.local");
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=?")
-    .run(JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true }));
+  (await fixture.runtime.db.run("UPDATE organizations SET policy_json=?", [JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true })]));
   const scope = { projectId: ids.project, branch: "main" };
   const linkInput = mutation(owner.headers, { role: "editor", expectedVersion: 0 });
   const linkResponse = await fixture.request(`/api/projects/${ids.project}/link`, { ...linkInput,
@@ -21,7 +20,7 @@ test("closes a subscribed editor-link client immediately when its actual share t
   if (!token) throw new TypeError("Expected one-time share credential");
   await using observer = await peer(fixture.url, scope, owner.headers);
   await using linked = await peer(fixture.url, scope, { ...guest.headers, "x-project-token": token });
-  const source = fixture.service.loadDocument(scope, ids.mainFile);
+  const source = (await fixture.service.loadDocument(scope, ids.mainFile));
   const subscriptions = [observer.next(message => message.type === "update"), linked.next(message => message.type === "update")];
   observer.send({ type: "sync", fileId: ids.mainFile, epoch: 0, stateVectorBase64: source.vector });
   linked.send({ type: "sync", fileId: ids.mainFile, epoch: 0, stateVectorBase64: source.vector });
@@ -34,18 +33,18 @@ test("closes a subscribed editor-link client immediately when its actual share t
   await ack;
   const closed = new Promise<CloseEvent>(resolve => linked.socket.addEventListener("close", resolve, { once: true }));
   // When: the owner revokes the current persisted token through the real HTTP endpoint.
-  const version = fixture.service.getProject(ids.project).version;
+  const version = (await fixture.service.getProject(ids.project)).version;
   const revoke = mutation(owner.headers, { role: "off", expectedVersion: version });
   const response = await fixture.request(`/api/projects/${ids.project}/link`, { ...revoke,
     method: "PUT", headers: { ...Object.fromEntries(new Headers(revoke.headers)), "if-match": resourceVersionTag(version) } });
   // Then: the live socket closes and its transient membership cannot authorize another request.
   expect(response.status).toBe(200);
   expect((await closed).code).toBe(1008);
-  expect(fixture.runtime.db.query("SELECT 1 FROM project_members WHERE project_id=? AND user_id=?").get(ids.project, ids.outsider)).toBeNull();
+  expect((await fixture.runtime.db.get("SELECT 1 FROM project_members WHERE project_id=? AND user_id=?", [ids.project, ids.outsider]))).toBeNull();
   const denied = await fixture.request(`/api/projects/${ids.project}/threads?branch=main`,
     { headers: { ...guest.headers, "x-project-token": token } });
   expect(denied.status).not.toBe(200);
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text).toContain("EDITOR LINK");
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toContain("EDITOR LINK");
   doc.destroy();
 });
 
@@ -54,8 +53,7 @@ test("allows Viewer-link review reads but denies chat and comment mutations", as
   await using fixture = await reviewFixture();
   const owner = await fixture.login();
   const guest = await fixture.login("outsider@quire.local");
-  fixture.runtime.db.query("UPDATE organizations SET policy_json=?")
-    .run(JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true }));
+  (await fixture.runtime.db.run("UPDATE organizations SET policy_json=?", [JSON.stringify({ ...defaultPolicy, sharing: "anyone", anonymousRead: true })]));
   const scope = { projectId: ids.project, branch: "main" };
   const input = mutation(owner.headers, { role: "viewer", expectedVersion: 0 });
   const link = await fixture.request(`/api/projects/${ids.project}/link`, { ...input, method: "PUT",

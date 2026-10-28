@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/server/src/composition.ts",
+    "../../../apps/server/src/main.ts",
+    "../../../apps/server/src/repository-main.ts",
+    "../../../apps/server/src/installation-main.ts",
+    "../../../apps/server/src/installation-role.ts",
+    "../../../services/operations/installation/controller.ts",
+    "../../../services/operations/installation/client.ts",
+    "../../../services/operations/installation/launch.ts",
+    "../../../services/operations/installation/binding.ts",
+    "../../../scripts/migrate.ts",
+    "../../../scripts/ops/workers.ts",
+    "../../../scripts/ops/ssh.ts",
+    "../../../workers/compiler/main.ts",
+    "../../../services/operations/tasks/**/*.ts",
+    "../../../tests/operations/tasks.test.ts",
+    "./**/*.ts"
+  ],
+  "exclude": []
+}

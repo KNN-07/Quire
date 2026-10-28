@@ -21,7 +21,7 @@ test("allows operator self-deletion when another active operator remains", async
   // Given: a second active operator can still administer the instance.
   await using app = await identityFixture({ seed: true });
   const operator = await app.login("operator@quire.local");
-  app.runtime.db.query("UPDATE users SET operator=1 WHERE id=?").run(fixtureIds.mai);
+  await app.runtime.db.run("UPDATE users SET operator=1 WHERE id=?", [fixtureIds.mai]);
   // When: the original operator deletes their account using fresh credentials.
   const response = await app.request("/api/me", { method: "DELETE", headers: operator.headers,
     body: JSON.stringify({ confirmation: operator.user.primaryEmail, password, expectedVersion: 0 }) });

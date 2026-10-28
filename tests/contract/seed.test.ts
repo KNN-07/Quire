@@ -13,18 +13,18 @@ test("persists seeded users tree and Git when the runtime restarts", async () =>
   const first = await createRuntime(sandbox.config);
   // When: seed runs and a new runtime opens the same directory.
   const created = await seed(first);
-  first.close();
+  await first.close();
   const reopened = await createRuntime(sandbox.config);
   try {
     // Then: persisted identities, source bytes, Yjs state and actual Git agree.
-    const users = reopened.db.query("SELECT id FROM users ORDER BY id").all();
+    const users = await reopened.db.all("SELECT id FROM users ORDER BY id");
     expect(users).toHaveLength(seedUsers.length);
-    const row = z.strictObject({ password_hash: z.string() }).parse(reopened.db.query("SELECT password_hash FROM users WHERE id=?").get(ids.kien));
+    const row = z.strictObject({ password_hash: z.string() }).parse(await reopened.db.get("SELECT password_hash FROM users WHERE id=?", [ids.kien]));
     expect(created.password !== null && await Bun.password.verify(created.password, row.password_hash)).toBe(true);
-    const files = reopened.db.query("SELECT path FROM files WHERE branch_id=? ORDER BY path").all(ids.branch);
+    const files = await reopened.db.all("SELECT path FROM files WHERE branch_id=? ORDER BY path", [ids.branch]);
     expect(files).toEqual([...exampleFiles].sort((a, b) => a.path.localeCompare(b.path)).map((file) => ({ path: file.path })));
     const docRow = z.strictObject({ text: z.string(), state: z.instanceof(Uint8Array) }).parse(
-      reopened.db.query("SELECT text,state FROM document_states WHERE file_id=?").get(ids.mainFile));
+      await reopened.db.get("SELECT text,state FROM document_states WHERE file_id=?", [ids.mainFile]));
     const doc = new Y.Doc();
     Y.applyUpdate(doc, docRow.state);
     expect(doc.getText("source").toJSON()).toBe(docRow.text);
@@ -34,7 +34,7 @@ test("persists seeded users tree and Git when the runtime restarts", async () =>
     expect(await git.exited).toBe(0);
     const again = await seed(reopened);
     expect(again).toEqual({ createdUsers: 0, password: null });
-    expect(reopened.db.query("SELECT id FROM projects").all()).toHaveLength(1);
-    expect(reopened.db.query("PRAGMA foreign_key_check").all()).toEqual([]);
-  } finally { reopened.close(); }
+    expect(await reopened.db.all("SELECT id FROM projects")).toHaveLength(1);
+    expect(await reopened.db.all("PRAGMA foreign_key_check")).toEqual([]);
+  } finally { await reopened.close(); }
 });

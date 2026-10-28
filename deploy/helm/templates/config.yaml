@@ -1,0 +1,72 @@
+{{- $image := required "Set image to the verified application image (digest for releases)" .Values.image -}}
+{{- $secret := required "Set existingSecret to an existing private runtime Secret" .Values.existingSecret -}}
+{{- $tls := required "Set existingTLSSecret containing ca.pem, cert.pem and key.pem" .Values.existingTLSSecret -}}
+{{- $signer := required "Set existingBackupSigningSecret containing independent Ed25519 key.pem" .Values.existingBackupSigningSecret -}}
+{{- $backups := required "Set existingBackupClaim to the shared durable backup filesystem PVC" .Values.existingBackupClaim -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-runtime
+data:
+  NODE_ENV: production
+  QUIRE_PROFILE: scale
+  QUIRE_COMPILER_BACKEND: docker
+  QUIRE_HOST: 0.0.0.0
+  QUIRE_PORT: "8080"
+  QUIRE_DATA_DIR: /data
+  QUIRE_PUBLIC_URL: {{ .Values.publicUrl | quote }}
+  QUIRE_REPOSITORY_URL: https://{{ .Release.Name }}-repository:3443
+  NODE_EXTRA_CA_CERTS: /run/quire-tls/ca.pem
+  QUIRE_REPOSITORY_TLS_CERT: /run/quire-tls/cert.pem
+  QUIRE_REPOSITORY_TLS_KEY: /run/quire-tls/key.pem
+  QUIRE_BACKUP_SIGNING_KEY_FILE: /run/quire-backup/key.pem
+  QUIRE_BACKUP_ROOT: /backups
+  QUIRE_REPOSITORY_HOST: 0.0.0.0
+  QUIRE_REPOSITORY_PORT: "3002"
+  QUIRE_REPOSITORY_VOLUME: /git
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-{{ .Release.Revision }}
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000}
+      initContainers:
+        - name: volume-owner
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          command: [sh, -c, "chown 1000:1000 /data && chmod 0700 /data"]
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL], add: [CHOWN, FOWNER]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      containers:
+        - name: migrate
+          image: {{ $image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          args: [migrate]
+          envFrom:
+            - configMapRef: {name: {{ .Release.Name }}-runtime}
+            - secretRef: {name: {{ $secret }}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            - {name: tls, mountPath: /run/quire-tls, readOnly: true}
+      volumes:
+        - {name: data, emptyDir: {}}
+        - {name: tmp, emptyDir: {sizeLimit: 128Mi}}
+        - name: tls
+          secret:
+            secretName: {{ $tls }}
+            defaultMode: 0440
+            items: [{key: ca.pem, path: ca.pem}]

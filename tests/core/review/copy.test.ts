@@ -10,7 +10,7 @@ test("materializes pending suggestions into an independent copy without copying 
   const owner = await fixture.login();
   const reviewer = await fixture.login("sam@quire.local");
   const scope = { projectId: ids.project, branch: "main" };
-  const original = fixture.service.loadDocument(scope, ids.mainFile);
+  const original = (await fixture.service.loadDocument(scope, ids.mainFile));
   const doc = sourceDoc(original.state);
   const edit = proposal(doc, { fileId: ids.mainFile, before: "article", after: "report", baseRevision: 0 });
   const suggestion = await fixture.request(`/api/projects/${ids.project}/suggestions`,
@@ -24,23 +24,22 @@ test("materializes pending suggestions into an independent copy without copying 
   expect([suggestion.status, thread.status, chat.status, label.status]).toEqual([200, 200, 200, 200]);
   // When: the user creates a genuine project copy through its actual HTTP endpoint.
   const response = await fixture.request(`/api/projects/${ids.project}/copy`,
-    mutation(owner.headers, { name: "Independent copy", expectedVersion: fixture.service.getProject(ids.project).version }));
+    mutation(owner.headers, { name: "Independent copy", expectedVersion: (await fixture.service.getProject(ids.project)).version }));
   const copied = z.object({ data: ProjectSchema }).parse(await response.json()).data;
   const copiedScope = { projectId: copied.id, branch: copied.defaultBranch };
   // Then: pending edits are materialized only in the copy, while identities and collaborative metadata are fresh.
   expect(copied.id).not.toBe(ids.project);
   expect(copied.settings.mainFileId).not.toBe(ids.mainFile);
-  expect(fixture.service.loadDocument(copiedScope, copied.settings.mainFileId).text).toContain("{report}");
-  expect(fixture.service.loadDocument(scope, ids.mainFile).text).toBe(original.text);
+  expect((await fixture.service.loadDocument(copiedScope, copied.settings.mainFileId)).text).toContain("{report}");
+  expect((await fixture.service.loadDocument(scope, ids.mainFile)).text).toBe(original.text);
   const counts = z.object({ threads: z.number(), suggestions: z.number(), chat: z.number(), members: z.number(), labels: z.number() }).parse(
-    fixture.runtime.db.query(`SELECT
+    (await fixture.runtime.db.get(`SELECT
       (SELECT count(*) FROM threads WHERE project_id=?) AS threads,
       (SELECT count(*) FROM suggestions WHERE project_id=?) AS suggestions,
       (SELECT count(*) FROM chat_messages WHERE project_id=?) AS chat,
       (SELECT count(*) FROM project_members WHERE project_id=?) AS members,
       (SELECT count(*) FROM version_labels l JOIN history_versions h ON h.id=l.history_version_id
-        JOIN snapshots s ON s.id=h.snapshot_id WHERE s.project_id=?) AS labels`)
-      .get(copied.id, copied.id, copied.id, copied.id, copied.id));
+        JOIN snapshots s ON s.id=h.snapshot_id WHERE s.project_id=?) AS labels`, [copied.id, copied.id, copied.id, copied.id, copied.id])));
   expect(counts).toEqual({ threads: 0, suggestions: 0, chat: 0, members: 0, labels: 0 });
   doc.destroy();
 });

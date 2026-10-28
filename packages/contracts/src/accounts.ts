@@ -13,6 +13,9 @@ export const PolicySchema = z.strictObject({
   ai: z.enum(["off", "ask", "agent"]), aiDailyUses: CountSchema.nullable(),
   sharing: z.enum(["named", "organization", "anyone"]), anonymousRead: z.boolean(), anonymousEdit: z.boolean(),
 }).readonly();
+export const ProjectBenefitsSchema = PolicySchema.unwrap().pick({
+  compileSeconds: true, writableMembers: true, historyDays: true, trackChanges: true,
+}).readonly();
 export const PreferencesSchema = z.strictObject({
   theme: z.enum(["light", "dark", "system"]), bindings: z.enum(["default", "vim", "emacs"]),
   fontSize: z.number().min(10).max(24), fontFamily: z.enum(["plex", "system", "serif"]),
@@ -107,6 +110,7 @@ export const NotificationPreferencesSchema = z.strictObject({
 }).readonly();
 export type User = z.infer<typeof UserSchema>;
 export type Policy = z.infer<typeof PolicySchema>;
+export type ProjectBenefits = z.infer<typeof ProjectBenefitsSchema>;
 export type Preferences = z.infer<typeof PreferencesSchema>;
 export type Organization = z.infer<typeof OrganizationSchema>;
 export type Membership = z.infer<typeof MembershipSchema>;

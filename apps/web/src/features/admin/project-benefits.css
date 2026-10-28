@@ -1,0 +1,15 @@
+.project-benefits{display:grid;gap:var(--q-space-7);min-inline-size:0;font-size:var(--q-text-form)}
+.project-benefits-confirm{font-size:var(--q-text-form)}
+.project-benefits h1,.project-benefits h2,.project-benefits p{margin:0}
+.project-benefits .admin-resource{display:grid;gap:var(--q-space-7)}
+.project-benefits__scope{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;align-items:end;gap:var(--q-space-5)}
+.project-benefits__scope>*{min-inline-size:0}
+.project-benefits__actions{display:flex;flex-wrap:wrap;gap:var(--q-space-5)}
+.project-benefits__number{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:var(--q-space-7)}
+.project-benefits .admin-message{color:var(--q-error)}
+@media(max-width:700px){
+  .project-benefits__scope,.project-benefits__number{grid-template-columns:minmax(0,1fr)}
+  .project-benefits{font-size:var(--q-text-dialog)}
+  .project-benefits-confirm{font-size:var(--q-text-dialog)}
+  .project-benefits input,.project-benefits select,.project-benefits .q-button{font-size:inherit;min-block-size:var(--q-touch-target)}
+}

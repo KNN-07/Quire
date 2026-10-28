@@ -6,8 +6,9 @@ import { ProjectParamsSchema as p, ProjectIdParamsSchema as pi, FileParamsSchema
   IdParamsSchema as ids, BranchQuerySchema as branch, BytesSchema } from "./endpoint";
 import { ProjectSchema, ProjectSummarySchema, CompileSettingsSchema, FileEntrySchema, TextDocumentSchema, AnchorSchema,
   ProposedEditSchema, SuggestionSchema, ThreadSchema, CommentSchema, HistoryVersionSchema,
-  GitHunkSchema, GitStatusSchema, TemplateVersionSchema, TagSchema } from "./projects";
-import { InvitationSchema, AccessRequestSchema, UserSchema } from "./accounts";
+  GitHunkSchema, GitStatusSchema, GitBranchSchema, GitConflictSchema, GitComparisonSchema,
+  TemplateVersionSchema, TagSchema } from "./projects";
+import { InvitationSchema, AccessRequestSchema, UserSchema, ProjectBenefitsSchema } from "./accounts";
 import { OperationSchema, LibraryEntrySchema, PublicationSchema } from "./work";
 import { FilesUploadSchema, LibraryUploadSchema } from "./multipart";
 const r = routesFor("K");
@@ -17,13 +18,28 @@ const edits = z.array(ProposedEditSchema.unwrap().omit({ id: true, status: true 
 const templateFields = { name: z.string(), category: z.string(), description: z.string(), license: z.string(), visibility: z.enum(["public", "organization", "private"]), sourceProjectId: id } as const;
 const libraryFields = { bibtex: z.string(), origin: z.enum(["manual", "doi", "provider"]), providerId: z.string().optional() } as const;
 const threadParams = p.extend({ t: id });
+const gitMergeResult = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("merged"), operation: OperationSchema }),
+  z.strictObject({ kind: z.literal("conflict"), conflict: GitConflictSchema }),
+]);
 const bulkProjects = z.array(z.strictObject({ id, expectedVersion: CountSchema })).min(1)
   .refine(items => new Set(items.map(item => item.id)).size === items.length,
     { message: "Each project may appear only once" });
+const effectiveAccess = z.strictObject({
+  actorId: id.nullable(), role: RoleSchema, source: z.enum(["owner", "member", "link"]),
+  effectiveRole: RoleSchema, benefits: ProjectBenefitsSchema, capacityLimited: z.boolean(),
+  branchRevision: CountSchema,
+  capabilities: z.strictObject({
+    read: z.boolean(), edit: z.boolean(), compile: z.boolean(), review: z.boolean(),
+    chat: z.boolean(), manageAccess: z.boolean(), join: z.boolean(),
+  }),
+});
 export const coreEndpoints = {
   projectList: r("GET", "/api/projects", { params: none, query: list.extend({ q: z.string().optional(), owner: z.enum(["me", "shared", "all"]).default("all"), state: z.enum(["active", "archived", "trash"]).default("active"), tag: id.optional(), sort: z.enum(["updated", "title", "owner"]).default("updated"), direction: z.enum(["asc", "desc"]).default("desc") }), body: noBody, output: pageSchema(ProjectSummarySchema) }),
   projectCreate: r("POST", "/api/projects", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), workspaceId: id.optional(), origin: z.discriminatedUnion("kind", [z.strictObject({ kind: z.literal("blank") }), z.strictObject({ kind: z.literal("example") }), z.strictObject({ kind: z.literal("template"), templateVersionId: id })]) }), output: ProjectSchema, ...key }),
   projectGet: r("GET", "/api/projects/:p", { params: p, query: branch, body: noBody, output: ProjectSchema }),
+  projectAccess: r("GET", "/api/projects/:p/effective-access", { params: p, query: branch, body: noBody, output: effectiveAccess }),
+  projectJoin: r("POST", "/api/projects/:p/join", { params: p, query: none, body: z.strictObject({ scope }), output: effectiveAccess }),
   projectPatch: r("PATCH", "/api/projects/:p", { params: p, query: none, body: z.strictObject({ name: z.string().optional(), settings: CompileSettingsSchema.optional(), ...version }), output: ProjectSchema }),
   projectCopy: r("POST", "/api/projects/:p/copy", { params: p, query: none, body: z.strictObject({ name: z.string(), ...version }), output: ProjectSchema, ...key }),
   projectBulk: r("POST", "/api/projects/bulk", { params: none, query: none, body: z.strictObject({ items: bulkProjects, action: z.enum(["archive", "trash", "restore", "download"]) }), output: OperationSchema, ...key, successStatus: 202 }),
@@ -59,7 +75,8 @@ export const coreEndpoints = {
   templateApprove: r("POST", "/api/templates/:id/approve", { params: ids, query: none, body: z.strictObject({ versionId: id, ...version }), output: TemplateVersionSchema }),
   templatePublish: r("POST", "/api/templates/:id/publish", { params: ids, query: none, body: z.strictObject({ versionId: id, workspaceId: id.optional(), ...version }), output: TemplateVersionSchema }),
   templateUnpublish: r("POST", "/api/templates/:id/unpublish", { params: ids, query: none, body: existing, output: TemplateVersionSchema }),
-  accessGet: r("GET", "/api/projects/:p/access", { params: p, query: branch, body: noBody, output: z.strictObject({ members: z.array(z.strictObject({ user: UserSchema, role: RoleSchema, version: CountSchema })), invitations: z.array(InvitationSchema), requests: z.array(AccessRequestSchema), link: z.strictObject({ role: z.enum(["off", "viewer", "editor"]), version: CountSchema }) }) }),
+  accessGet: r("GET", "/api/projects/:p/access", { params: p, query: branch, body: noBody, output: z.strictObject({ members: z.array(z.strictObject({ user: UserSchema, role: RoleSchema, version: CountSchema, memberId: id.nullable(), effectiveRole: RoleSchema, capacityLimited: z.boolean() })), writableSelection: z.strictObject({ memberIds: z.array(id).nullable(), capacity: CountSchema.nullable(), effectiveCount: CountSchema, selectionRequired: z.boolean() }), invitations: z.array(InvitationSchema), requests: z.array(AccessRequestSchema), link: z.strictObject({ role: z.enum(["off", "viewer", "editor"]), version: CountSchema }) }) }),
+  accessWritableMembersPut: r("PUT", "/api/projects/:p/writable-members", { params: p, query: none, body: z.strictObject({ memberIds: z.array(id).nullable(), ...version }), output: ok }),
   invitationCreate: r("POST", "/api/projects/:p/invitations", { params: p, query: none, body: z.strictObject({ email: z.email(), role: RoleSchema.exclude(["owner"]), ...version }), output: InvitationSchema, ...key }),
   invitationAccept: r("POST", "/api/invitations/:id/accept", { params: ids, query: none, body: z.strictObject({ token: z.string(), ...version }), output: ok, ...key }),
   invitationResend: r("POST", "/api/projects/:p/invitations/:id/resend", { params: pi, query: none, body: existing, output: InvitationSchema }),
@@ -79,6 +96,7 @@ export const coreEndpoints = {
   commentDelete: r("DELETE", "/api/projects/:p/comments/:id", { params: pi, query: none, body: existing, output: ok }),
   threadState: r("POST", "/api/projects/:p/threads/:t/state", { params: threadParams, query: none, body: z.strictObject({ resolved: z.boolean(), ...version }), output: ThreadSchema }),
   suggestionCreate: r("POST", "/api/projects/:p/suggestions", { params: p, query: none, body: z.strictObject({ scope, edits, ...version }), output: SuggestionSchema, ...key }),
+  suggestionsList: r("GET", "/api/projects/:p/suggestions", { params: p, query: branch.extend({ fileId: id.optional(), status: z.enum(["all", "pending", "accepted", "rejected", "conflict"]).optional() }), body: noBody, output: pageSchema(SuggestionSchema) }),
   suggestionDecide: r("POST", "/api/projects/:p/suggestions/decide", { params: p, query: none, body: z.strictObject({ ids: z.array(id), editIds: z.array(id).optional(), decision: z.enum(["accept", "reject"]), ...version }), output: z.array(SuggestionSchema), ...key }),
   chatList: r("GET", "/api/projects/:p/chat", { params: p, query: branch, body: noBody, output: pageSchema(CommentSchema) }),
   chatCreate: r("POST", "/api/projects/:p/chat", { params: p, query: none, body: z.strictObject({ scope, body: z.string(), ...version }), output: CommentSchema, ...key }),
@@ -90,13 +108,29 @@ export const coreEndpoints = {
   historySource: r("GET", "/api/projects/:p/history/:id/source.zip", { params: pi, query: branch, body: noBody, output: BytesSchema, transport: "bytes" }),
   gitStatus: r("GET", "/api/projects/:p/git/status", { params: p, query: branch, body: noBody, output: GitStatusSchema }),
   gitLog: r("GET", "/api/projects/:p/git/log", { params: p, query: branch, body: noBody, output: pageSchema(z.strictObject({ oid: GitOidSchema, parents: z.array(GitOidSchema), authorId: id.nullable(), author: z.string(), message: z.string(), at: InstantSchema })) }),
-  gitBranches: r("GET", "/api/projects/:p/git/branches", { params: p, query: branch, body: noBody, output: z.array(z.strictObject({ name: z.string(), head: GitOidSchema, current: z.boolean() })) }),
+  gitBranches: r("GET", "/api/projects/:p/git/branches", { params: p, query: branch, body: noBody, output: z.array(GitBranchSchema) }),
   gitBranchCreate: r("POST", "/api/projects/:p/git/branches", { params: p, query: none, body: z.strictObject({ name: z.string(), from: z.string(), ...version }), output: GitStatusSchema, ...key }),
   gitBranchDelete: r("DELETE", "/api/projects/:p/git/branches/:name", { params: p.extend({ name: z.string() }), query: none, body: scoped, output: ok }),
   gitStage: r("PUT", "/api/projects/:p/git/stage", { params: p, query: none, body: z.strictObject({ scope, head: GitOidSchema, hunkIds: z.array(id), staged: z.boolean(), ...version }), output: GitStatusSchema, ifMatch: true }),
   gitDiscard: r("POST", "/api/projects/:p/git/discard", { params: p, query: none, body: z.strictObject({ scope, head: GitOidSchema, hunkIds: z.array(id), ...version }), output: GitStatusSchema }),
   gitCommit: r("POST", "/api/projects/:p/git/commit", { params: p, query: none, body: z.strictObject({ scope, head: GitOidSchema, message: z.string(), compileFirst: z.boolean(), ...version }), output: OperationSchema, ...key, successStatus: 202 }),
-  gitMerge: r("POST", "/api/projects/:p/git/merge", { params: p, query: none, body: z.strictObject({ scope, from: z.string(), head: GitOidSchema, ...version }), output: OperationSchema, ...key, successStatus: 202 }),
+  gitMerge: r("POST", "/api/projects/:p/git/merge", { params: p, query: none, body: z.strictObject({ scope, from: z.string(), head: GitOidSchema, ...version }), output: gitMergeResult, ...key, successStatus: 202 }),
+  gitConflictResolve: r("POST", "/api/projects/:p/git/conflicts/:id/resolve", {
+    params: pi, query: none, body: z.strictObject({
+      scope, from: z.string(), head: GitOidSchema, fromHead: GitOidSchema,
+      resolutions: z.array(z.discriminatedUnion("choice", [
+        z.strictObject({ path, choice: z.literal("ours") }),
+        z.strictObject({ path, choice: z.literal("theirs") }),
+        z.strictObject({ path, choice: z.literal("delete") }),
+        z.strictObject({ path, choice: z.literal("text"), text: z.string() }),
+      ])).min(1), ...version,
+    }), output: OperationSchema, ...key, successStatus: 202,
+  }),
+  gitComparisonCreate: r("POST", "/api/projects/:p/git/comparisons", {
+    params: p, query: none, body: z.strictObject({
+      scope, head: GitOidSchema, target: z.enum(["working", "staged"]), ...version,
+    }), output: GitComparisonSchema, ...key,
+  }),
   libraryList: r("GET", "/api/me/library", { params: none, query: list, body: noBody, output: pageSchema(LibraryEntrySchema) }),
   libraryGet: r("GET", "/api/me/library/:id", { params: ids, query: none, body: noBody, output: LibraryEntrySchema }),
   libraryCreate: r("POST", "/api/me/library", { params: none, query: none, body: z.strictObject(libraryFields), output: LibraryEntrySchema, ...key }),

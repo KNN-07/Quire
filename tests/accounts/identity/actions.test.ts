@@ -24,8 +24,7 @@ test("protects a mixed-case primary email from removal", async () => {
   // Given: an account whose persisted primary address has different casing.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("UPDATE users SET primary_email=? WHERE id=?")
-    .run(login.user.primaryEmail.toUpperCase(), login.user.id);
+  await fixture.runtime.db.run("UPDATE users SET primary_email=? WHERE id=?", [login.user.primaryEmail.toUpperCase(), login.user.id]);
   // When: the caller requests primary-address removal using email rather than a UUID.
   const denied = await fixture.request("/api/me/emails", { method: "DELETE", headers: login.headers,
     body: JSON.stringify({ email: login.user.primaryEmail.toUpperCase(), expectedVersion: 0 }) });
@@ -40,8 +39,11 @@ test("removes a secondary email case-insensitively", async () => {
   // Given: an account with a verified mixed-case secondary address.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("INSERT INTO verified_emails(id,user_id,email,verified_at) VALUES(?,?,?,?)")
-    .run(crypto.randomUUID(), login.user.id, "Secondary@Example.Test", fixture.runtime.clock.now());
+  await fixture.runtime.db.run("INSERT INTO verified_emails(id,user_id,email,verified_at) VALUES(?,?,?,?)", [crypto.randomUUID(), login.user.id, "Secondary@Example.Test", fixture.runtime.clock.now()]);
+  await fixture.runtime.db.run(
+    "INSERT INTO one_time_tokens(id,user_id,token_hash,purpose,payload_json,expires_at,created_at) VALUES(?,?,?,'verify',?,?,?)",
+    [crypto.randomUUID(), login.user.id, crypto.randomUUID(), JSON.stringify({ email: "Secondary@Example.Test" }),
+      "2099-01-01T00:00:00.000Z", fixture.runtime.clock.now()]);
   // When: the caller submits the same secondary address with different casing.
   const removed = await fixture.request("/api/me/emails", { method: "DELETE", headers: login.headers,
     body: JSON.stringify({ email: "SECONDARY@EXAMPLE.TEST", expectedVersion: 0 }) });
@@ -51,20 +53,22 @@ test("removes a secondary email case-insensitively", async () => {
   const me = meEnvelope.parse(await current.json());
   expect(me.data.user.verifiedEmails).toEqual([login.user.primaryEmail]);
   expect(current.headers.get("etag")).toBe('"v1"');
+  expect(await fixture.runtime.db.get<{ total: number }>("SELECT count(*) AS total FROM one_time_tokens WHERE user_id=? AND used_at IS NULL",
+    [login.user.id])).toEqual({ total: 0 });
 });
 
 test("blocks local recovery and self-deletion of managed accounts", async () => {
   // Given: a user under an organization management agreement.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("UPDATE users SET managed_by=? WHERE id=?").run(fixtureIds.team, login.user.id);
+  await fixture.runtime.db.run("UPDATE users SET managed_by=? WHERE id=?", [fixtureIds.team, login.user.id]);
   // When: that account requests local recovery and self-deletion.
   const reset = await fixture.request("/api/auth/password-reset", { method: "POST", body: JSON.stringify({ email: login.user.primaryEmail }) });
   const deleted = await fixture.request("/api/me", { method: "DELETE", headers: login.headers,
     body: JSON.stringify({ confirmation: login.user.primaryEmail, password, expectedVersion: 0 }) });
   // Then: recovery remains non-enumerating with no issued token, and managed deletion is denied.
   expect(reset.status).toBe(200);
-  expect(fixture.runtime.db.query("SELECT id FROM one_time_tokens WHERE user_id=?").all(login.user.id)).toHaveLength(0);
+  expect((await fixture.runtime.db.all("SELECT id FROM one_time_tokens WHERE user_id=?", [login.user.id]))).toHaveLength(0);
   expect(deleted.status).toBe(403);
   expect((await fixture.request("/api/me", { headers: login.headers })).status).toBe(200);
 });
@@ -110,9 +114,8 @@ test("denies secondary email removal for a managed account", async () => {
   // Given: a managed user with a verified secondary email.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("UPDATE users SET managed_by=? WHERE id=?").run(fixtureIds.team, login.user.id);
-  fixture.runtime.db.query("INSERT INTO verified_emails(id,user_id,email,verified_at) VALUES(?,?,?,?)")
-    .run(crypto.randomUUID(), login.user.id, "secondary@example.test", fixture.runtime.clock.now());
+  await fixture.runtime.db.run("UPDATE users SET managed_by=? WHERE id=?", [fixtureIds.team, login.user.id]);
+  await fixture.runtime.db.run("INSERT INTO verified_emails(id,user_id,email,verified_at) VALUES(?,?,?,?)", [crypto.randomUUID(), login.user.id, "secondary@example.test", fixture.runtime.clock.now()]);
   // When: the user attempts email-based removal with the current account version.
   const response = await fixture.request("/api/me/emails", { method: "DELETE", headers: login.headers,
     body: JSON.stringify({ email: "SECONDARY@EXAMPLE.TEST", expectedVersion: 0 }) });

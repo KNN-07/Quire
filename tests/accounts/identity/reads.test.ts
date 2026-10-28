@@ -21,13 +21,12 @@ test("reads registered external capabilities from their current configuration wi
   await using fixture = await identityFixture();
   await using independent = await identityFixture();
   const { db, clock } = fixture.runtime;
-  db.query("INSERT INTO operator_settings(key,value_json,updated_at) VALUES('test-auth-provider',?,?)")
-    .run(JSON.stringify({ enabled: false, state: "unconfigured" }), clock.now());
+  await db.run("INSERT INTO operator_settings(key,value_json,updated_at) VALUES('test-auth-provider',?,?)", [JSON.stringify({ enabled: false, state: "unconfigured" }), clock.now()]);
   registerAuthProviderCapability(fixture.runtime, {
     id: "test-idp", label: "Configured test IdP",
-    read: () => {
+    read: async () => {
       const row = z.object({ value_json: z.string() }).parse(
-        db.query("SELECT value_json FROM operator_settings WHERE key='test-auth-provider'").get());
+        (await db.get("SELECT value_json FROM operator_settings WHERE key='test-auth-provider'", [])));
       return CapabilitySchema.parse(JSON.parse(row.value_json));
     },
   });
@@ -35,8 +34,7 @@ test("reads registered external capabilities from their current configuration wi
     await (await fixture.request("/api/auth/options")).json()).data;
   expect(initial.providers[0]?.capability.state).toBe("unconfigured");
   // When: the adapter's persisted configuration becomes explicitly disabled.
-  db.query("UPDATE operator_settings SET value_json=? WHERE key='test-auth-provider'")
-    .run(JSON.stringify({ enabled: false, state: "disabled" }));
+  await db.run("UPDATE operator_settings SET value_json=? WHERE key='test-auth-provider'", [JSON.stringify({ enabled: false, state: "disabled" })]);
   // Then: the endpoint reflects that state, while the independent runtime remains unconfigured.
   const current = z.object({ data: AuthOptionsSchema }).parse(
     await (await fixture.request("/api/auth/options")).json()).data;
@@ -65,12 +63,9 @@ test("paginates only the current user's immutable linked identities and exposes 
     IdSchema.parse("00000000-0000-4000-8000-000000000901"),
     IdSchema.parse("00000000-0000-4000-8000-000000000902"),
   ] as const;
-  fixture.runtime.db.query("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)")
-    .run(ids[0], login.user.id, "https://first.example.test", "first-subject", createdAt);
-  fixture.runtime.db.query("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)")
-    .run(ids[1], login.user.id, "https://second.example.test", "second-subject", createdAt);
-  fixture.runtime.db.query("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)")
-    .run(crypto.randomUUID(), fixtureIds.mai, "https://private.example.test", "other-subject", createdAt);
+  await fixture.runtime.db.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [ids[0], login.user.id, "https://first.example.test", "first-subject", createdAt]);
+  await fixture.runtime.db.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [ids[1], login.user.id, "https://second.example.test", "second-subject", createdAt]);
+  await fixture.runtime.db.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [crypto.randomUUID(), fixtureIds.mai, "https://private.example.test", "other-subject", createdAt]);
   const profile = await fixture.request("/api/me", { method: "PATCH", headers: login.headers,
     body: JSON.stringify({ affiliation: "Updated organization", expectedVersion: 0 }) });
   expect(profile.status).toBe(200);
@@ -94,7 +89,7 @@ test("serializes the persisted session version instead of a fabricated initial c
   // Given: an authenticated session with an existing nonzero optimistic counter.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
-  fixture.runtime.db.query("UPDATE sessions SET version=7 WHERE user_id=?").run(login.user.id);
+  await fixture.runtime.db.run("UPDATE sessions SET version=7 WHERE user_id=?", [login.user.id]);
   // When: the client reads sessions over HTTP.
   const response = await fixture.request("/api/me/sessions", { headers: login.headers });
   // Then: clients receive the exact counter needed for a checked session mutation.

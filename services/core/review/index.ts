@@ -10,8 +10,8 @@ import { registerHistory } from "./history";
 
 export { migrations } from "./recovery";
 export { RealtimeService } from "./realtime";
-const disposers = new WeakMap<object, () => void>();
-export function register(context: ModuleContext): void {
+const disposers = new WeakMap<object, () => Promise<void>>();
+export async function register(context: ModuleContext): Promise<void> {
   const realtime = new RealtimeService(context);
   const store = new HistoryStore(context);
   context.services.provide("realtime", realtime);
@@ -20,11 +20,17 @@ export function register(context: ModuleContext): void {
   registerThreads(context, store);
   registerComments(context, store);
   registerSuggestions(context, store);
-  const stopHistory = registerHistory(context, store);
-  disposers.set(context.db, () => { stopEvents(); stopHistory(); realtime.dispose(); });
+  const stopHistory = await registerHistory(context, store);
+  disposers.set(context.db, async () => {
+    const eventsStopped = stopEvents();
+    const historyStopped = stopHistory();
+    await realtime.dispose();
+    await historyStopped;
+    await eventsStopped;
+  });
 }
 /** Composition calls before closing the SQLite connection or replacing this runtime. */
-export function dispose(context: Pick<ModuleContext, "db">): void {
-  disposers.get(context.db)?.();
+export async function dispose(context: Pick<ModuleContext, "db">): Promise<void> {
+  await disposers.get(context.db)?.();
   disposers.delete(context.db);
 }

@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../services/operations/backups/**/*.ts",
+    "../../../scripts/ops/backup.ts",
+    "../../../scripts/ops/restore-drill.ts",
+    "./**/*.ts",
+    "../environments/assets.d.ts",
+    "../../../packages/runtime/src/assets.d.ts"
+  ],
+  "exclude": []
+}

@@ -1,0 +1,8 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../apps/web/src/features/editor/tools/**/*.ts",
+    "../../../apps/web/src/features/editor/tools/**/*.tsx"
+  ],
+  "exclude": ["../../../node_modules", "../../../dist"]
+}

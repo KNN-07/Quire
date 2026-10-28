@@ -40,7 +40,7 @@ export function Overview({ data, refresh, navigate }: {
           <thead><tr><th>Capability</th><th>Status</th><th>Details</th></tr></thead>
           <tbody>{Object.entries(data.capabilities).map(([name, capability]) => <tr key={name}>
             <td data-label="Capability">{name}</td>
-            <td data-label="Status">{capability.state}{capability.enabled ? "" : " · disabled"}</td>
+            <td data-label="Status">{capability.state}{capability.enabled || capability.state === "disabled" ? "" : " · disabled"}</td>
             <td data-label="Details">{capability.reason || "No additional details reported."}</td>
           </tr>)}</tbody>
         </table>}

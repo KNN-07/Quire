@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../services/operations/workers/**/*.ts",
+    "../../../scripts/ops/workers.ts",
+    "./**/*.ts",
+    "../../../packages/runtime/src/assets.d.ts"
+  ],
+  "exclude": []
+}

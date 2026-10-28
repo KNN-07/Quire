@@ -47,7 +47,7 @@ test("T08 internal HTTP source capabilities, heartbeat fences and completion rep
   const response = await app.request("/internal/workers/lease", { method: "POST", headers,
     body: JSON.stringify({ workerId: ids.operator, environmentIds: [ids.environment] }) });
   const lease = z.object({ data: z.object({ lease: WorkerLeaseSchema }) }).parse(await response.json()).data.lease;
-  expect(app.runtime.events.after(0, { aggregateId: ids.project }).some((event) =>
+  expect((await app.runtime.events.read(0, { aggregateId: ids.project })).some((event) =>
     event.topic === "job.changed" && event.payload.resourceId === job.id && event.payload.status === "running")).toBe(true);
   const capability = response.headers.get("x-job-capability");
   if (!capability) throw new TypeError("Lease did not return its capability");

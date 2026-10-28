@@ -47,18 +47,18 @@ test("uses the selected bibliography when several targets exist", async () => {
   const files = [];
   for (const path of ["a.bib", "b.bib"]) {
     files.push(fileEnvelope.parse(await (await fixture.mutate(`/api/projects/${project.id}/files`, owner.headers,
-      { scope, path, kind: "file", text: "", expectedVersion: fixture.service.getBranch(scope).revision })).json()).data);
+      { scope, path, kind: "file", text: "", expectedVersion: (await fixture.service.getBranch(scope)).revision })).json()).data);
   }
   const selected = files[1];
   const untouched = files[0];
   if (!selected || !untouched) throw new TypeError("Expected two bibliography files");
   // When: an explicit target is chosen.
   const response = await fixture.mutate(`/api/projects/${project.id}/citations`, owner.headers,
-    { scope, publication, targetFileId: selected.id, command: "cite", expectedVersion: fixture.service.getBranch(scope).revision });
+    { scope, publication, targetFileId: selected.id, command: "cite", expectedVersion: (await fixture.service.getBranch(scope)).revision });
   // Then: only that project's selected source file gains the copied record.
   expect(fileEnvelope.parse(await response.json()).data.id).toBe(selected.id);
-  expect(fixture.service.readDocument(scope, selected.id).text.trim()).toBe(bib);
-  expect(fixture.service.readDocument(scope, untouched.id).text).toBe("");
+  expect((await fixture.service.readDocument(scope, selected.id)).text.trim()).toBe(bib);
+  expect((await fixture.service.readDocument(scope, untouched.id)).text).toBe("");
 });
 
 test("removes a Library entry when the current owner deletes its current version", async () => {

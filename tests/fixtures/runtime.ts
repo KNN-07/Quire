@@ -13,6 +13,6 @@ export async function runtimeFixture() {
   const runtime = await createRuntime(sandbox.config);
   return {
     ...runtime,
-    [Symbol.asyncDispose]: async () => { runtime.close(); await sandbox[Symbol.asyncDispose](); },
+    [Symbol.asyncDispose]: async () => { await runtime.close(); await sandbox[Symbol.asyncDispose](); },
   };
 }

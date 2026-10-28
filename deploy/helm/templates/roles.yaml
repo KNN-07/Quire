@@ -1,0 +1,159 @@
+{{- range $role := list "repository" "api" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $role }}
+spec:
+  {{- if eq $role "repository" }}
+  publishNotReadyAddresses: true
+  {{- end }}
+  selector: {app.kubernetes.io/instance: {{ $.Release.Name }}, quire-role: {{ $role }}}
+  ports:
+    - port: {{ if eq $role "api" }}8080{{ else }}3443{{ end }}
+      targetPort: http
+      name: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Release.Name }}-{{ $role }}
+spec:
+  serviceName: {{ $.Release.Name }}-{{ $role }}
+  replicas: {{ if eq $role "api" }}{{ $.Values.apiReplicas }}{{ else }}1{{ end }}
+  selector:
+    matchLabels: {app.kubernetes.io/instance: {{ $.Release.Name }}, quire-role: {{ $role }}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/instance: {{ $.Release.Name }}, quire-role: {{ $role }}}
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000, fsGroupChangePolicy: OnRootMismatch}
+      initContainers:
+        - name: volume-owner
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [sh, -c, "chown 1000:1000 /data{{ if eq $role "repository" }} /git{{ end }} && chmod 0700 /data{{ if eq $role "repository" }} /git{{ end }}"]
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL], add: [CHOWN, FOWNER]}
+          volumeMounts:
+            - {name: private, mountPath: /data}
+            {{- if eq $role "repository" }}
+            - {name: git, mountPath: /git}
+            {{- end }}
+        - name: schema-ready
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [bun, deploy/runtime/schema-ready.ts]
+          envFrom:
+            - configMapRef: {name: {{ $.Release.Name }}-runtime}
+            - secretRef: {name: {{ $.Values.existingSecret }}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: tls, mountPath: /run/quire-tls, readOnly: true}
+        {{- if eq $role "api" }}
+        - name: backup-root
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [sh, -c, "mkdir -p /backup-volume/archives && chmod 0700 /backup-volume/archives"]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: backups, mountPath: /backup-volume}
+        - name: backup-key
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [sh, -c, "umask 077; cp /signer-source/key.pem /run/quire-backup/key.pem && chmod 0600 /run/quire-backup/key.pem"]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: backup-signer-source, mountPath: /signer-source, readOnly: true}
+            - {name: backup-signer, mountPath: /run/quire-backup}
+        - name: repository-ready
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command: [bun, deploy/runtime/readiness.ts, repository]
+          envFrom:
+            - configMapRef: {name: {{ $.Release.Name }}-runtime}
+            - secretRef: {name: {{ $.Values.existingSecret }}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: tls, mountPath: /run/quire-tls, readOnly: true}
+        {{- end }}
+      containers:
+        - name: {{ $role }}
+          image: {{ $.Values.image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          args: [{{ $role }}]
+          ports:
+            - {name: http, containerPort: {{ if eq $role "api" }}8080{{ else }}3443{{ end }}}
+          envFrom:
+            - configMapRef: {name: {{ $.Release.Name }}-runtime}
+            - secretRef: {name: {{ $.Values.existingSecret }}}
+          resources: {{ toYaml $.Values.resources | nindent 12 }}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          readinessProbe:
+            exec: {command: [bun, deploy/runtime/readiness.ts, {{ $role }}]}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 5
+          startupProbe:
+            exec: {command: [bun, deploy/runtime/readiness.ts, {{ $role }}]}
+            failureThreshold: 60
+            periodSeconds: 5
+            timeoutSeconds: 5
+          volumeMounts:
+            - {name: private, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            - {name: tls, mountPath: /run/quire-tls, readOnly: true}
+            {{- if eq $role "api" }}
+            - {name: backup-signer, mountPath: /run/quire-backup, readOnly: true}
+            - {name: backups, mountPath: /backups, subPath: archives}
+            {{- end }}
+            {{- if eq $role "repository" }}
+            - {name: git, mountPath: /git}
+            {{- end }}
+      volumes:
+        - {name: tmp, emptyDir: {sizeLimit: 128Mi}}
+        - name: tls
+          secret:
+            secretName: {{ $.Values.existingTLSSecret }}
+            defaultMode: 0440
+            items:
+              - {key: ca.pem, path: ca.pem}
+              {{- if eq $role "repository" }}
+              - {key: cert.pem, path: cert.pem}
+              - {key: key.pem, path: key.pem}
+              {{- end }}
+        {{- if eq $role "api" }}
+        - name: backups
+          persistentVolumeClaim:
+            claimName: {{ required "Set existingBackupClaim" $.Values.existingBackupClaim }}
+        - name: backup-signer
+          emptyDir: {medium: Memory, sizeLimit: 1Mi}
+        - name: backup-signer-source
+          secret:
+            secretName: {{ required "Set existingBackupSigningSecret" $.Values.existingBackupSigningSecret }}
+            defaultMode: 0440
+            items: [{key: key.pem, path: key.pem}]
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata: {name: private}
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if $.Values.storageClass }}
+        storageClassName: {{ $.Values.storageClass | quote }}
+        {{- end }}
+        resources: {requests: {storage: {{ $.Values.apiStorage }}}}
+    {{- if eq $role "repository" }}
+    - metadata: {name: git}
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if $.Values.storageClass }}
+        storageClassName: {{ $.Values.storageClass | quote }}
+        {{- end }}
+        resources: {requests: {storage: {{ $.Values.repositoryStorage }}}}
+    {{- end }}
+{{- end }}
