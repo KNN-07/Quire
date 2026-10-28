@@ -1,0 +1,203 @@
+{
+  "status": "FINAL",
+  "date": "2026-10-27",
+  "owner": "st_01a17e6f",
+  "runtime": "Bun 1.4.4 (38afee6c8)",
+  "delta": {
+    "command": "./node_modules/.bin/bun test tests/operations/installation/supervisor-execution",
+    "passed": 8,
+    "failed": 0,
+    "assertions": 68,
+    "seconds": 119.05,
+    "exitCode": 0
+  },
+  "diagnostics": {
+    "strictTypeScriptExitCode": 0,
+    "typeAwareDenyWarningsLintExitCode": 0
+  },
+  "regressions": [
+    {
+      "name": "killed real maintenance helper retains a missing result through controller death and explicit recovery",
+      "passed": true,
+      "seconds": 18.54109
+    },
+    {
+      "name": "controller death retains closed recovery and prepared child death prevents commit",
+      "passed": true,
+      "seconds": 27.46715
+    }
+  ],
+  "cleanup": {
+    "roots": [
+      "/tmp/quire-p9-supervisor-vsAOcg",
+      "/tmp/quire-p9-supervisor-0H1wss",
+      "/tmp/quire-p9-supervisor-KxUxct",
+      "/tmp/quire-p9-supervisor-kyjRxc",
+      "/tmp/quire-p9-supervisor-EFSDTK",
+      "/tmp/quire-p9-supervisor-25s1Tm",
+      "/tmp/quire-p5-restore-scale-NaAt5h",
+      "/tmp/quire-p9-supervisor-N8tzq1",
+      "/tmp/quire-p9-supervisor-Tkcuvk",
+      "/tmp/quire-p9-supervisor-uO6rKe"
+    ],
+    "units": [
+      "quire-p936ccff82d5e3-controller.service",
+      "quire-p936ccff82d5e3-helper.service",
+      "quire-p936ccff82d5e3-api-a.service",
+      "quire-p936ccff82d5e3-api-b.service",
+      "quire-p936ccff82d5e3-postgres-root-probe.service",
+      "quire-p95ceda258647a-controller.service",
+      "quire-p95ceda258647a-helper.service",
+      "quire-p95ceda258647a-api-a.service",
+      "quire-p95ceda258647a-api-b.service",
+      "quire-p95ceda258647a-exec-6881fa7c-6b7a-42e1-8d86-398e24bf4b44.service",
+      "quire-p95ceda258647a-exec-38798124-a639-4d2d-89d7-0e5b302baf6c.service",
+      "quire-p95ceda258647a-exec-dc3976a6-31d2-4edc-8509-6457127dd7c3.service",
+      "quire-p94527e548d536-controller.service",
+      "quire-p94527e548d536-helper.service",
+      "quire-p94527e548d536-api-a.service",
+      "quire-p94527e548d536-api-b.service",
+      "quire-p94527e548d536-exec-e713f986-70ec-416d-8a50-ca60d5492950.service",
+      "quire-p94527e548d536-exec-4e5576cd-691b-44e0-983f-eb79d9f891c0.service",
+      "quire-p99d10785ebef8-controller.service",
+      "quire-p99d10785ebef8-helper.service",
+      "quire-p99d10785ebef8-api-a.service",
+      "quire-p99d10785ebef8-api-b.service",
+      "quire-p99d10785ebef8-exec-0f2ca186-c027-4620-842a-3da10bb752d5.service",
+      "quire-p97e653ada753c-controller.service",
+      "quire-p97e653ada753c-helper.service",
+      "quire-p97e653ada753c-api-a.service",
+      "quire-p97e653ada753c-api-b.service",
+      "quire-p9421a97fadf1a-controller.service",
+      "quire-p9421a97fadf1a-helper.service",
+      "quire-p9421a97fadf1a-api-a.service",
+      "quire-p9421a97fadf1a-api-b.service"
+    ],
+    "containers": [
+      "e0d915447bba769c0f7088574508dbc8f811366d8ecc3a53da5601a03eb74b5d",
+      "274745a5004afa393db184eef66d35628804f5167d0ce122a84f299cdf0c2e37",
+      "db2088e180a50fd96b2336c4d026232a6d0e84ec4405b6b73cc4507099c4b979",
+      "8e3c5011b802de68d9bc90cdda7e712f8538543328e6abc8a50c5f52e279cefb",
+      "f2299b6d6842dee5b5156e6cc683c862f78af1b1609cbc9e6f1faca2e76b3701",
+      "quire-p5-restore-pg-6dbabb86-b70f-45f9-bbe4-3487fb0678e2",
+      "quire-p5-restore-redis-bba75758-ccb6-4756-a459-d7fc90a6b093",
+      "quire-p5-restore-s3-59d6ad0f-d7a5-4122-9025-434ce495db00"
+    ],
+    "images": [
+      "sha256:0da1c26aaa69eab6c49deedfecda42da186f52502313e01ff7fa6d760ed653c6"
+    ],
+    "confirmedAbsent": true,
+    "liveDockerDaemonVerified": true
+  },
+  "sourceHashes": [
+    {
+      "path": "services/operations/installation/control-store.ts",
+      "sha256": "7bd81894ce11b253590b53105588d673cc0132f91535e4944487e9777fd5a06a"
+    },
+    {
+      "path": "services/operations/installation/controller-server.ts",
+      "sha256": "055d26de69f91c32a971fece7bb0fa07ce604bfcdea8d2e508803d95892218fc"
+    },
+    {
+      "path": "services/operations/installation/driver-config.ts",
+      "sha256": "55ed1e78d57767c5fe121698cb9b2803c1e1a2022d95a1e73d5e75cf76f6da3e"
+    },
+    {
+      "path": "services/operations/installation/systemd-authority.ts",
+      "sha256": "620cd9b57857398836c41748cf56cba0c05fef49bb0e21605f47727e6c7ded26"
+    },
+    {
+      "path": "services/operations/installation/prepared-storage-host.ts",
+      "sha256": "a7925cf2ef1d62cee497f1473c999a28731c19d69532a8dbcabae947ea887db6"
+    },
+    {
+      "path": "services/operations/installation/storage.ts",
+      "sha256": "00fd62a77ef56344dc1aaf08700522134c0f3202e2ea942c0505a8741f0111c7"
+    },
+    {
+      "path": "services/operations/installation/role-mounts.ts",
+      "sha256": "52b629a26e1d6acadad676601d8ff7d499fe614a465afb18d9b4721e9b3cd696"
+    },
+    {
+      "path": "services/operations/installation/prepared-failure.ts",
+      "sha256": "e6e496319d75112a4b27e7e3650009d9d883513d6edf8bc5b337fa99d2b4bb4a"
+    },
+    {
+      "path": "services/operations/installation/execution-broker.ts",
+      "sha256": "8f2416d599a6b68301c2e252d683c9fc7d70eb2f06d2d08a204269e336defccf"
+    },
+    {
+      "path": "services/operations/installation/execution-client.ts",
+      "sha256": "ef5c4351cd39c97f563de7124098abcb84feb1ef49b3d45e54001265471e8ef7"
+    },
+    {
+      "path": "services/operations/installation/execution-docker.ts",
+      "sha256": "1dac7634fd1b81a38e556f4ea4a6f37d901badae5ee119de82d74d3989e72c06"
+    },
+    {
+      "path": "services/operations/installation/execution-ledger.ts",
+      "sha256": "ebe4832a6fc6edd9e0bc1ad763217e4a823a9ac23cae51619cb9674bea7495a9"
+    },
+    {
+      "path": "services/operations/installation/execution-model.ts",
+      "sha256": "b9cb7f0629fa22de08bacd315f20803bab8116cb2dc69e2f50d2bdf467f24ae0"
+    },
+    {
+      "path": "services/operations/installation/execution-protocol.ts",
+      "sha256": "c047bb5ee394d148056e5cf18f33893826dc3a0439552b0116aa66d41bf208c0"
+    },
+    {
+      "path": "services/operations/installation/execution-recipes.ts",
+      "sha256": "4e246ded64deaa716bb47282b17bf46d393f69c7e4435ebf3fbe860a8b968dda"
+    },
+    {
+      "path": "services/operations/installation/execution-runner.ts",
+      "sha256": "735f95b2d7dc655cf6d1d201468b404967a1edc971bdc4c457c8be854f93e383"
+    },
+    {
+      "path": "services/operations/installation/execution-source.ts",
+      "sha256": "13405e95c58eac5dda292e7c936de09230b17eb82cecd5a7f847293444785da1"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-launcher.ts",
+      "sha256": "082509d4d97b28003f7c0c71021ab9b9cee1481a456e4113f8c9d70a49203d52"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution-tsconfig.json",
+      "sha256": "726d1336c59156fb43bef972fe0b8380266d23e66b20a841b8ad26809cf6814c"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/fixture.ts",
+      "sha256": "41d954a62403ca7b04ab1356d839318ac717333441e83ea670c014b0d0ca4415"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/main.ts",
+      "sha256": "22299c3db969637578f26ba5c61453cf8cb72cccb36e5afb705e2b231d2fc018"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/release.ts",
+      "sha256": "bba8881ecb87d18f6552b834d123d3aabce6e5687ac016b989ce80491fa78d9c"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/executions.test.ts",
+      "sha256": "c246900bf5b858aa75c2ebfa7476bf6c410ec228bac5350925a9436eb9de57ac"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/health.test.ts",
+      "sha256": "40507f7aff6ad154996e30d0b4687e630ae8e8d7a521be74d79ed150bb884182"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/quiescence.test.ts",
+      "sha256": "0802bd465a6cf7a15ae9732928e318621d10fc36eece52963fb4ce291bfc9ce5"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/postgres-root.test.ts",
+      "sha256": "716f6a1219bb2310194f7e2dfd8974074754ca6637533163e5542832270f8321"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-execution/source.test.ts",
+      "sha256": "07da8b8570169092727de46887d86ef0ebfec7a04725a8ad8b24a9cadbe6a02c"
+    }
+  ],
+  "scope": "Concrete supervisor delta only; configured all-role installation integration remains a separate gate."
+}

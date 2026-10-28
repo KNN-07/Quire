@@ -1,0 +1,124 @@
+{
+  "status": "FINAL",
+  "date": "2026-10-28",
+  "owner": "st_01a17e6f",
+  "runtime": "Bun 1.4.4 (38afee6c8)",
+  "scope": "Driver recipes and binary Docker output only; caller adoption remains an integration gate.",
+  "checks": [
+    {
+      "command": "./node_modules/.bin/bun test tests/operations/installation/supervisor-recipes.test.ts --test-name-pattern \"native metadata retains\"",
+      "passed": 1,
+      "failed": 0,
+      "assertions": 20,
+      "seconds": 60.12,
+      "exitCode": 0
+    },
+    {
+      "command": "./node_modules/.bin/bun test tests/operations/installation/supervisor-recipes.test.ts --test-name-pattern \"PDF diff\"",
+      "passed": 2,
+      "failed": 0,
+      "assertions": 39,
+      "seconds": 49.8,
+      "exitCode": 0
+    },
+    {
+      "command": "./node_modules/.bin/bun test tests/operations/installation/supervisor-execution/executions.test.ts --test-name-pattern \"controller death retains exact Docker inventory\"",
+      "passed": 1,
+      "failed": 0,
+      "assertions": 3,
+      "seconds": 18.52,
+      "exitCode": 0
+    }
+  ],
+  "diagnostics": {
+    "strictTypeScriptExitCode": 0,
+    "typeAwareDenyWarningsLintExitCode": 0
+  },
+  "cleanup": {
+    "roots": [
+      "/tmp/quire-p9-supervisor-Owvoyg",
+      "/tmp/quire-p9-supervisor-VnxO4S",
+      "/tmp/quire-p9-supervisor-biPasu",
+      "/tmp/quire-p9-supervisor-ww404G",
+      "/tmp/quire-p9-supervisor-0sX2nU"
+    ],
+    "acceptedRunUnits": [
+      "quire-p91bf1f2853164-controller.service",
+      "quire-p91bf1f2853164-helper.service",
+      "quire-p91bf1f2853164-api-a.service",
+      "quire-p91bf1f2853164-api-b.service",
+      "quire-p91bf1f2853164-exec-460d3ace-59f3-460e-bdd6-97a1be1731fc.service",
+      "quire-p95ad97e29f925-controller.service",
+      "quire-p95ad97e29f925-helper.service",
+      "quire-p95ad97e29f925-api-a.service",
+      "quire-p95ad97e29f925-api-b.service",
+      "quire-p95ad97e29f925-exec-972af421-4493-4513-8565-a8949c5f66c7.service",
+      "quire-p95ad97e29f925-exec-ae6aa2f7-e096-4178-b562-a744b00e4747.service",
+      "quire-p95ad97e29f925-exec-30a5f233-bc87-450d-8921-4f8154df191b.service",
+      "quire-p95ad97e29f925-exec-67c2187b-ec88-4272-880c-60d9648eda2b.service",
+      "quire-p95ad97e29f925-exec-824e1b96-f31d-402a-833a-202743eba459.service",
+      "quire-p95ad97e29f925-exec-da81467f-cfe0-4e6c-8571-cbb1afc7b7a7.service",
+      "quire-p95ad97e29f925-exec-81f2ab74-a17f-457a-a6f1-83c153fb3798.service",
+      "quire-p952f9257fb770-controller.service",
+      "quire-p952f9257fb770-helper.service",
+      "quire-p952f9257fb770-api-a.service",
+      "quire-p952f9257fb770-api-b.service",
+      "quire-p952f9257fb770-exec-e89a0c9c-a9b7-4fce-bf46-afcd1c0d96d4.service"
+    ],
+    "failedRunUnitPrefixes": [
+      "quire-p90b1321646bcf-",
+      "quire-p9fa828eca6f62-"
+    ],
+    "containers": [
+      "c7970ba13f20051a709ebce053c208fa864230652edd596712458b26b00c6a46",
+      "fbd78581d7e6c7aff8fdfe0806bfb95843b7ab07bff5517cf5a1f6cba14dbdcd",
+      "85539ade890b1895f957c261c4fdf6564198f973b58fee15865c04d5dac91b47",
+      "3d75950eef2bc533f877d413b378b08f0c0fc49a54cdc45d99fda5f385a910c9",
+      "dbfe000eec9aa42431372cf1effc93034a556e9650238f4d7b3144c235080fca"
+    ],
+    "allAbsent": true,
+    "liveDockerDaemonVerified": true,
+    "imagesCreated": 0
+  },
+  "sourceHashes": [
+    {
+      "path": "services/operations/installation/execution-model.ts",
+      "sha256": "0eb40d49181a74d8388016c0134f297a1082e33a42df740034fa00957f9307e3"
+    },
+    {
+      "path": "services/operations/installation/execution-recipes.ts",
+      "sha256": "9c82f48c3c680b1dad137e657f760e4bb4579b9195fbaf2a65f4f4da3603e11f"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-recipes.test.ts",
+      "sha256": "6a416fc1fed85c6176bd66de6362b506fd1911925bc3177e9ffb37cc90c8398c"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-recipes-tsconfig.json",
+      "sha256": "0d45f93a27a6d884f121eb24a16277b5b7663f5b7abbfe012cb57c01ed96e641"
+    },
+    {
+      "path": "services/operations/installation/execution-docker.ts",
+      "sha256": "f79f5de572cdadf914b4e3fcef511df128ebe060bcb1e6af67dfebe0300fdd8e"
+    },
+    {
+      "path": "services/operations/installation/execution-runner.ts",
+      "sha256": "df141b2c52e9442aacb5e9e5b720cec5ba3f05a054d740ac389fdaf2edd20bbf"
+    }
+  ],
+  "preservedHistoricalHashes": [
+    {
+      "path": "docs/handoffs/p9-supervisor-execution.md",
+      "sha256": "8f35ea80453f42492f0d1d4160b726e711e89808feaa750c7816d55c23549b07"
+    },
+    {
+      "path": "docs/handoffs/p9-supervisor-execution.evidence.json",
+      "sha256": "3cc99b084450a4728999a9666b7d5d1d02c703e1aafa09e92e64c4797c6d2949"
+    }
+  ],
+  "iterations": [
+    "Corrected a new test assertion to match the observed pdfTeX --version header; the complete native recipe then passed.",
+    "The first PDF attempt timed out while reading Docker logs output: native render stdout was 2928640 bytes and Docker logging returned 8748668 bytes. Its owned root and resources were explicitly cleaned.",
+    "Replaced Docker logs with binary-safe start --attach and a subscribed exact-container start event, retaining actual docker wait exit evidence. Used a one-inch PDF fixture for focused binary/format proof; both backends and missing-input exit 1 passed."
+  ]
+}

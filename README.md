@@ -4,18 +4,22 @@ A LaTeX writing workspace, being built from the supplied Quire editor design and
 
 ## Status
 
-The native Bun/React/Vite application now includes local authentication,
-persistent projects and files, governance, collaboration/review/history,
-Git smart HTTP, bibliography/templates, real isolated LaTeX compilation and
-project/account/administration pages.
+The native Bun/React/Vite application includes local authentication, persistent
+projects/files, a shared Source/Visual editor, real isolated LaTeX compilation,
+PDF navigation/diagnostics, collaboration, review/history, Git, bibliography,
+templates and project/account/administration pages. Library forms/import/DOI,
+image insertion/paste and bounded current-file offline recovery have scoped
+browser acceptance evidence.
 
-This is an implementation checkpoint, **not the complete editor yet**. The
-source/visual/PDF workspace, external adapters and most operations workflows
-remain under development. The scale profile is not available yet. There are
-176 registered API contracts and 69 explicit later-phase
-`501 NOT_IMPLEMENTED` contracts; no external-provider success is simulated.
+This is an implementation checkpoint, **not whole-product acceptance**.
+Portable PostgreSQL/Redis/S3 storage and a real two-API/remote-worker profile
+have passed independent acceptance. Controller-owned installation updates,
+all-role recovery and the remaining capability-specific gaps are tracked in
+`docs/feature-matrix.md`. External adapters require their documented
+configuration; controlled-provider tests do not claim live vendor success.
 
-With Bun 1.3.14 installed:
+With Bun 1.4.4 and Node.js compatible with Vite's
+`^20.19.0 || >=22.12.0` requirement installed:
 
 ```sh
 bun install
@@ -25,30 +29,45 @@ bun run doctor
 bun run dev
 ```
 
-The shell runs at `http://localhost:5173`, proxying the API at
+The repository also installs Bun 1.4.4 as a local development tool. After
+installation, use `bun run …` package scripts or `./node_modules/.bin/bun …`;
+these use the pinned runtime without replacing the workstation's global Bun.
+A bare `bun test` can still select an older global runtime.
+
+The default development URL is `http://localhost:5173`, proxying the API at
 `http://127.0.0.1:3001`. Local seed prints generated credentials once and persists
 users plus a real example Git repository in `.data`. Use those generated
 credentials to sign in. Configuration is documented in `.env.example`.
+Vite runs on Node.js so its HTTP/WebSocket proxy uses the supported Node
+network stack; the API and compiler workers run on Bun.
 
 Native compilation requires the actual TeX tools, BibTeX/Biber, SyncTeX,
 Poppler PDF tools, Bubblewrap and a working systemd user service/cgroup
 environment. A cold compiler readiness probe takes about 45 seconds on the
 development workstation; startup does not substitute assumed readiness.
 
-Verified native checks:
+Verification commands:
 
 ```sh
 bun run typecheck
 bun run lint
-bun test tests/contract tests/core tests/accounts tests/compiler tests/integration
-bun test tests/operations/overview
+bun run test tests/contract tests/core tests/accounts tests/compiler tests/integration
+bun run test tests/operations/overview
 bun run build
 ```
 
-See `docs/handoffs/p1-acceptance.md` for the native acceptance evidence and its
-remaining boundaries, `docs/feature-matrix.md` for the complete requirement
-inventory, and `docs/architecture/storage-portability.md` for the next
-PostgreSQL/Redis/S3 phase.
+The full build includes controller-owned installation artifacts in
+`dist/installation`. Use `bun run build:installation` to build just those
+entrypoints. Provisioning, signed release metadata, controller/status/recovery
+commands and current acceptance limits are documented in
+`docs/runbooks/installation.md`.
+
+See `docs/handoffs/p11-editor-acceptance.md` for the native editor workflow
+and desktop/mobile evidence, `docs/handoffs/p10-native-verification.md` for
+Library/media/offline acceptance, and `docs/feature-matrix.md` for the complete
+requirement inventory and explicit limits. `docs/handoffs/p1s-verification.md`
+and `deploy/portable/README.md` document the accepted PostgreSQL/Redis/S3
+boundary and configuration.
 
 ## Product inputs
 
