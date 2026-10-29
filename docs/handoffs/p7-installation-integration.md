@@ -1,6 +1,23 @@
 # P7 installation integration: IN PROGRESS
 
-October 27, 2026. Owner: `st_01a17e71`.
+## Later parent acceptance supersession
+
+October 28, 2026: `p21-activation-deadlock.md` supplies durable current-source
+all-role native and same-host scale rollback passes, after correcting the
+activation/admission deadlock. It also records five affected authority
+regressions and independent cleanup. The old missing-terminal-result finding
+below is preserved as history, not a current absence of those two proofs.
+
+`p22-restored-inventory.md` additionally accepts complete SQL/blob/Git archive
+comparison at a real peer-attested fresh prepared-health boundary, before
+producer activation, for native and PostgreSQL/S3/Git deployments. Its original
+scale cleanup failure and corrected passing run are both retained.
+Remaining installation gates below are still open unless those handoffs
+explicitly close them; this P7 integration handoff is not yet FINAL.
+
+## Earlier integration and recovery record
+
+October 28, 2026. Owner: `st_01a17e71`.
 
 **Not FINAL. Configured supervisor/native/scale acceptance is not claimed.**
 The independent client/operation-reader bridge is implemented and verified.
@@ -8,6 +25,86 @@ The actual FINAL `docs/handoffs/p7-supervisor.md` exports from recovery owner
 `st_01a17e6f` have now been read and consumed. Dependent implementation and
 configured proof are in progress; source appearing on disk remains distinct
 from accepted runtime evidence.
+
+## Settled receipt recovery and concrete blocker
+
+The current continuation stops at missing original terminal evidence, not at
+configured acceptance. No test was rerun during receipt recovery. The complete
+session JSONL was parsed with the eval `read(path, line, 1)` helper; only text
+and paired originating tool calls were retained. The linked original 52,035-byte
+output artifact was also recovered without the display's long-line truncation.
+The retained records do not contain either final result needed below.
+
+`docs/evidence/p7-installation-integration/settled-receipt-recovery.json`
+contains 21 raw original receipts with their JSONL lines and paired tool-call
+arguments, the complete linked artifact, 36 selected current source SHA-256
+fingerprints, and the exact before/reset/after cleanup evidence. Fingerprints
+are a current source snapshot, not a retroactive historical test-input claim.
+Supervisor dependency fingerprints are recorded read-only; no driver-owned or
+other-lane source was edited.
+
+* `bash_18` / `mon_7CW8CQQ9E837VVX8`: the original combined command's retained
+  output reports the first scale case failing at 225.24107 seconds, then the
+  native all-role case starting. Neither the native test summary nor the final
+  combined-command exit receipt is retained.
+* `bash_21` / `mon_ZMER2TAMSEJ802SZ`: the corrected PostgreSQL command and monitor
+  start are retained, but its final test summary and exit receipt are not.
+* JSONL lines 1411-1412 establish the combined output ordering:
+  `bash_18`, then `bash_19`, then `bash_20`. The two completed exit-0 receipts
+  belong to the older exact-cleanup audit and inventory-helper lint,
+  respectively. They do not make either all-role test pass.
+* Original accepted reader, composition, entrypoint, controller, signed-native,
+  factory, unsupported-deployment and corrected crash receipts are preserved
+  in the recovery evidence. The mixed prepared-health/crash run remains
+  1 pass / 1 fail with test exit 1; its separate cleanup exit 0 is not folded
+  into the test verdict.
+
+Both original terminal handles are no longer registered. Absent an external
+copy of those missing completion receipts, the next runtime work requires
+rerunning only the two unverified cases, with durable complete output and exit
+capture:
+
+```sh
+./node_modules/.bin/bun test tests/integration/installation/all-role-native.test.ts
+./node_modules/.bin/bun test tests/integration/installation/all-role-scale.test.ts
+```
+
+These commands have not been executed during this recovery. No unchanged
+passing case needs repeating solely for the parent scheduler, account layout,
+or other updates. A future fixture captures the then-current migration
+registry; it cannot reproduce the missing original snapshot by implication.
+
+Before cleanup, the retained records were two inactive controller units and
+two failed execution units, all with `MainPID=0` and empty `ControlGroup`.
+The failed execution records were metadata, not observed surviving workloads.
+The exact four-unit `systemctl --user reset-failed` succeeded. Fresh inspection
+then reported all four `LoadState=not-found`, `ActiveState=inactive`,
+`MainPID=0`, and empty cgroup fields:
+
+* `quire-integration4d167f0f78a1-controller.service`
+* `quire-integration4d167f0f78a1-exec-d5e74b38-ac02-498b-9c22-53bfa27b9aba.service`
+* `quire-integrationcdf5f6414cb4-controller.service`
+* `quire-integrationcdf5f6414cb4-exec-fe20c150-0431-49eb-b78f-e4916ad9bf80.service`
+
+Their exact cgroup directories and the `Ghk10m` / `O9dnbj` private fixture
+roots are absent. No units remain listed for either installation; no
+installation-labelled containers/images, fixture-prefixed PostgreSQL/Redis/S3
+containers, named S3 volumes, or owner-labelled service containers are listed
+against live Docker 29.8.2. The audit completed with
+`EXACT_SETTLED_METADATA_CLEANUP_OK` and a separate `AUDIT_EXIT_CODE=0`.
+The corrected-scale original service-resource manifest is not retained; the
+current prefix and owner-label checks are observations, not a reconstructed
+historical manifest. Absent roots and rollback-generation records prove
+neither a test PASS nor complete SQL/blob/Git restoration.
+
+The remaining runtime gaps are all-role native/scale completion, actual
+post-promotion execution, environment-build and derived-image caller adoption,
+the full restored SQL/blob/Git comparison at a real prepared-health gate, and
+retained floor/receipt guarantees beyond the first-update fixtures. General
+custom-environment worker adoption is not accepted by the pinned-environment
+fixture. Installed Pandoc remains explicitly unsupported. Final settled
+owned checks and parent-coordinated bundle/global-build regeneration are also
+pending. The overall handoff therefore remains **IN PROGRESS, not FINAL**.
 
 ## Finished independent boundary
 
@@ -194,33 +291,51 @@ is made by the independent reader tests.
 
 ## Resources and remaining checks
 
-October 28 all-role work is now executing, not merely planned. The fixture
+October 28 all-role work has executed, not merely been planned. The fixture
 signs the concrete profiles in `spawn-families.md` and starts actual API2,
-SSH, worker-controller and dynamic worker factories. Initial fixture registry
-provisioning was corrected to retain its accepted executed receipt. The next
-attempt reached real worker start acknowledgments but interrupted before
-worker registration/nested Docker probes; no all-role acceptance is claimed.
-It also exposed an actual driver stop/unloaded-unit race, recorded with exact
-units and raw provenance in `all-role-attempts.txt`. Driver-owned code was not
-edited. A narrowed diagnostic run is pending `mon_DHKT4WY8FVP5RWHJ`.
-The same-host scale resource provisioner is authored but not yet wired/run.
+SSH, worker-controller and dynamic worker factories. The static Docker
+profile-ID correction resolved worker startup: the latest completed native
+attempt ran 14 real Docker payloads through actual toolchain probing,
+compilation and PDF validation. It then hit the fixture's 120-second update
+deadline; teardown interrupted the ongoing update. The all-role receipt and
+activation budget is now 300 seconds; prior two-API budgets are unchanged.
 
-The concrete PDF-diff caller now consumes the delivered draft
-`pdf-diff-render` / `pdf-diff-compile` declarations. Native metadata retains its
-existing shape. Recipe runtime acceptance waits the driver delta FINAL.
+The same-host scale fixture is wired and has run actual PostgreSQL/S3/Git/
+Redis application roles, including the singleton repository and real managed
+worker compilation. Its first update rejected the candidate with
+`MIGRATION_DIALECT_MISSING`: the fixture omitted the explicit PostgreSQL
+variant for its real added SQL migration. That variant is now supplied.
+This failed case is preserved, not relabeled a rollback success.
+The native case ran under `mon_7CW8CQQ9E837VVX8`; only the failed scale
+case was rerun under `mon_ZMER2TAMSEJ802SZ`. Both processes have settled.
+Their missing final receipts and exact metadata cleanup are recorded above;
+neither case is newly accepted.
+
+The complete P9 recipe and stop-race FINAL prose/evidence were read.
+All six recipe fingerprints matched. The four stop-race fingerprints gated
+the joined configured command before its scoped checks and runtime tests.
+No accepted driver case was repeated. Caller adoption uses the exact
+`pdf-diff-render` / `pdf-diff-compile` schemas and full native metadata recipe.
 The full parent `p11-installation-bundles.md` was read: packaging/build/smoke
 passes stand scoped, and the final settled release still needs regeneration.
 
 The independent fixtures await listener/application/control-SQL disposal and
-remove only their exact private roots. Configured runs created only the exact
-owned installation units documented in `runtime-checks.txt` and
-`signed-native-checks.txt`; those units and roots were checked absent afterward.
+remove only their exact private roots. Independent cleanup of the completed
+native compiler attempt checked 21 exact units/cgroups, its Docker ownership
+scope and root absent. Cleanup of the failed scale attempt checked 22 exact
+units/cgroups, 14 execution containers, all three storage-service containers,
+the named S3 volume/listener and its root absent against live Docker.
+Earlier cleanup and raw failures remain in the evidence directory.
 No production data or FastShort PID/port was touched by this lane.
 
-Remaining work includes the real controller/launcher/entrypoint binding,
-controller-only scheduling and operator recovery/status, actual signed package
-migration/health/rollback and controller/helper crash proofs, supported
-same-host PostgreSQL/S3/Git cohort proof, explicit unsupported orchestration
-denials, final owned types/lint/build, exact resource cleanup and this handoff's
-FINAL verdict. Existing foundation, prepared-runtime and frozen benefits
-evidence is not rerun or expanded by implication.
+Implementation wiring is closed; four verification tasks remain open.
+Remaining acceptance includes completed all-role native/scale rollback,
+post-promotion and environment-builder execution, full restored SQL/blob/Git
+inventory, retained floor/receipt guarantees beyond first-update fixtures,
+final owned checks and settled bundles, and this handoff's FINAL
+verdict. `restored-inventory.ts` now provides the complete archive comparison
+with explicit dead-owner transformations and actual blob/Git checks; its
+source diagnostics/lint pass, but it is not yet wired to the real fresh
+prepared-health gate and is not runtime evidence.
+Existing foundation, prepared-runtime and frozen benefits evidence is not
+rerun or expanded by implication.

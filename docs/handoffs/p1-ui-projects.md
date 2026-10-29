@@ -49,6 +49,11 @@ scroll owner: document; anti-patterns: unbounded table width and mobile two-axis
 Layout: creation - bounded overlay -> imposter
 (https://raw.githubusercontent.com/changeroa/StyleGallery/main/patterns/overlay-exceptions/imposter.md);
 scroll owner: .q-modal; anti-patterns: offscreen footer and background scroll.
+P69 supersedes that creation-only scroll owner with
+`.p-create-dialog > .q-modal__body`; the dialog clips overflow and keeps its
+header/footer outside the body scroller. Its current probes and captures are
+recorded in `docs/handoffs/p69-project-choices.md`. The original P1 verification
+below remains historical.
 Desktop table reflows into labeled cards at 760px; navigation moves to a modal
 drawer. Tokens and actual shared primitives come from the established P0 surface.
 There is no before capture because this feature did not exist in the P0 router.

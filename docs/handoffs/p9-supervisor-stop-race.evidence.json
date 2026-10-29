@@ -1,0 +1,76 @@
+{
+  "status": "FINAL",
+  "date": "2026-10-28",
+  "owner": "st_01a17e6f",
+  "checkpoint": "17a8dd4",
+  "scope": "Exact owned dynamic execution stop/unloaded-unit race only. Worker startup interruption remains unresolved.",
+  "runtime": "Bun 1.4.4 (38afee6c8)",
+  "checks": {
+    "deterministicGuardCases": {
+      "passed": 4,
+      "assertions": 17,
+      "note": "Passed in the first run; its separate real-process test then failed on test-only disturbed-stream handling."
+    },
+    "realManagerCase": {
+      "command": "./node_modules/.bin/bun test tests/operations/installation/supervisor-stop-race.test.ts --test-name-pattern \"same stop proof\"",
+      "passed": 1,
+      "assertions": 5,
+      "seconds": 1.497,
+      "testExitCode": 0
+    },
+    "strictTypeScriptExitCode": 0,
+    "typeAwareDenyWarningsLintExitCode": 0
+  },
+  "iterations": [
+    "Corrected only the new real-process test reader after its disturbed-stream exception; reran that failed case only.",
+    "Awaited the test stdin write after no-floating-promises lint; reran scoped static checks only."
+  ],
+  "cleanup": {
+    "roots": [
+      "/tmp/quire-p9-supervisor-Ni7EP5",
+      "/tmp/quire-p9-supervisor-ynPc6P"
+    ],
+    "units": [
+      "quire-p9333b975de787-controller.service",
+      "quire-p9333b975de787-helper.service",
+      "quire-p9333b975de787-api-a.service",
+      "quire-p9333b975de787-api-b.service",
+      "quire-p99ddd46a1708c-controller.service",
+      "quire-p99ddd46a1708c-helper.service",
+      "quire-p99ddd46a1708c-api-a.service",
+      "quire-p99ddd46a1708c-api-b.service"
+    ],
+    "containersCreated": 0,
+    "allAbsent": true
+  },
+  "originalIncidentAudit": {
+    "units": [
+      "quire-integration07414b325c32-exec-e3702469-683b-49f0-8818-a4be37d9afc2.service",
+      "quire-integration07414b325c32-exec-50a129bd-26d8-4da5-a6a4-903e44bab15d.service"
+    ],
+    "loadState": "not-found",
+    "activeState": "inactive",
+    "mainPid": 0,
+    "controlGroup": "",
+    "rootAbsent": "/tmp/quire-installation-integration-307L1H"
+  },
+  "sourceHashes": [
+    {
+      "path": "services/operations/installation/systemd-authority.ts",
+      "sha256": "f0888d678d999f06cb5f30b8159c666bc9e611ed256ca56092ad726e723d9d1c"
+    },
+    {
+      "path": "services/operations/installation/execution-stop.ts",
+      "sha256": "4c5b6e79c94f99d0c78c9c3d14aa05619e5f6fae5684f0359c88943ef909a75d"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-stop-race.test.ts",
+      "sha256": "9eb31d6d3d657036377bfacf06719b581b89bea03cb98e462dd902cefa1e3800"
+    },
+    {
+      "path": "tests/operations/installation/supervisor-stop-race-tsconfig.json",
+      "sha256": "1787454d08818d41e9ef5e6353b84b66bcdd60c6198b4e8ba54afd0bb627f22c"
+    }
+  ],
+  "historicalReceiptsUnchangedFromCheckpoint": true
+}
