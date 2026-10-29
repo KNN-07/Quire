@@ -33,10 +33,10 @@ function AssistantSession(props: AssistantPanelProps) {
   const persistence = document ? persistenceMessage(document.persistence) : null;
   return <section className="qa-assistant" aria-label="Assistant">
     <header className="qa-assistant__header"><Icon name="sparkle" /><h2>Assistant</h2>
-      <Button disabled={state.busy || !state.online} onClick={() => void state.execute(async () => {
+      <Button variant="ghost" size="small" disabled={state.busy || !state.online} onClick={() => void state.execute(async () => {
         if (state.run) await state.readRun(state.run.id);
         await state.refresh(); await state.refreshWorkspace();
-      })}>Refresh</Button>
+      })}><Icon name="refresh" />Refresh</Button>
     </header>
     <div className="qa-assistant__body">
       {!state.online && <p role="alert">Offline. AI requests are unavailable until you reconnect.</p>}
@@ -59,7 +59,7 @@ function AssistantSession(props: AssistantPanelProps) {
           <dt>Conversation ID</dt><dd>{state.run.conversationId ?? "private session"}</dd></dl>
       </section>}
       <section aria-label="Assistant messages" className="qa-assistant__messages">
-        {!messages.length && <p>Select context and ask about your document, or choose Agent to propose changes for review.</p>}
+        {!messages.length && <div className="qa-assistant__empty"><Icon name="sparkle" size={20} /><p>Select context and ask about your document, or choose Agent to propose changes for review.</p></div>}
         {messages.map((message, index) => <article key={`${index}:${message.role}`} className={`qa-assistant__message qa-assistant__message--${message.role}`}>
           <strong>{message.role === "user" ? "You" : "Assistant"}</strong><p>{message.text}</p>
         </article>)}
@@ -72,12 +72,12 @@ function AssistantSession(props: AssistantPanelProps) {
           <pre>{source.bibtex}</pre>
         </article>)}
       </section>}
-      <AssistantConversation state={state} />
       {state.preferences ? <AssistantComposer state={state} /> : <p role="status">Loading AI preferences</p>}
       <div className="qa-assistant__governance">
         <p>{state.availability}</p>
         <p>{state.usage ? `${state.usage.month} usage · ${state.usage.used} used · ${state.usage.reserved} reserved · ${state.usage.refunded} refunded`
           : "Loading actual usage"}</p>
+        <AssistantConversation state={state} />
         <AssistantPreferences state={state} />
       </div>
     </div>

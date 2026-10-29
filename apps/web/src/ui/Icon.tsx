@@ -18,6 +18,9 @@ const paths = {
   info: "M12 11v6M12 7h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
   menu: "M3 6h18M3 12h18M3 18h18",
   arrowLeft: "m12 5-7 7 7 7M5 12h14",
+  refresh: "M20 11a8 8 0 0 0-14.9-3.9M4 4v4h4M4 13a8 8 0 0 0 14.9 3.9M20 20v-4h-4",
+  more: "M5 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2M19 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2",
+  building: "M4 21V9l8-5 8 5v12M4 21h16M9 21v-6h6v6M9 11h.01M15 11h.01",
 } as const;
 
 export type IconName = keyof typeof paths;

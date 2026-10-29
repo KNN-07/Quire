@@ -8,14 +8,14 @@ export function AssistantConversation({ state }: { readonly state: AssistantStat
   const [conversationId, setConversationId] = useState("");
   const [choiceOverride, setChoice] = useState<"private" | "shared" | null>(null);
   const choice = choiceOverride ?? (state.preferences?.shareAiChat ? "shared" : "private");
-  return <details open><summary>Conversation privacy</summary>
+  return <details open className="qa-assistant__privacy"><summary>Conversation privacy</summary>
     <p>{state.conversation ? `Shared project conversation ${state.conversation.id} · version ${state.conversation.version}`
       : "Private session · shared conversation not enabled"}</p>
     <label>Future conversation choice<select value={choice}
       onChange={event => setChoice(event.target.value === "shared" ? "shared" : "private")}>
       <option value="private">Private session</option><option value="shared">New shared project conversation</option>
     </select></label>
-    <p>This choice does not change the current conversation. Create starts an empty shared conversation;
+    <p className="qa-assistant__fine">This choice does not change the current conversation. Create starts an empty shared conversation;
       Open selects an existing one. Earlier private messages are never copied. Send then shares future messages with project collaborators.</p>
     <div className="qa-assistant__row">
       <Button disabled={state.busy || !state.online || choice !== "shared"}

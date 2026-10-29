@@ -105,39 +105,45 @@ export function AssistantComposer({ state }: { readonly state: AssistantState })
       })}>Open diagnostic source</Button>
       {state.onClearDiagnosticFix && <Button onClick={state.onClearDiagnosticFix}>Clear diagnostic context</Button>}
     </section>}
-    <div className="qa-assistant__row" role="group" aria-label="Assistant mode">
+    <div className="qa-assistant__controls">
+    <div className="qa-assistant__row qa-assistant__modes" role="group" aria-label="Assistant mode">
       <Button aria-pressed={mode === "ask"} onClick={() => setMode("ask")}>Ask</Button>
       <Button aria-pressed={mode === "agent"} disabled={!state.workspace.access.capabilities.edit} onClick={() => setMode("agent")}>Agent</Button>
-      <span>{mode === "ask" ? "Read only" : "Propose edits for review"}</span>
     </div>
-    <label>Tool<select aria-label="Tool" value={tool} onChange={event => {
+    <label className="qa-assistant__tool">Tool<select aria-label="Tool" value={tool} onChange={event => {
       setTool(AiToolSchema.parse(event.target.value)); setProjectSearch(false);
     }}>
       {AiToolSchema.options.map(value => <option value={value} key={value}>{tools[value]}</option>)}
     </select></label>
+    </div>
     <AssistantContext state={state} choice={choice} change={setChoice} />
     {(tool === "chat" || tool === "texgpt") && <section aria-label="Project search consent">
       <label className="qa-assistant__check"><input type="checkbox" checked={projectSearch}
         disabled={state.busy || running}
         onChange={event => setProjectSearch(event.currentTarget.checked)} />Allow the assistant to search this project for this request</label>
-      <p>Search may send readable text excerpts from other files in this branch to the configured provider.
+      <p className="qa-assistant__fine">Search may send readable text excerpts from other files in this branch to the configured provider.
         Quire checks your access for each search. Discovered excerpts are read-only context;
         proposed edits remain limited to your explicitly selected files and ranges.</p>
     </section>}
     {tool === "translate" && <label>Target language<input value={language} onChange={event => setLanguage(event.target.value)} /></label>}
     {tool === "inline-completion" && !state.preferences?.inlineCompletion && <p>Enable inline completion in AI preferences first.</p>}
     {tool === "citation-reviewer" && <p>Only publications retrieved from your selected, consented providers appear as sources.</p>}
-    <label>Message the assistant<textarea rows={3} value={prompt} placeholder="Ask, or describe a change"
+    <div className="qa-assistant__input">
+    <label><span className="q-sr-only">Message the assistant</span><textarea rows={3} value={prompt} placeholder={mode === "ask" ? "Ask about your paper" : "Describe a change to propose"}
       onChange={event => setPrompt(event.target.value)} /></label>
-    <p role="status" aria-label="Message visibility">{state.conversation
+    <div className="qa-assistant__row qa-assistant__send">
+      <span>{mode === "ask" ? "Ask mode · read only" : "Agent mode · edits need your OK"}</span>
+      <Button type="submit" variant={pending ? "neutral" : "ai"}
+        disabled={!prompt.trim() || state.busy || running || !state.online || !state.workspace.access.actorId}>Send</Button>
+    </div>
+    </div>
+    <p role="status" aria-label="Message visibility" className="qa-assistant__fine">{state.conversation
       ? `Send shares this new message and its response with project collaborators in conversation ${state.conversation.id}.`
       : projectSearch
         ? "Send keeps this conversation private to your session. Selected context and authorized project-search excerpts may be sent to the configured provider."
         : "Send keeps this conversation private to your session. It still sends your selected context to the configured provider."}</p>
-    <p>Nothing is applied to your files until you accept. Generation and regeneration use the shared daily allowance.</p>
-    <div className="qa-assistant__row">
-      <Button type="submit" variant={pending ? "neutral" : "ai"}
-        disabled={!prompt.trim() || state.busy || running || !state.online || !state.workspace.access.actorId}>Send</Button>
+    <p className="qa-assistant__fine">Nothing is applied to your files until you accept. Generation and regeneration use the shared daily allowance.</p>
+    {(state.run && !running || running) && <div className="qa-assistant__row">
       {state.run && !running && <Button disabled={state.busy || !state.online || !prompt.trim()}
         onClick={() => void state.execute(generate)}>Regenerate (new use)</Button>}
       {running && <Button disabled={state.busy || !state.online} onClick={() => void state.execute(async () => {
@@ -148,6 +154,6 @@ export function AssistantComposer({ state }: { readonly state: AssistantState })
         }, state.signal));
         await state.readRun(latest.id); await state.refresh();
       })}>Cancel run</Button>}
-    </div>
+    </div>}
   </form>;
 }

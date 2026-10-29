@@ -1,6 +1,8 @@
 .qa-assistant{display:flex;flex-direction:column;min-inline-size:0;min-block-size:0;block-size:100%;max-block-size:100dvb;background:var(--q-surface);color:var(--q-ink);font:var(--q-text-base)/var(--q-line-body) var(--q-font-sans);container-type:inline-size}
 .qa-assistant *{box-sizing:border-box;min-inline-size:0}
-.qa-assistant__header{display:flex;align-items:center;gap:var(--q-space-3);padding:var(--q-space-3) var(--q-space-7);border-bottom:1px solid var(--q-border);flex:none}
+.qa-assistant__header{display:flex;align-items:center;gap:var(--q-space-3);min-block-size:44px;padding:var(--q-space-1) var(--q-space-3) var(--q-space-1) var(--q-space-7);border-bottom:1px solid var(--q-border);flex:none}
+.qa-assistant .qa-assistant__header .q-button{min-block-size:30px;color:var(--q-tertiary);font-size:var(--q-text-sm)}
+.qa-assistant .qa-assistant__header .q-button:hover:not(:disabled){color:var(--q-ink)}
 .qa-assistant__header>.q-icon{color:var(--q-ai)}
 .qa-assistant h2,.qa-assistant h3{margin:0;font-size:var(--q-text-form);font-weight:600}
 .qa-assistant__header h2{flex:1}
@@ -26,11 +28,36 @@
 .qa-assistant input[type=checkbox]{flex:none;inline-size:16px;block-size:16px;accent-color:var(--q-ai)}
 .qa-assistant__row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--q-space-3)}
 .qa-assistant__row>h3{flex:1}
-.qa-assistant__composer{border:1px solid var(--q-control-border);border-radius:var(--q-radius-panel);padding:var(--q-space-5)}
+.qa-assistant__composer{gap:var(--q-space-4)}
+.qa-assistant__empty{display:flex;flex-direction:column;align-items:center;gap:var(--q-space-4);padding:var(--q-space-11) var(--q-space-7);text-align:center;color:var(--q-secondary)}
+.qa-assistant__empty>.q-icon{color:var(--q-ai)}
+.qa-assistant__empty>p{max-inline-size:30ch}
+.qa-assistant__controls{display:flex;align-items:center;flex-wrap:wrap;gap:var(--q-space-3)}
+.qa-assistant__modes{gap:2px;padding:2px;background:var(--q-wash);border-radius:var(--q-radius-md)}
+.qa-assistant .qa-assistant__modes .q-button{min-block-size:28px;padding-inline:var(--q-space-5);border-color:transparent;background:transparent;font-size:var(--q-text-sm)}
+.qa-assistant .qa-assistant__modes .q-button[aria-pressed=true]{background:var(--q-surface);box-shadow:var(--q-shadow);color:var(--q-ai)}
+.qa-assistant .qa-assistant__tool{flex:1;flex-direction:row;align-items:center;gap:var(--q-space-3);font-weight:400;font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.qa-assistant .qa-assistant__tool select{flex:1;min-block-size:32px;padding-block:0;font-size:var(--q-text-sm)}
+.qa-assistant__input{display:flex;flex-direction:column;border:1px solid var(--q-control-border);border-radius:var(--q-radius-panel);background:var(--q-surface);overflow:hidden}
+.qa-assistant__input:focus-within{border-color:var(--q-ai);box-shadow:0 0 0 3px var(--q-ai-wash)}
+.qa-assistant .qa-assistant__input textarea{border:0;border-radius:0;min-block-size:76px;padding:var(--q-space-5) var(--q-space-6);resize:none}
+.qa-assistant .qa-assistant__input textarea:focus-visible{outline:0}
+.qa-assistant__send{justify-content:space-between;padding:var(--q-space-2) var(--q-space-3) var(--q-space-3) var(--q-space-6)}
+.qa-assistant__send>span{font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.qa-assistant .qa-assistant__send .q-button{min-block-size:32px;padding-inline:var(--q-space-6)}
+.qa-assistant .qa-assistant__fine{font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.qa-assistant__context>summary,.qa-assistant__privacy>summary,.qa-assistant [aria-label="Project search consent"] .qa-assistant__check{font-size:var(--q-text-sm)}
+.qa-assistant__privacy{padding:var(--q-space-5);background:var(--q-inset);border-radius:var(--q-radius-card)}
+.qa-assistant__privacy[open]{gap:var(--q-space-4)}
+.qa-assistant__privacy>summary{min-block-size:auto;padding-block:0;color:var(--q-ink)}
+.qa-assistant .qa-assistant__privacy .q-button,.qa-assistant .qa-assistant__privacy input,.qa-assistant .qa-assistant__privacy select{min-block-size:32px;font-size:var(--q-text-sm)}
+.qa-assistant__privacy label{font-size:var(--q-text-sm)}
 .qa-assistant__composer>p,.qa-assistant__governance{color:var(--q-secondary)}
-.qa-assistant__governance{display:flex;flex-direction:column;gap:var(--q-space-5);border-top:1px solid var(--q-border);padding-top:var(--q-space-5)}
+.qa-assistant__governance{display:flex;flex-direction:column;gap:var(--q-space-5);border-top:1px solid var(--q-border);padding-top:var(--q-space-5);font-size:var(--q-text-sm)}
 .qa-assistant__message{white-space:pre-wrap;overflow-wrap:anywhere}
 .qa-assistant__message--user{align-self:flex-end;background:var(--q-wash);border-radius:var(--q-radius-card);padding:var(--q-space-4) var(--q-space-5);max-inline-size:90%}
+.qa-assistant__message>strong{display:block;margin-block-end:var(--q-space-1);font-size:var(--q-text-xs);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--q-tertiary)}
+.qa-assistant__message--user>strong{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .qa-assistant__edit,.qa-assistant__run,.qa-assistant__source{border:1px solid var(--q-border);border-radius:var(--q-radius-card);overflow:hidden}
 .qa-assistant__edit>header,.qa-assistant__run,.qa-assistant__source{padding:var(--q-space-3) var(--q-space-5);background:var(--q-inset)}
 .qa-assistant__before,.qa-assistant__after{padding:var(--q-space-3) var(--q-space-5)}
@@ -60,3 +87,12 @@
 .qa-assistant__claims{display:flex;flex-direction:column;gap:var(--q-space-4)}
 .qa-assistant__claims blockquote{margin:var(--q-space-3) 0;padding-inline-start:var(--q-space-3);border-inline-start:1px solid var(--q-border);overflow-wrap:anywhere}
 @media(max-width:600px){.qa-assistant{font-size:17px}.qa-assistant h2,.qa-assistant h3{font-size:17px}.qa-assistant__governance,.qa-assistant__composer>p{font-size:15px}.qa-assistant pre{font-size:15px}.qa-assistant__body{padding:var(--q-space-5)}}
+@media(max-width:600px),(pointer:coarse){
+  .qa-assistant .qa-assistant__header .q-button,.qa-assistant .qa-assistant__modes .q-button,.qa-assistant .qa-assistant__send .q-button,.qa-assistant .qa-assistant__tool select,
+  .qa-assistant .qa-assistant__privacy .q-button,.qa-assistant .qa-assistant__privacy input,.qa-assistant .qa-assistant__privacy select{min-block-size:var(--q-touch-target)}
+}
+@media(max-width:600px){
+  .qa-assistant .qa-assistant__fine,.qa-assistant__send>span,.qa-assistant__privacy label,.qa-assistant .qa-assistant__tool,
+  .qa-assistant__context>summary,.qa-assistant__privacy>summary,.qa-assistant .qa-assistant__privacy .q-button{font-size:15px}
+}
+@media(max-width:600px){.qa-assistant .qa-assistant__modes .q-button,.qa-assistant .qa-assistant__tool select,.qa-assistant [aria-label="Project search consent"] .qa-assistant__check{font-size:15px}}

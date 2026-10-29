@@ -167,6 +167,7 @@ function SourcePanelContent(props: SourcePanelProps) {
       <Button size="small" disabled={!editor || readOnly} onClick={() => editor && sourceCommand(editor.view, "inline-math")}>{copy.math}</Button>
       <Button size="small" disabled={!editor || readOnly} onClick={() => editor && sourceCommand(editor.view, "display-math")}>{copy.displayMath}</Button>
     </div></>}
+    <div className="q-source-strip">
     <div className="q-source-tracking">
       <div className="q-source-row">
         <Button size="small" aria-pressed={tracking.draft.enabled}
@@ -191,8 +192,9 @@ function SourcePanelContent(props: SourcePanelProps) {
       </details>}
       {tracking.error && <p role="alert">{tracking.error}</p>}
     </div>
-    {snapshot.readOnlyReason && !tracking.draft.enabled && <p className="q-source-notice" role="status">{snapshot.readOnlyReason}</p>}
     {inlineReferences.controls}
+    </div>
+    {snapshot.readOnlyReason && !tracking.draft.enabled && <p className="q-source-notice" role="status">{snapshot.readOnlyReason}</p>}
     {inlineReferences.status}
     {tool !== "check" && tool !== "preferences" && <SpellingStatus state={spelling.state} compact />}
     <div ref={parent} className="q-source-editor" onPasteCapture={event => {

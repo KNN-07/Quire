@@ -18,6 +18,17 @@ const StateSchema = z.enum(["active", "archived", "trash"]);
 const SortSchema = z.enum(["updated", "title", "owner"]);
 const DirectionSchema = z.enum(["asc", "desc"]);
 const WorkspaceSchema = z.union([z.enum(["all", "personal"]), IdSchema]);
+const engines: Record<string, string> = { pdflatex: "pdfLaTeX", latex: "LaTeX", xelatex: "XeLaTeX", lualatex: "LuaLaTeX", plain: "Plain TeX" };
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+function edited(iso: string) {
+  const date = new Date(iso);
+  const minutes = Math.round((date.getTime() - Date.now()) / 60_000);
+  if (minutes > -1) return "Just now";
+  if (minutes > -60) return relative.format(minutes, "minute");
+  if (minutes > -24 * 60) return relative.format(Math.round(minutes / 60), "hour");
+  if (minutes > -7 * 24 * 60) return relative.format(Math.round(minutes / (24 * 60)), "day");
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }) });
+}
 const lists = [
   { label: "All projects", owner: "all", state: "active" },
   { label: "Your projects", owner: "me", state: "active" },
@@ -141,7 +152,7 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
     <Button variant="ghost" onClick={() => navigate("/settings/profile")}>Account settings</Button>
   </nav>;
   return <div className="p-projects" data-path={path}>
-    <AppHeader actions={<Button aria-label="Account settings" title={account.data?.name}
+    <AppHeader actions={<Button variant="ghost" className="p-account" aria-label="Account settings" title={account.data?.name}
       onClick={() => navigate("/settings/profile")}>
       {account.data && (account.data.avatarBlob && !avatarError
         ? <img className="p-account-avatar" width={32} height={32} alt="" src={client.url(endpoints.avatarGet, {
@@ -149,9 +160,9 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
         }).href} onError={() => setAvatarError("The saved profile photo could not be loaded.")} />
         : <span className="p-account-avatar" aria-hidden="true">{account.data.name.trim().split(/\s+/u)
           .slice(0, 2).map(part => Array.from(part)[0] ?? "").join("").toLocaleUpperCase()}</span>)}
-      Account settings</Button>}>
-      <Field label="Search projects and templates" placeholder="Search projects and templates" type="search" value={query} onChange={event => { setQuery(event.target.value); resetSelection(); }} />
-      <label className="p-field p-workspace">Workspace<select aria-label="Workspace" value={workspace} disabled={busy} onChange={event => {
+      </Button>}>
+      <div className="p-search"><Icon name="search" /><Field label="Search projects and templates" placeholder="Search projects and templates" type="search" value={query} onChange={event => { setQuery(event.target.value); resetSelection(); }} /></div>
+      <label className="p-field p-workspace"><span className="q-sr-only">Workspace</span><select aria-label="Workspace" value={workspace} disabled={busy} onChange={event => {
         const destination = new URL(path, window.location.origin);
         if (event.target.value === "all") destination.searchParams.delete("workspace");
         else destination.searchParams.set("workspace", event.target.value);
@@ -171,11 +182,11 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
       <div className="p-heading"><IconButton className="p-drawer-trigger" label="Project filters" icon="menu" onClick={() => setDrawer(true)} /><h1>{title}</h1><Button className="p-mobile-new" variant="primary" onClick={() => setCreation({ mode: "template" })}>New project</Button><div className="p-cluster">
         {([{ mode: "blank", label: "Blank project" }, { mode: "github", label: "Import from GitHub" }, { mode: "git", label: "Clone git URL" }, { mode: "upload", label: "Upload .zip" }] as const).map(item => <Button key={item.mode} onClick={() => setCreation({ mode: item.mode })}>{item.label}</Button>)}
       </div></div>
-      <div className="p-cluster">
+      <div className="p-cluster p-toolbar">
         <label className="p-field p-inline">Owner<select aria-label="Owner" value={owner} onChange={event => { setOwner(OwnerSchema.parse(event.target.value)); resetSelection(); }}><option value="all">All</option><option value="me">You</option><option value="shared">Shared with you</option></select></label>
         <label className="p-field p-inline">Sort by<select aria-label="Sort by" value={sort} onChange={event => { setSort(SortSchema.parse(event.target.value)); resetSelection(); }}><option value="updated">Last edited</option><option value="title">Title</option><option value="owner">Owner</option></select></label>
         <label className="p-field p-inline">Direction<select aria-label="Direction" value={direction} onChange={event => { setDirection(DirectionSchema.parse(event.target.value)); resetSelection(); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select></label>
-        <Button onClick={reload}>Refresh projects</Button>
+        <IconButton variant="ghost" icon="refresh" label="Refresh projects" onClick={reload} />
       </div>
       {selected.length > 0 && <div className="p-bulk" aria-label="Selected projects"><strong>{selected.length} selected</strong>
         {state === "active" && <Button disabled={busy} onClick={() => void bulk("archive")}>Archive</Button>}
@@ -192,10 +203,10 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
       {projects.loading && <Spinner label="Loading projects" />}
       {projects.error && <div role="alert">{projects.error}<Button onClick={projects.reload}>Retry projects</Button></div>}
       {!projects.loading && !projects.error && rows.length === 0 && <EmptyState title="No projects found" description="Change the filters or create a project." action={<Button onClick={() => setCreation({ mode: "blank" })}>Blank project</Button>} />}
-      {shownRows.length > 0 && <div className="p-table-wrap"><table className="p-table"><thead><tr><th><label className="p-select"><input type="checkbox" aria-label="Select all projects on this page" checked={shownRows.every(row => selected.includes(row.id))} onChange={event => setSelected(event.target.checked ? shownRows.map(row => row.id) : [])} /></label></th><th>Title</th><th>Owner</th><th>Last edited</th><th>Git</th><th>Compiler</th><th>Actions</th></tr></thead><tbody>
+      {shownRows.length > 0 && <div className="p-table-wrap"><table className="p-table"><thead><tr><th><label className="p-select"><input type="checkbox" aria-label="Select all projects on this page" checked={shownRows.every(row => selected.includes(row.id))} onChange={event => setSelected(event.target.checked ? shownRows.map(row => row.id) : [])} /></label></th><th>Title</th><th>Owner</th><th>Last edited</th><th>Git</th><th>Compiler</th><th><span className="q-sr-only">Actions</span></th></tr></thead><tbody>
         {shownRows.map(row => <tr key={row.id}><td><label className="p-select"><input type="checkbox" aria-label={`Select ${row.name}`} checked={selected.includes(row.id)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.id] : previous.filter(id => id !== row.id))} /></label></td>
           <td data-label="Title"><Button variant="ghost" className="p-project-title" onClick={() => navigate(`/projects/${row.id}/edit`)}>{row.name}</Button><span className="p-cluster">{row.tagIds.map(id => tags.data?.find(tag => tag.id === id)).filter(tag => tag !== undefined).map(tag => <span className="p-tag" key={tag.id}>{tag.name}</span>)}</span></td>
-          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><time dateTime={row.updatedAt}>{new Date(row.updatedAt).toLocaleString()}</time></td><td data-label="Git"><code>{row.defaultBranch}</code></td><td data-label="Compiler">{row.settings.engine}</td><td><Button aria-label={`Project actions for ${row.name}`} onClick={() => setActionProject(row)}>Project actions</Button></td>
+          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><time dateTime={row.updatedAt} title={new Date(row.updatedAt).toLocaleString()}>{edited(row.updatedAt)}</time></td><td data-label="Git"><code className="p-branch">{row.defaultBranch}</code></td><td data-label="Compiler">{engines[row.settings.engine] ?? row.settings.engine}</td><td className="p-row-actions"><IconButton variant="ghost" icon="more" label={`Project actions for ${row.name}`} title="Project actions" onClick={() => setActionProject(row)} /></td>
         </tr>)}
       </tbody></table></div>}
       {projects.data?.nextCursor && !projects.loading && !projects.error && <Button onClick={() => { setCursor(projects.data?.nextCursor ?? undefined); setSelected([]); }}>Next page</Button>}

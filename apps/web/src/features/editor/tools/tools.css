@@ -1,13 +1,16 @@
 .editor-tools{display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0;height:100%;color:var(--q-ink);background:var(--q-sidebar);font-family:var(--q-font-sans);font-size:var(--q-text-base)}
 .editor-tools[data-presentation="compact"]{position:relative}
 .editor-tools[data-presentation="compact"] .editor-tools__chooser{height:38px;padding:var(--q-space-1) var(--q-space-3);gap:0}
-.editor-tools[data-presentation="compact"] .editor-tools__chooser select{min-height:28px;padding:var(--q-space-1);border-color:transparent;background:transparent}
+.editor-tools[data-presentation="compact"] .editor-tools__chooser select{min-height:28px;padding:var(--q-space-1);border-color:transparent;background:transparent;font-size:var(--q-text-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--q-tertiary);cursor:pointer}
+.editor-tools[data-presentation="compact"] .editor-tools__chooser select:hover{color:var(--q-ink)}
 .editor-tools[data-presentation="compact"][data-panel="files"] .editor-tools__chooser select{width:calc(100% - 100px)}
 .editor-tools[data-presentation="compact"] .editor-tools__body{padding:var(--q-space-2)}
 .editor-tools[data-presentation="compact"] .editor-tools__tree{margin:0}
 .editor-tools__file-actions{position:relative}
 .editor-tools[data-presentation="compact"] .editor-tools__file-actions{position:absolute;inset-block-start:0;inset-inline-end:0;margin:0;z-index:4}
-.editor-tools[data-presentation="compact"] .editor-tools__file-actions>summary{min-height:38px;display:flex;align-items:center;padding-inline:var(--q-space-3);font-size:var(--q-text-sm)}
+.editor-tools[data-presentation="compact"] .editor-tools__file-actions>summary{min-height:38px;display:flex;align-items:center;padding-inline:var(--q-space-5);font-size:var(--q-text-sm);color:var(--q-tertiary);list-style:none;cursor:pointer}
+.editor-tools[data-presentation="compact"] .editor-tools__file-actions>summary::-webkit-details-marker{display:none}
+.editor-tools[data-presentation="compact"] .editor-tools__file-actions>summary:hover,.editor-tools[data-presentation="compact"] .editor-tools__file-actions[open]>summary{color:var(--q-ink)}
 .editor-tools__file-menu{position:absolute;inset-inline-end:0;width:220px;max-width:calc(100vw - 32px);max-height:65dvh;overflow:auto;padding:var(--q-space-3);background:var(--q-surface);border:1px solid var(--q-border);box-shadow:var(--q-shadow)}
 @media(min-width:768px) and (pointer:fine){.editor-tools[data-presentation="compact"] .editor-tools__file{min-height:28px;padding-block:var(--q-space-1)}}
 @media(pointer:coarse){.editor-tools[data-presentation="compact"] .editor-tools__chooser{height:52px}.editor-tools[data-presentation="compact"] .editor-tools__file-actions>summary{min-height:52px}}
@@ -30,6 +33,15 @@
 .editor-tools .editor-tools__file{justify-content:flex-start;min-width:0;width:100%;text-align:start;gap:var(--q-space-3)}
 .editor-tools__file[aria-selected="true"],.editor-tools button[aria-pressed="true"]{background:var(--q-selected)}
 .editor-tools__path{overflow-wrap:anywhere;min-width:0;font-family:var(--q-font-mono)}
+.editor-tools__tree .editor-tools__path{font-family:var(--q-font-sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:normal}
+.editor-tools__dir{color:var(--q-tertiary)}
+/* The parent folder row already shows this prefix; keep it in text and accessible names only. */
+.editor-tools__dir--nested{font-size:0}
+.editor-tools__tree .editor-tools__file{gap:var(--q-space-2);padding-inline-start:calc(var(--q-space-3) + var(--qe-tree-level, 0) * 16px);font-weight:400;border-radius:var(--q-radius-md)}
+.editor-tools__tree .editor-tools__file[aria-selected="true"]{font-weight:600}
+.editor-tools__marker{display:inline-grid;place-items:center;flex:none;inline-size:14px;block-size:14px;color:var(--q-tertiary)}
+.editor-tools__file[aria-selected="true"] .editor-tools__marker:empty::before{content:"";inline-size:7px;block-size:7px;border-radius:2px;background:var(--q-brand)}
+.editor-tools__tree .editor-tools__hint{margin-inline-start:auto;font-size:var(--q-text-xs)}
 .editor-tools__hint{color:var(--q-tertiary);font-size:var(--q-text-sm)}
 .editor-tools__error{color:var(--q-error)!important}
 .editor-tools__results{list-style:none;margin:var(--q-space-5) 0;padding:0;display:grid;gap:var(--q-space-5)}

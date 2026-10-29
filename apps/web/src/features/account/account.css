@@ -21,8 +21,12 @@
 .account-intro>a{color:var(--q-white)}
 .account-intro__body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:var(--q-space-10);max-width:560px}
 .account-intro .account-statement{font:400 44px/1.15 var(--q-font-serif)}
-.account-equation{font:italic 26px var(--q-font-serif);padding:var(--q-space-8) 0;border-block:1px solid var(--q-secondary)}
+.account-equation{font:italic 26px var(--q-font-serif);padding:var(--q-space-8) 0;border-block:1px solid rgb(255 255 255 / 16%);color:rgb(255 255 255 / 72%)}
 .account-intro ul,.account-intro ol{padding-inline-start:var(--q-space-8);display:flex;flex-direction:column;gap:var(--q-space-5);line-height:var(--q-line-body)}
+.account-intro ul{list-style:none;padding:0;color:rgb(255 255 255 / 82%)}
+.account-intro ul li{display:flex;gap:var(--q-space-5)}
+.account-intro ul li:before{content:"—";color:var(--q-muted)}
+.account-intro>p{color:var(--q-muted);font-size:var(--q-text-sm)}
 .account-auth__body{flex:1 1 480px;box-sizing:border-box;padding:var(--q-space-13) var(--q-space-9);display:flex;justify-content:center;align-items:center;min-width:0}
 .account-auth__form{width:100%;max-width:380px}
 .account-signup .account-auth__form{max-width:420px}
@@ -32,7 +36,17 @@
 .account-provider-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--q-space-3)}
 .account-auth:not(.account-signup) .account-provider-grid{grid-template-columns:minmax(0,1fr);gap:var(--q-space-4)}
 .account-provider-grid .q-button{padding-inline:var(--q-space-2);min-height:44px}
-.account-divider{display:flex;align-items:center;gap:var(--q-space-5);color:var(--q-tertiary);font-size:var(--q-text-sm)}
+.account-auth__form .account-sso{width:100%;min-height:46px}
+.account-auth__form .account-stack{gap:var(--q-space-5)}
+.account-unavailable{color:var(--q-secondary);font-size:var(--q-text-sm);margin-top:calc(var(--q-space-3) * -1)}
+.account-unavailable summary{cursor:pointer;width:fit-content;color:var(--q-tertiary)}
+.account-unavailable summary:hover{color:var(--q-ink)}
+.account-unavailable ul{margin:var(--q-space-4) 0 0;padding:var(--q-space-5) var(--q-space-6);list-style:none;display:flex;flex-direction:column;gap:var(--q-space-4);background:var(--q-inset);border-radius:var(--q-radius-md);line-height:var(--q-line-body);overflow-wrap:anywhere}
+.account-unavailable strong{color:var(--q-ink);font-weight:600}
+.account-password{position:relative}
+.account-forgot{position:absolute;top:0;inset-inline-end:0;font-size:var(--q-text-sm)}
+.account-legal{color:var(--q-secondary);font-size:var(--q-text-sm)}
+.account-divider{display:flex;align-items:center;gap:var(--q-space-5);color:var(--q-tertiary);font-size:var(--q-text-sm);margin-block:var(--q-space-2)}
 .account-divider:before,.account-divider:after{content:"";flex:1;height:1px;background:var(--q-border)}
 .account-reset{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--q-space-9);padding:var(--q-space-11) var(--q-space-7);box-sizing:border-box}
 .account-reset__card{width:100%;max-width:420px;box-sizing:border-box;padding:var(--q-space-11);background:var(--q-surface);border:1px solid var(--q-border);border-radius:var(--q-radius-dialog)}
@@ -75,3 +89,7 @@
  .account-check{padding-block:var(--q-space-5)}
  .account-page a{min-height:44px;display:inline-flex;align-items:center}
 }
+@media(max-width:650px){.account-page .account-forgot{top:-12px}}
+.account-auth:not(.account-signup) .account-provider-grid:has(>:nth-child(4)){gap:var(--q-space-3)}
+.account-auth:not(.account-signup) .account-provider-grid:has(>:nth-child(4)) .q-button{min-height:40px}
+.account-provider-grid .q-button:disabled{opacity:1;color:var(--q-tertiary);background:var(--q-inset);border-style:dashed}

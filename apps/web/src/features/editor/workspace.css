@@ -42,10 +42,14 @@
 .qe-source-header{display:flex;align-items:center;justify-content:space-between;gap:var(--q-space-3);flex:none;min-block-size:38px;padding-inline:var(--q-space-5);border-block-end:1px solid var(--q-border);background:var(--q-sidebar);font-family:var(--q-font-mono)}
 .qe-source-header>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-inline-size:0;font-weight:500}
 .qe-source-header>.qe-project-menu{flex-shrink:0}
-.qe-source-header summary{font-family:var(--q-font-sans);font-size:var(--q-text-sm);min-block-size:28px}
+.qe-source-header summary{font-family:var(--q-font-sans);font-size:var(--q-text-sm);min-block-size:28px;border-color:transparent;background:transparent;color:var(--q-tertiary);list-style:none}
+.qe-source-header summary::-webkit-details-marker{display:none}
+.qe-source-header summary:hover,.qe-source-header details[open]>summary{background:var(--q-wash);color:var(--q-ink)}
 .qe-source-header .qe-project-menu>nav{max-block-size:min(65dvh,520px);overflow-y:auto;min-inline-size:200px;font-family:var(--q-font-sans)}
 .qe-source-header hr{inline-size:100%;border:0;border-block-start:1px solid var(--q-border)}
-.qe-rail-button{position:relative;inline-size:40px;min-block-size:40px;padding:0}
+.qe-rail-button{position:relative;inline-size:40px;min-block-size:40px;padding:0;color:var(--q-tertiary)}
+.qe-rail-button>svg{flex:none}
+.qe-rail-button:hover:not(:disabled){color:var(--q-ink)}
 .qe-sigma{font:18px var(--q-font-serif)}
 .qe-settings{margin-block-start:auto}
 .qe-count{position:absolute;inset-block-start:0;inset-inline-end:0;min-inline-size:14px;line-height:14px;border-radius:var(--q-radius-md);background:var(--q-warning);color:var(--q-surface);font-size:var(--q-text-xs)}

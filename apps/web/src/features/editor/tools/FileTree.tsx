@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { FileEntry, Id } from "@quire/contracts";
-import { Button } from "../../../ui";
+import { Button, Icon } from "../../../ui";
 
+type TreeRowStyle = CSSProperties & { readonly "--qe-tree-level": number };
 type Props = {
   readonly files: readonly FileEntry[];
   readonly selected: Id | null;
@@ -32,9 +34,15 @@ export function FileTree({ files, selected, disabled, onSelect, onOpen }: Props)
     return next;
   });
   return <div role="tree" aria-label="Project files" className="editor-tools__tree">
-    {rows.map((file, index) => <Button key={file.id} role="treeitem" variant="ghost" disabled={disabled}
-      className="editor-tools__file" title={file.path}
-      aria-level={file.path.split("/").slice(0, -1).filter((_, depth, parts) => folderPaths.has(parts.slice(0, depth + 1).join("/"))).length + 1} aria-selected={selected === file.id}
+    {rows.map((file, index) => {
+      const level = file.path.split("/").slice(0, -1).filter((_, depth, parts) => folderPaths.has(parts.slice(0, depth + 1).join("/"))).length + 1;
+      const slash = file.path.lastIndexOf("/");
+      const indent: TreeRowStyle = { "--qe-tree-level": level - 1 };
+      const hint = file.link ? "Linked" : !file.editable && file.kind === "file" ? "Read only" : null;
+      return <Button key={file.id} role="treeitem" variant="ghost" disabled={disabled}
+      className="editor-tools__file" title={file.path} aria-label={hint ? `${file.path}, ${hint.toLowerCase()}` : file.path}
+      style={indent}
+      aria-level={level} aria-selected={selected === file.id}
       aria-expanded={file.kind === "folder" ? !collapsed.has(file.path) : undefined}
       tabIndex={tabStop === file.id ? 0 : -1}
       ref={node => { if (node) refs.current.set(file.id, node); else refs.current.delete(file.id); }}
@@ -65,11 +73,11 @@ export function FileTree({ files, selected, disabled, onSelect, onOpen }: Props)
         event.preventDefault();
         if (target) { onSelect(target); refs.current.get(target.id)?.focus(); }
       }}>
-      <span aria-hidden="true">{selected === file.id ? "✓" : file.kind === "folder" ? collapsed.has(file.path) ? "▸" : "▾" : "·"}</span>
-      <span className="editor-tools__path">{file.path}</span>
-      {file.link && <span className="editor-tools__hint">Linked</span>}
-      {!file.editable && !file.link && file.kind === "file" && <span className="editor-tools__hint">Read only</span>}
-    </Button>)}
+      <span className="editor-tools__marker" aria-hidden="true">{file.kind === "folder" ? <Icon name={collapsed.has(file.path) ? "chevronRight" : "chevronDown"} size={14} /> : null}</span>
+      <span className="editor-tools__path">{slash > 0 && <span className={`editor-tools__dir${folderPaths.has(file.path.slice(0, slash)) ? " editor-tools__dir--nested" : ""}`}>{file.path.slice(0, slash + 1)}</span>}{file.path.slice(slash + 1)}</span>
+      {hint && <span className="editor-tools__hint">{hint}</span>}
+    </Button>;
+    })}
     {files.length === 0 && <p>No files. Create a file or upload project sources.</p>}
   </div>;
 }

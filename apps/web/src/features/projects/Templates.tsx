@@ -23,7 +23,7 @@ export function TemplateBrowser({ client, onChoose, compact = false, externalQue
     `${template.name} ${template.description}`.toLowerCase().includes(externalQuery.toLowerCase()));
   return <section className={`p-templates ${compact ? "p-templates--compact" : ""}`} aria-label="Templates">
     {!compact && <div className="p-heading"><h2>Start from a template</h2></div>}
-    <Field label="Search templates" value={query} onChange={event => setQuery(event.target.value)} type="search" />
+    <div className="p-search"><Icon name="search" /><Field label="Search templates" placeholder="Search templates" value={query} onChange={event => setQuery(event.target.value)} type="search" /></div>
     <div className="p-cluster" aria-label="Template categories">
       {categories.map(item => <Button key={item} aria-pressed={category === item} variant={category === item ? "dark" : "neutral"} onClick={() => setCategory(item)}>{item}</Button>)}
     </div>

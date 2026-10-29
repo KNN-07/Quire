@@ -37,8 +37,8 @@ export function SignIn(props: AccountPageProps) {
     props.navigate(path);
   }
   return <AuthShell><div><h1>Sign in</h1><p className="account-muted">New here? <a href={authPath("/sign-up", requested)}>Create an account</a></p></div>
-    <ProviderOptions client={props.client} availability={availability} returnTo={returnTo} onSessionChange={props.onSessionChange} navigate={navigate} organizationDiscovery /><div className="account-divider">with email</div>
-    {availability.options && !availability.options.passwordEnabled && <p>Password sign-in is disabled by this server. Use an enabled identity provider.</p>}
+    <ProviderOptions client={props.client} availability={availability} returnTo={returnTo} onSessionChange={props.onSessionChange} navigate={navigate} organizationDiscovery /><div className="account-divider">or with email</div>
+    {availability.options && !availability.options.passwordEnabled && <p className="account-muted">Password sign-in is disabled by this server. Use an enabled identity provider.</p>}
     <form className="account-form" onSubmit={event => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
       void action.run(async () => {
@@ -46,13 +46,16 @@ export function SignIn(props: AccountPageProps) {
         await props.onSessionChange(); navigate(returnTo);
       });
     }}>
-      <fieldset disabled={action.busy || !availability.options?.passwordEnabled}><Field label="Email" name="email" type="email" required autoComplete="email" />
-        <Field label="Password" name="password" type="password" required autoComplete="current-password" />
-        <a href="/reset-password">Forgot your password?</a>
+      <fieldset disabled={action.busy || !availability.options?.passwordEnabled}><Field label="Email" name="email" type="email" required autoComplete="email" placeholder="you@university.edu" />
+        <div className="account-password">
+          <Field label="Password" name="password" type="password" required autoComplete="current-password" />
+          <a href="/reset-password" className="account-forgot" aria-label="Forgot your password?">Forgot?</a>
+        </div>
         <Notice {...action} />
         <Button type="submit" variant="dark" busy={action.busy} className="account-submit">Sign in</Button>
       </fieldset>
     </form>
+    <p className="account-legal">By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
   </AuthShell>;
 }
 export function SignUp(props: AccountPageProps) {
@@ -97,7 +100,7 @@ export function SignUp(props: AccountPageProps) {
     </> : <>
       <div><h1>Create your account</h1><p>Already have one? <a href={authPath("/sign-in", returnTo)}>Sign in</a></p></div>
       {billingReturnPath(returnTo, location.origin) && <p>Verify your email and sign in to continue to your selected plan. Creating a project is optional.</p>}
-      <ProviderOptions client={props.client} availability={availability} returnTo="/sign-up?step=start" onSessionChange={props.onSessionChange} navigate={props.navigate} /><div className="account-divider">with email</div>
+      <ProviderOptions client={props.client} availability={availability} returnTo="/sign-up?step=start" onSessionChange={props.onSessionChange} navigate={props.navigate} /><div className="account-divider">or with email</div>
       {availability.options && !availability.options.registrationEnabled && <p>Account registration is disabled by this server.</p>}
       {availability.options && !availability.options.passwordEnabled && <p>Password registration is disabled. Choose an enabled identity provider.</p>}
       <form className="account-form" onSubmit={event => {

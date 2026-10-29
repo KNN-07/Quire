@@ -74,3 +74,19 @@
 }
 @media(max-width:767px){.q-source-panel .q-button{min-block-size:var(--q-touch-target);font-size:var(--q-text-form)}.q-source-panel{font-size:var(--q-text-brand)}.q-source-tools{max-block-size:55%}.q-source-shortcuts{display:block}.q-source-shortcuts dd{margin-block-end:var(--q-space-3)}}
 @media(max-width:767px){.q-source-references .q-button,.q-source-editor .q-reference-tooltip .q-button{font-size:calc(var(--q-text-brand)*4/3)}}
+@media(min-width:768px){
+  /* Tracking and reference configuration share one slim strip above the source. */
+  .q-source-strip{flex:none;display:flex;align-items:flex-start;gap:var(--q-space-3);padding:var(--q-space-1) var(--q-space-3);border-block-end:1px solid var(--q-border);background:var(--q-sidebar)}
+  .q-source-strip>.q-source-tracking{flex:1;min-inline-size:0;max-block-size:none;overflow:visible;display:flex;flex-wrap:wrap;align-items:center;gap:0 var(--q-space-4);padding:0;border:0;background:none}
+  .q-source-strip .q-source-draft{max-block-size:30dvh;overflow:auto}
+  .q-source-strip>.q-source-tracking>:not(.q-source-row):not([role=status]){flex-basis:100%}
+  .q-source-strip>.q-source-tracking>p[role=status]{flex:1 1 0;min-inline-size:0;margin:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:var(--q-text-sm);color:var(--q-tertiary)}
+  .q-source-strip>.q-source-tracking>.q-source-row{flex-wrap:nowrap}
+  .q-source-strip .q-source-tracking .q-button{min-block-size:26px;font-size:var(--q-text-sm)}
+  .q-source-strip>.q-source-references{position:relative;flex:none;padding:0;border:0}
+  .q-source-strip>.q-source-references>summary{display:flex;align-items:center;min-block-size:28px;padding-inline:var(--q-space-3);border-radius:var(--q-radius-sm);font-size:var(--q-text-sm);color:var(--q-secondary);white-space:nowrap}
+  .q-source-strip>.q-source-references>summary:hover,.q-source-strip>.q-source-references[open]>summary{background:var(--q-wash);color:var(--q-ink)}
+  .q-source-strip>.q-source-references[open]>.q-source-stack{position:absolute;inset-block-start:calc(100% + var(--q-space-1));inset-inline-end:0;z-index:6;inline-size:min(380px,70vw);margin:0;padding:var(--q-space-7);background:var(--q-surface);border:1px solid var(--q-border);border-radius:var(--q-radius-card);box-shadow:var(--q-dialog-shadow)}
+  .q-source-tracking .q-button[aria-pressed]::before{content:"";inline-size:6px;block-size:6px;border-radius:50%;background:var(--q-muted)}
+  .q-source-tracking .q-button[aria-pressed=true]::before{background:var(--q-success)}
+}
