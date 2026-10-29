@@ -22,7 +22,7 @@ export function AssistantContext({ state, choice, change }: {
   const from = Math.min(state.selection.anchor, state.selection.head);
   const to = Math.max(state.selection.anchor, state.selection.head);
   const fileCount = choice.files.length + (choice.range && state.document && !choice.files.includes(state.document.file.id) ? 1 : 0);
-  return <details className="qa-assistant__context">
+  return <details className="qa-assistant__context" open={state.diagnosticFix ? true : undefined}>
     <summary>Context · {fileCount} files{choice.range ? ` · UTF-16 ${from}–${to}` : ""}</summary>
     <p>Only checked files are sent. An enabled selection sends just that range for the active file.</p>
     <fieldset><legend>Selected files</legend>
@@ -36,10 +36,12 @@ export function AssistantContext({ state, choice, change }: {
       onChange={event => change({ ...choice, range: event.target.checked })} />Send active UTF-16 range {from}–{to} in {state.document?.file.path ?? "no active file"}</label>
     {choice.range && state.document && <pre aria-label="Selected text">{state.document.source.toJSON().slice(from, to)}</pre>}
     <label>Compile diagnostic<select aria-label="Compile diagnostic" value={choice.diagnostic}
-      onChange={event => change({ ...choice, diagnostic: event.target.value })}>
+      disabled={Boolean(state.diagnosticFix)}
+      onChange={event => change({ ...choice, diagnostic: event.target.value, diagnosticConsent: false })}>
       <option value="">No diagnostic</option>
       {state.diagnostics.map(item => <option key={item.id} value={item.id}>{item.severity}: {item.message}</option>)}
     </select></label>
+    {state.diagnosticFix && <p>Clear diagnostic context to choose a different compiler diagnostic.</p>}
     <label className="qa-assistant__check"><input type="checkbox" checked={choice.diagnosticConsent}
       onChange={event => change({ ...choice, diagnosticConsent: event.target.checked })} />Send the selected diagnostic and its recorded log excerpt</label>
     <label className="qa-assistant__check"><input type="checkbox" checked={choice.imageConsent}

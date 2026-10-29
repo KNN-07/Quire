@@ -104,12 +104,12 @@ function executions(root: string) {
   });
 }
 
-test("configured native API/SSH/controller cohort owns real workers and compiler containers through fresh rollback", async () => {
+for (const rollback of [true, false]) test(`configured native API/SSH/controller cohort owns real workers and compiler containers through ${rollback ? "fresh rollback" : "signed promotion"}`, async () => {
   const accepted = z.array(EnvironmentSchema).parse(JSON.parse(await readFile(
     "docs/evidence/p2o-environments/worker-environments.json", "utf8")));
   const environment = accepted[0];
   if (!environment) throw new Error("Missing accepted immutable environment receipt");
-  await using owned = await nativeInstallation({ workerEnvironment: environment, candidatePortConflict: true });
+  await using owned = await nativeInstallation({ workerEnvironment: environment, candidatePortConflict: rollback });
   if (!owned.apiPort || !owned.sshPort || owned.prior.data.dialect !== "sqlite") throw new Error("Expected native all-role fixture");
   const firstWorker = workerReady(owned.prior.data.dataRoot, owned.roots.control, 0);
   try {
@@ -127,19 +127,27 @@ test("configured native API/SSH/controller cohort owns real workers and compiler
     expect(before.some(row => row.request.work.kind === "worker" && row.state === "running")).toBe(true);
     expect(before.some(row => row.request.work.kind === "compile" && row.result?.code === 0)).toBe(true);
     const active = owned.activatedAfter(0);
-    const completed = owned.receiptWhen(row => ["succeeded", "failed"].includes(row.operation.status));
+    const completed = owned.receiptWhen(row => ["succeeded", "failed"].includes(row.operation.status) || row.operation.errorCode !== null);
+    void completed.catch(() => undefined);
     const scheduled = await fetch(`http://127.0.0.1:${owned.apiPort}/api/admin/updates`, {
       method: "POST", headers: { ...operator, "content-type": "application/json", "idempotency-key": "all-role-native-health" },
       body: JSON.stringify({ releaseId: owned.release.id, at: new Date(Date.now() + 60000).toISOString(), autoSecurity: false }),
       signal: AbortSignal.timeout(120000),
     });
     expect(scheduled.status).toBe(202);
-    expect((await completed).operation.result).toMatchObject({ rolledBack: true });
+    const receipt = await completed;
+    if (rollback) expect(receipt.operation.result).toMatchObject({ rolledBack: true });
+    else expect(receipt.operation.status, JSON.stringify(receipt.operation)).toBe("succeeded");
     await active;
     const state = InstallationStateSchema.parse(await owned.control({ method: "status", input: {} }));
-    expect(state.binding.release).toEqual(owned.prior.release);
+    if (rollback) expect(state.binding.release).toEqual(owned.prior.release);
+    else {
+      expect(state.binding.release.releaseId).toBe(owned.release.id);
+      expect(state.floor).toEqual({ sequence: owned.release.sequence, version: owned.release.version });
+    }
     if (state.binding.data.dialect !== "sqlite") throw new Error("Expected fresh native generation");
-    expect(state.binding.data.generationId).not.toBe(owned.prior.data.generationId);
+    if (rollback) expect(state.binding.data.generationId).not.toBe(owned.prior.data.generationId);
+    else expect(state.binding.data).toEqual(owned.prior.data);
     const nextWorker = workerReady(state.binding.data.dataRoot, owned.roots.control, state.generation);
     try {
       const replacement = await nextWorker.promise;
@@ -152,7 +160,7 @@ test("configured native API/SSH/controller cohort owns real workers and compiler
       expect(["inactive", "failed"]).toContain(unit.state);
       if (unit.cgroup) expect(await cgroupPids(unit.cgroup)).toEqual([]);
     }
-    console.info("INSTALLATION_ALL_ROLE_NATIVE", JSON.stringify({ before, after: executions(owned.roots.control), state }));
+    console.info("INSTALLATION_ALL_ROLE_NATIVE", JSON.stringify({ rollback, before, after: executions(owned.roots.control), state, receipt }));
   } finally {
     firstWorker.close();
     console.info("INSTALLATION_ALL_ROLE_EXECUTION_INVENTORY", JSON.stringify(executions(owned.roots.control)));

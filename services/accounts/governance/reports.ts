@@ -1,8 +1,9 @@
 import type { TransactionContext } from "./shared";
 import { z } from "zod";
+import { zipSync } from "fflate";
 import { endpoints, AuditEntrySchema, OperationSchema } from "@quire/contracts";
 import type { Id } from "@quire/contracts";
-import { ServiceError } from "@quire/runtime";
+import { referenceBlob, ServiceError } from "@quire/runtime";
 import type { ModuleContext, Principal } from "@quire/runtime";
 import { authorize, audit, denied, newId, route } from "./shared";
 
@@ -33,15 +34,31 @@ export async function auditRows(context: ModuleContext, filter: AuditFilter) {
 }
 export async function exportAudit(context: TransactionContext, principal: Principal, filter: AuditFilter) {
   await context.db.lock("quire:accounts");
-  const rows = (await auditRows(context, filter));
-  const bytes = csv([["sequence", "at", "actorId", "organizationId", "event", "targetId", "details"],
-    ...rows.map((row) => [String(row.seq), row.at, row.actorId ?? "", row.organizationId ?? "", row.event,
-      row.targetId, JSON.stringify(row.details)])]);
-  const result = { format: "csv", mime: "text/csv", filename: "audit.csv", csv: new TextDecoder().decode(bytes), rows: rows.length };
+  const files: Record<string, Uint8Array> = {};
+  let cursor = filter.cursor;
+  let count = 0;
+  let pages = 0;
+  while (true) {
+    const rows = await auditRows(context, { ...filter, cursor, limit: 100 });
+    if (rows.length === 0 && pages > 0) break;
+    files[`audit-${String(++pages).padStart(4, "0")}.csv`] = csv([
+      ["sequence", "at", "actorId", "organizationId", "event", "targetId", "details"],
+      ...rows.map((row) => [String(row.seq), row.at, row.actorId ?? "", row.organizationId ?? "", row.event,
+        row.targetId, JSON.stringify(row.details)]),
+    ]);
+    count += rows.length;
+    if (rows.length < 100) break;
+    cursor = String(rows.at(-1)?.seq);
+  }
+  const bytes = zipSync(files);
+  const blob = await context.blobs.put(bytes);
+  await referenceBlob(context.db, { digest: blob, bytes: bytes.length }, context.clock);
+  const result = { format: "zip", mime: "application/zip", filename: "audit.zip", blob, projectIds: [],
+    operatorOnly: filter.organizationId === undefined, rows: count, files: pages };
   const operation = OperationSchema.parse({ id: newId(), kind: "audit-export", status: "succeeded", progress: 1, result, errorCode: null });
   await context.db.run("INSERT INTO operations(id,actor_id,kind,status,progress,result_json,created_at,updated_at) VALUES(?,?,?,'succeeded',1,?,?,?)", [operation.id, principal.user.id, operation.kind, JSON.stringify(result), context.clock.now(), context.clock.now()]);
   await audit(context, principal, { organizationId: filter.organizationId ?? null, event: "audit.exported", targetId: operation.id,
-    details: { rows: rows.length } });
+    details: { rows: count } });
   return operation;
 }
 export function operator(principal: Principal): void {

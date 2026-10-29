@@ -1,8 +1,8 @@
-import ky from "ky";
-import { EventSchema, RealtimeServerMessageSchema, endpoints } from "@quire/contracts";
+import { RealtimeServerMessageSchema, endpoints } from "@quire/contracts";
 import type { RealtimeClientMessage } from "@quire/contracts";
 import { EditorApiError, editorValue } from "../shared";
 import type { EditorClient, EditorWorkspace } from "../shared";
+import { editorEvents } from "../shared/events";
 import type { PersistentDocument } from "./document";
 import { PresenceBridge } from "./presence";
 
@@ -12,7 +12,7 @@ export type TransportOptions = {
   readonly workspace: EditorWorkspace;
   readonly openSocket?: SocketFactory;
 };
-/** Owns exactly one socket and invalidation stream; document queue outlives both. */
+/** Owns one socket and invalidation subscription; document queue outlives both. */
 export class DocumentConnection {
   private socket: WebSocket | null = null;
   private abort = new AbortController();
@@ -121,37 +121,20 @@ export class DocumentConnection {
   }
   private async events(signal: AbortSignal): Promise<void> {
     const { client, workspace } = this.options;
-    const url = client.url(endpoints.events, { params: {}, query: { after: this.eventCursor }, body: undefined });
-    const response = await ky(url, { headers: workspace.requestHeaders, credentials: "same-origin",
-      retry: 0, timeout: false, signal });
-    if (!response.body) throw new TypeError("Missing event stream");
-    const reader = response.body.getReader();
-    let buffered = "";
-    const decoder = new TextDecoder();
-    try {
-      for (;;) {
-        const chunk = await reader.read();
-        if (chunk.done) { if (!signal.aborted) this.socket?.close(1011, "Invalidation stream closed"); return; }
-        buffered += decoder.decode(chunk.value, { stream: true });
-        let boundary: number;
-        while ((boundary = buffered.indexOf("\n\n")) >= 0) {
-          const frame = buffered.slice(0, boundary);
-          buffered = buffered.slice(boundary + 2);
-          const data = frame.split("\n").find(line => line.startsWith("data: "))?.slice(6);
-          if (!data) continue;
-          const event = EventSchema.parse(JSON.parse(data));
-          this.eventCursor = event.seq;
-          if (event.topic === "policy.changed"
-            || (event.topic === "access.changed" && event.aggregateId === workspace.scope.projectId)) {
-            const access = editorValue(await client.call(endpoints.projectAccess, {
-              params: { p: workspace.scope.projectId }, query: { branch: workspace.scope.branch },
-              headers: workspace.requestHeaders, body: undefined,
-            }, signal));
-            this.document.updateWorkspace({ ...workspace, access });
-          }
+    await editorEvents({ client, headers: workspace.requestHeaders, signal, after: this.eventCursor,
+      actorId: workspace.access.actorId,
+      receive: async event => {
+        this.eventCursor = event.seq;
+        if (event.topic === "policy.changed"
+          || (event.topic === "access.changed" && event.aggregateId === workspace.scope.projectId)) {
+          const access = editorValue(await client.call(endpoints.projectAccess, {
+            params: { p: workspace.scope.projectId }, query: { branch: workspace.scope.branch },
+            headers: workspace.requestHeaders, body: undefined,
+          }, signal));
+          this.document.updateWorkspace({ ...workspace, access });
         }
-      }
-    } finally { await reader.cancel(); reader.releaseLock(); }
+      },
+    });
   }
   reconnect(): void {
     if (this.disposed) return;

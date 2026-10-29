@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/review/**/*.ts",
+    "../../../apps/web/src/features/editor/review/**/*.tsx",
+    "../../../services/core/review/**/*.ts",
+    "../../core/review/author-comparison/**/*.ts",
+    "./**/*.ts"
+  ],
+  "exclude": []
+}

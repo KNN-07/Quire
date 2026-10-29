@@ -8,6 +8,8 @@ import { AssistantComposer } from "./Composer";
 import { AssistantReview } from "./Review";
 import { AssistantPreferences } from "./Preferences";
 import { AssistantConversation } from "./Conversation";
+import { AssistantClaims } from "./Claims";
+import { AssistantRunProgress } from "./RunProgress";
 import "./assistant.css";
 
 const subscribeEmpty = () => () => undefined;
@@ -48,9 +50,11 @@ function AssistantSession(props: AssistantPanelProps) {
       {state.error && <p role="alert" className="qa-assistant__error">{state.error}</p>}
       {state.notice && <p role="status">{state.notice}</p>}
       {state.busy && <p role="status">Request in progress</p>}
-      <AssistantReview state={state} />
+      {state.run && <AssistantRunProgress run={state.run} />}
+      <AssistantReview state={state} key={`review:${state.run?.id ?? "no-run"}`} />
+      <AssistantClaims state={state} key={`claims:${state.run?.id ?? "no-run"}`} />
       {state.run && <section className="qa-assistant__run" aria-label="Run metadata">
-        <h3>{state.run.mode === "agent" ? "Agent" : "Ask"} run · {state.run.status}</h3>
+        <h3>Run details</h3>
         <dl><dt>Run ID</dt><dd>{state.run.id}</dd><dt>Version</dt><dd>{state.run.version}</dd><dt>Error code</dt><dd>{state.run.errorCode ?? "none"}</dd>
           <dt>Conversation ID</dt><dd>{state.run.conversationId ?? "private session"}</dd></dl>
       </section>}
@@ -60,7 +64,7 @@ function AssistantSession(props: AssistantPanelProps) {
           <strong>{message.role === "user" ? "You" : "Assistant"}</strong><p>{message.text}</p>
         </article>)}
       </section>
-      {!!state.run?.sources.length && <section aria-label="Retrieved publications"><h3>Retrieved sources</h3>
+      {!!state.run?.sources.length && state.run.tool !== "citation-reviewer" && <section aria-label="Retrieved publications"><h3>Retrieved sources</h3>
         {state.run.sources.map(source => <article className="qa-assistant__source" key={`${source.provider}:${source.providerId}`}>
           <strong>{source.title}</strong><p>{source.authors.join(", ")} · {source.year ?? "Year unavailable"}</p>
           <p>{source.provider} · {source.providerId}</p>
@@ -68,12 +72,12 @@ function AssistantSession(props: AssistantPanelProps) {
           <pre>{source.bibtex}</pre>
         </article>)}
       </section>}
+      <AssistantConversation state={state} />
       {state.preferences ? <AssistantComposer state={state} /> : <p role="status">Loading AI preferences</p>}
       <div className="qa-assistant__governance">
         <p>{state.availability}</p>
         <p>{state.usage ? `${state.usage.month} usage · ${state.usage.used} used · ${state.usage.reserved} reserved · ${state.usage.refunded} refunded`
           : "Loading actual usage"}</p>
-        <AssistantConversation state={state} />
         <AssistantPreferences state={state} />
       </div>
     </div>
@@ -81,5 +85,5 @@ function AssistantSession(props: AssistantPanelProps) {
 }
 export function AssistantPanel(props: AssistantPanelProps) {
   return <AssistantSession {...props}
-    key={`${props.workspace.scope.projectId}:${props.workspace.scope.branch}:${props.workspace.access.actorId}:${props.workspace.requestHeaders["x-project-token"] ?? ""}`} />;
+    key={`${props.workspace.scope.projectId}:${props.workspace.scope.branch}:${props.workspace.access.actorId}:${props.workspace.requestHeaders["x-project-token"] ?? ""}:${props.diagnosticFix?.key ?? props.threadContext?.key ?? ""}`} />;
 }

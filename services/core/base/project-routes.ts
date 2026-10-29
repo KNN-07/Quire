@@ -8,7 +8,7 @@ import { compare, fail, newId } from "./store";
 import { exportSource, recordOperation, downloadOperation } from "./operations";
 import { sourceZip } from "./archives";
 import { zipSync } from "fflate";
-import { listProjects } from "./project-list";
+import { listProjects, listWorkspaces } from "./project-list";
 import { delegatedExport } from "./export-adapter";
 import { anonymousExport } from "./anonymous-export";
 import { saveHttp } from "./receipts";
@@ -16,6 +16,10 @@ import { recordProjectTransfer } from "../../accounts/governance/managed";
 
 export function registerProjectRoutes(context: ModuleContext, service: CoreProjects): void {
   const { register } = context.routes;
+  register(endpoints.projectWorkspaces, async (input, request) => {
+    request.responseHeaders.set("cache-control", "private, no-store");
+    return listWorkspaces(service, await actor(context, request), input.query);
+  });
   register(endpoints.projectList, async (input, request) => (await listProjects(service, await actor(context, request), input.query)));
   register(endpoints.adminProjects, async (input, request) => {
     const principal = await context.services.get("identity").require(request.request);

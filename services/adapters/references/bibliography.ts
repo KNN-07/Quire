@@ -7,12 +7,15 @@ import type { AdapterServices, ActionContext, PreparedAction } from "../shared";
 import { Zotero, ZoteroSelectionSchema } from "./zotero";
 import type { BibliographyResult } from "./zotero";
 import { Mendeley } from "./mendeley";
+import { MendeleySelectionSchema } from "./mendeley";
+import { BibliographySelectionSchema } from "./selection";
+import type { BibliographySelection } from "./selection";
 import type { PublicationRetrieval } from "./retrieval";
 import { ReferenceSourceJournal } from "./source-journal";
 
 export const BulkSchema = z.strictObject({
   scope: ScopeSchema, path: z.string().min(1).regex(/\.bib$/i),
-  selection: ZoteroSelectionSchema.optional(),
+  selection: BibliographySelectionSchema.optional(),
 }).readonly();
 export const RefreshSchema = z.strictObject({ linkId: IdSchema, expectedDigest: DigestSchema, expectedVersion: z.number().int().positive() }).readonly();
 export type BulkInput = z.infer<typeof BulkSchema>;
@@ -21,17 +24,19 @@ export class BibliographySync {
   constructor(readonly services: AdapterServices, readonly retrieval: PublicationRetrieval) {
     this.journal = new ReferenceSourceJournal(services);
   }
-  async read(context: ActionContext, selection?: z.infer<typeof ZoteroSelectionSchema>): Promise<BibliographyResult> {
+  async read(context: ActionContext, selection?: BibliographySelection): Promise<BibliographyResult> {
     let result: BibliographyResult;
     switch (context.grant.provider) {
       case "zotero":
         if (!selection) throw new ServiceError("ZOTERO_SELECTION_REQUIRED", 400, "Select Zotero users/groups library and optional collection");
         result = await new Zotero(this.retrieval.transport).read({
-          baseUrl: context.configuration.baseUrl, apiKey: context.tokens.accessToken, selection, signal: context.signal });
+          baseUrl: context.configuration.baseUrl, apiKey: context.tokens.accessToken,
+          selection: ZoteroSelectionSchema.parse(selection), signal: context.signal });
         break;
       case "mendeley":
         result = await new Mendeley(this.retrieval.transport).read({
-          baseUrl: context.configuration.baseUrl, accessToken: context.tokens.accessToken, signal: context.signal });
+          baseUrl: context.configuration.baseUrl, accessToken: context.tokens.accessToken, signal: context.signal,
+          selection: MendeleySelectionSchema.parse(selection ?? { provider: "mendeley", libraryType: "personal" }) });
         break;
       default: throw new ServiceError("PROVIDER_UNCONFIGURED", 503, "Missing: ReadCube approved partner API endpoint, authentication/response contract and account permission");
     }
@@ -52,7 +57,7 @@ export class BibliographySync {
     const link = z.object({ id: IdSchema, project_id: IdSchema, branch: z.string(), file_id: IdSchema,
       digest: DigestSchema, selection_json: z.string(), version: z.number().int() }).parse(row);
     if (link.version !== input.expectedVersion || link.digest !== input.expectedDigest) throw new ServiceError("REFERENCE_LINK_CONFLICT", 409, "Bibliography changed since last refresh");
-    const selection = z.union([ZoteroSelectionSchema, z.null()]).parse(JSON.parse(link.selection_json));
+    const selection = BibliographySelectionSchema.nullable().parse(JSON.parse(link.selection_json));
     const service = new CoreProjects(this.services.context);
     const scope = { projectId: link.project_id, branch: link.branch };
     const file = await service.getFile(scope, link.file_id);
@@ -103,7 +108,8 @@ export class BibliographySync {
         [context.actorId, context.key]));
       const payload = {
         source, link: { id, grantId: context.grant.id, ownerId: context.actorId, scope: input.scope,
-          fileId: file.id, selection: JSON.stringify(input.selection ?? null), digest, cursor: result.cursor,
+          fileId: file.id, selection: JSON.stringify(input.selection ?? (context.grant.provider === "mendeley" ?
+            { provider: "mendeley", libraryType: "personal" } : null)), digest, cursor: result.cursor,
           expectedVersion: previous?.version ?? null },
         operationId: operation.id, action: previous ? "refresh" : "bulkBib", grantVersion: context.grant.version,
         configVersion: context.configuration.version, provider: context.grant.provider, expectedCursor: context.expectedCursor,

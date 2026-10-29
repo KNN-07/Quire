@@ -1,0 +1,12 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../tests/operations/environments/assets.d.ts",
+    "../../../../apps/web/src/features/admin/CompileQueue.tsx",
+    "../../../../apps/web/src/features/admin/index.tsx",
+    "../../../../services/operations/overview/index.ts"
+  ],
+  "exclude": []
+}

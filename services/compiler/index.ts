@@ -13,6 +13,7 @@ import { branchPreview } from "./preview";
 import { quiesceCompilerJobs } from "./quiescence";
 import { AccessStore } from "../core/base/access";
 import { assertHistoryAccess } from "../core/base/history-access";
+import { listEnvironmentAdmissions, requireEnvironmentAdmission } from "../operations/environments/admission";
 export { migrations } from "./store";
 export { CompilerService } from "./service";
 export type { CompilerEnvironments } from "./service";
@@ -25,11 +26,15 @@ export { workerMain } from "../../workers/compiler/main";
 const instances = new WeakMap<object, CompilerService>();
 let nativeProbe: ReturnType<typeof probeEnvironment> | null = null;
 export function configureCompilerEnvironments(
-  context: Pick<ModuleContext, "services">, provider: CompilerEnvironments,
+  context: Pick<ModuleContext, "services" | "db" | "config">, provider: CompilerEnvironments,
 ): void {
   const service = instances.get(context.services);
   if (!service) throw new ServiceError("COMPILER_NOT_REGISTERED", 503, "Register compiler before configuring environments");
-  service.configureEnvironments(provider);
+  service.configureEnvironments({ ...provider, async resolve(id) {
+    const environment = await provider.resolve(id);
+    await requireEnvironmentAdmission(context, environment);
+    return environment;
+  } });
 }
 /** Caller holds runtime.admission.exclusive; local builds have already drained. */
 export async function quiesceCompiler(context: Pick<ModuleContext, "services">): Promise<void> {
@@ -99,6 +104,11 @@ export async function register(context: ModuleContext): Promise<void> {
     const rows = await context.db.all<{ manifest_json: string }>(
       "SELECT manifest_json FROM environments WHERE available=1 ORDER BY id", []);
     return rows.map(row => EnvironmentSchema.parse(JSON.parse(row.manifest_json)));
+  });
+  context.routes.register(endpoints.environmentsAdmission, async (_input, request) => {
+    await actor(request.request);
+    request.responseHeaders.set("cache-control", "private, no-store");
+    return listEnvironmentAdmissions(context);
   });
   context.routes.register(endpoints.compileCreate, async (input, request) => {
     if (input.params.p !== input.body.scope.projectId) throw new ServiceError("SCOPE_MISMATCH", 400, "Project scope mismatch");

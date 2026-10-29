@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema, CapabilitySchema } from "./primitives";
 import { EngineSchema } from "./projects";
+import { ImportSelectionSchema, ImportUploadSchema } from "./multipart";
 
 export const UserSchema = z.strictObject({
   id: IdSchema, name: z.string(), primaryEmail: z.email(), verifiedEmails: z.array(z.email()).readonly(),
@@ -33,6 +34,26 @@ export const OrganizationSchema = z.strictObject({
   domains: z.array(z.string()).readonly(), policy: PolicySchema, version: CountSchema,
 }).readonly();
 export const MemberRoleSchema = z.enum(["admin", "manager", "member"]);
+export const ManagedStateSchema = z.enum(["invited", "accepted", "released", "suspended", "soft_deleted", "deleted"]);
+export const ManagedLifecycleSettingsSchema = z.strictObject({
+  enabled: z.boolean(), transferTo: IdSchema.nullable(),
+  softDeleteDays: z.number().int().min(1).max(36500),
+  deletionDays: z.number().int().min(2).max(36501),
+}).refine(value => value.deletionDays > value.softDeleteDays, {
+  message: "Final deletion must follow soft deletion, both measured from lapse",
+}).refine(value => !value.enabled || value.transferTo !== null, {
+  message: "An enabled schedule requires a managed transfer recipient",
+});
+export const ManagedLifecycleScheduleSchema = z.strictObject({
+  settings: ManagedLifecycleSettingsSchema, version: CountSchema,
+  authorizedBy: IdSchema.nullable(), authorityValid: z.boolean(),
+  accounts: z.array(z.strictObject({
+    userId: IdSchema, email: z.email(), state: ManagedStateSchema, version: CountSchema,
+    lapseAt: InstantSchema.nullable(),
+    nextStage: z.enum(["soft_deleted", "deleted"]).nullable(), nextAt: InstantSchema.nullable(),
+    errorCode: z.string().nullable(),
+  })),
+});
 export const MembershipSchema = z.strictObject({
   id: IdSchema, organizationId: IdSchema, userId: IdSchema, role: MemberRoleSchema,
   licensed: z.boolean(), version: CountSchema,
@@ -102,6 +123,59 @@ export const AuthOptionsSchema = z.strictObject({
 export const LinkedIdentitySchema = z.strictObject({
   id: IdSchema, issuer: z.string(), subject: z.string(), createdAt: InstantSchema,
 }).readonly();
+export const OnboardingChoicesSchema = z.strictObject({
+  writingKind: z.enum(["paper", "thesis", "slides", "coursework"]),
+  name: z.string().max(200),
+  origin: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("blank") }),
+    z.strictObject({ kind: z.literal("template"), templateVersionId: IdSchema }),
+    z.strictObject({ kind: z.literal("import") }),
+  ]),
+  defaultView: z.enum(["source", "split", "visual"]),
+}).readonly();
+const onboardingRepositoryUrl = z.string().max(2048).refine(value => !/[@?#]/u.test(value),
+  "Use a repository URL without credentials, query, or fragment; choose a saved connection");
+export const OnboardingImportDraftSchema = z.strictObject({
+  mode: z.enum(["upload", "github", "git"]), name: z.string().max(200),
+  workspaceId: IdSchema.nullable(), url: onboardingRepositoryUrl, branch: z.string().max(200),
+  grantId: IdSchema.nullable(), ...ImportSelectionSchema.unwrap().shape,
+}).readonly();
+export const OnboardingImportFileSchema = z.strictObject({
+  filename: z.string().min(1).max(255),
+  mime: z.string().regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/u),
+  bytes: CountSchema, sha256: DigestSchema,
+}).readonly();
+export const OnboardingImportRequestSchema = z.strictObject({
+  kind: z.enum(["zip", "github", "git"]), name: z.string().min(1).max(200),
+  workspaceId: IdSchema.optional(),
+  source: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("upload"), uploadId: IdSchema }),
+    z.strictObject({ kind: z.literal("git"), url: onboardingRepositoryUrl.pipe(z.url()),
+      branch: z.string().min(1).max(200), grantId: IdSchema.optional() }),
+  ]),
+  ...ImportSelectionSchema.unwrap().shape,
+}).readonly();
+export const OnboardingImportStateSchema = z.strictObject({
+  draft: OnboardingImportDraftSchema,
+  attempt: z.strictObject({
+    key: IdSchema, uploadKey: IdSchema.nullable(), file: OnboardingImportFileSchema.nullable(),
+    upload: ImportUploadSchema.nullable(), request: OnboardingImportRequestSchema.nullable(),
+    operationId: IdSchema.nullable(),
+  }).readonly().nullable(),
+}).readonly();
+export const OnboardingSchema = z.strictObject({
+  schemaVersion: z.literal(1), actorId: IdSchema, version: CountSchema,
+  choices: OnboardingChoicesSchema,
+  stage: z.enum(["choosing", "creating", "complete", "import"]),
+  createKey: IdSchema.nullable(), projectId: IdSchema.nullable(),
+  importState: OnboardingImportStateSchema.nullable().default(null),
+}).readonly();
+export type OnboardingChoices = z.infer<typeof OnboardingChoicesSchema>;
+export type Onboarding = z.infer<typeof OnboardingSchema>;
+export type OnboardingImportDraft = z.infer<typeof OnboardingImportDraftSchema>;
+export type OnboardingImportFile = z.infer<typeof OnboardingImportFileSchema>;
+export type OnboardingImportRequest = z.infer<typeof OnboardingImportRequestSchema>;
+export type OnboardingImportState = z.infer<typeof OnboardingImportStateSchema>;
 export const NotificationPreferencesSchema = z.strictObject({
   events: z.record(z.string(), z.boolean()),
   channels: z.array(z.enum(["in-app", "email"])).readonly(),

@@ -47,6 +47,7 @@
 .account-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--q-space-7);align-items:start}
 .account-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--q-space-5)}
 .account-row>span:first-child:not(.account-avatar){flex:1;min-width:0;overflow-wrap:anywhere}
+.account-identities .account-row small{display:block;color:var(--q-secondary);margin-top:var(--q-space-2)}
 .account-check{display:flex;gap:var(--q-space-5);align-items:center;min-height:44px;padding-block:var(--q-space-3);border-bottom:1px solid var(--q-border)}
 .account-check span{flex:1}
 .account-check input{width:20px;height:20px;accent-color:var(--q-brand)}
@@ -68,6 +69,8 @@
  .account-shell{padding:var(--q-space-9) var(--q-space-7);gap:var(--q-space-9)}
  .account-nav{max-width:none;flex-basis:100%}
  .account-panel{padding:var(--q-space-8)}
+ .account-identities .account-row>span:first-child{flex-basis:100%}
+ .account-identities .account-row>.q-button{max-width:100%;white-space:normal;overflow-wrap:anywhere;min-height:var(--q-touch-target)}
  .account-page .q-input{min-height:44px}
  .account-check{padding-block:var(--q-space-5)}
  .account-page a{min-height:44px;display:inline-flex;align-items:center}

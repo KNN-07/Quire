@@ -11,6 +11,12 @@ export type AuthProviderCapability = {
   readonly read: () => Capability | Promise<Capability>;
 };
 const providers = new WeakMap<ModuleContext["services"], Map<string, AuthProviderCapability>>();
+type DiscoveryReader = (domain: string) => Promise<z.infer<typeof endpoints.authDiscover.output>>;
+const discovery = new WeakMap<ModuleContext["services"], DiscoveryReader>();
+export function registerAuthDiscovery(context: Pick<ModuleContext, "services">, reader: DiscoveryReader): void {
+  if (discovery.has(context.services)) throw new ServiceError("DUPLICATE_AUTH_DISCOVERY", 500, "Authentication discovery already registered");
+  discovery.set(context.services, reader);
+}
 export type IdentityPolicy = {
   readonly requireSso: boolean;
   readonly breakGlassUserId: Id | null;
@@ -57,6 +63,10 @@ export function registerAuthProviderCapability(
 export function registerReads(context: ModuleContext, dependencies: IdentityDependencies): void {
   const { routes, db } = context;
   const { auth, repository } = dependencies;
+  routes.register(endpoints.authDiscover, async ({ query }, request) => {
+    request.responseHeaders.set("cache-control", "no-store");
+    return await discovery.get(context.services)?.(query.domain) ?? { organizations: [] };
+  });
   routes.register(endpoints.authOptions, async () => {
     const policy = await identityPolicy(context);
     return {

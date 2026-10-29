@@ -1,10 +1,13 @@
 import { z } from "zod";
-import { IdSchema, assertNever } from "@quire/contracts";
+import { endpoints, IdSchema, assertNever } from "@quire/contracts";
 import type { Id } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { ModuleContext, Principal } from "@quire/runtime";
-import { authorize, audit, conflict, missing, publishPolicyChange } from "./shared";
-import { managedRow, requireRemovableAccount, revokeSessions, transferProjects } from "./managed";
+import { authorize, audit, conflict, missing, newId, organization, publishPolicyChange, requireTeamOrganization, route } from "./shared";
+import type { TransactionContext } from "./shared";
+import { isManagedTransferRecipient, managedRow, requireRemovableAccount, revokeSessions, transferProjects } from "./managed";
+import { fresh } from "./billing";
+import { lifecycleAuthority, lifecyclePolicy, lifecycleSchedule } from "./lifecycle-policy";
 
 export type ManagedLifecycleCommand = {
   readonly organizationId: Id; readonly userId: Id; readonly expectedVersion: number;
@@ -20,6 +23,18 @@ export async function transitionManaged(context: ModuleContext, principal: Princ
     const bound = { ...context, db: tx };
 
     await authorize(bound, principal, { organizationId: input.organizationId, level: "admin" });
+    await applyManagedTransition(bound, principal.user.id, input);
+  });
+  await context.events.dispatch();
+}
+// Called only after interactive authorization or persisted policy verification,
+// inside the same accounts transaction. No scheduled Principal is manufactured.
+async function applyManagedTransition(bound: TransactionContext, actorId: Id, input: ManagedLifecycleCommand): Promise<void> {
+    const tx = bound.db;
+    requireTeamOrganization(await organization(bound, input.organizationId));
+    if (!await bound.db.get(`SELECT u.id FROM users u JOIN members m ON m.user_id=u.id AND m.organization_id=?
+      WHERE u.id=? AND u.managed_by=?`, [input.organizationId, input.userId, input.organizationId]))
+      throw new ServiceError("MANAGED_CONFLICT", 409, "Account must still be managed by this team");
     const value = (await bound.db.get("SELECT * FROM managed_acceptances WHERE organization_id=? AND user_id=?", [input.organizationId, input.userId]));
     if (!value) throw missing();
     const row = managedRow.parse(value);
@@ -54,8 +69,8 @@ export async function transitionManaged(context: ModuleContext, principal: Princ
         const days = (Date.parse(now) - Date.parse(row.lapse_at)) / 86_400_000;
         if (days < lapseDays) return;
         if (days >= deletionDays) {
-          const recipient = z.object({ user_id: IdSchema }).nullable().parse((await bound.db.get("SELECT user_id FROM members WHERE organization_id=? AND user_id=?", [input.organizationId, input.transferTo])));
-          if (!recipient) throw new ServiceError("INVALID_TRANSFER", 409, "Transfer owner must belong to the organization");
+          if (!await isManagedTransferRecipient(bound, { organizationId: input.organizationId, userId: input.transferTo }))
+            throw new ServiceError("INVALID_TRANSFER", 409, "Transfer requires an active member with accepted management by this team");
           await requireRemovableAccount(bound, input.userId);
           await transferProjects(bound, { from: input.userId, to: input.transferTo });
           await bound.db.run("UPDATE managed_acceptances SET state='deleted',version=version+1 WHERE id=?", [row.id]);
@@ -72,9 +87,110 @@ export async function transitionManaged(context: ModuleContext, principal: Princ
       }
       default: assertNever(input);
     }
-    await audit(bound, principal, { organizationId: input.organizationId, event: `managed.${input.action}`, targetId: input.userId });
+    await bound.db.run("INSERT INTO audit_entries(id,at,actor_id,organization_id,event,target_id,details_json) VALUES(?,?,?,?,?,?,?)",
+      [newId(), bound.clock.now(), actorId, input.organizationId, `managed.${input.action}`, input.userId, "{}"]);
+}
+export function registerManagedLifecycle(context: ModuleContext): void {
+  route(context, endpoints.managedLifecycleGet, async ({ params }, principal, request, bound) => {
+    requireTeamOrganization(await authorize(bound, principal, { organizationId: params.o, level: "admin" }));
+    request.responseHeaders.set("cache-control", "private, no-store");
+    return lifecycleSchedule(bound, params.o);
   });
+  route(context, endpoints.managedLifecyclePut, async ({ params, body }, principal, _request, bound) => {
+    requireTeamOrganization(await authorize(bound, principal, { organizationId: params.o, level: "admin" }));
+    await fresh(bound, principal);
+    const grant = z.object({ id: IdSchema, version: z.number() }).nullable().parse(await bound.db.get(
+      `SELECT m.id,m.version FROM members m JOIN users u ON u.id=m.user_id
+       WHERE m.organization_id=? AND m.user_id=? AND m.role='admin' AND u.suspended=0 AND u.deleted_at IS NULL`,
+      [params.o, principal.user.id]));
+    if (!grant) throw new ServiceError("LIFECYCLE_ADMIN_REQUIRED", 403, "An active organization administrator must authorize this schedule");
+    const previous = await lifecyclePolicy(bound, params.o);
+    conflict(previous?.version ?? 0, body.expectedVersion);
+    const settings = body.settings;
+    if (settings.enabled && (!settings.transferTo || !await isManagedTransferRecipient(bound, {
+      organizationId: params.o, userId: settings.transferTo,
+    }) || !await bound.db.get(`SELECT u.id FROM users u JOIN verified_emails e ON e.user_id=u.id
+      AND lower(e.email)=lower(u.primary_email) WHERE u.id=?`, [settings.transferTo])))
+      throw new ServiceError("INVALID_TRANSFER", 409, "Choose an active verified member with accepted management");
+    await bound.db.run(`INSERT INTO managed_lifecycle_policies(organization_id,enabled,admin_id,membership_id,membership_version,
+      transfer_to,soft_delete_days,deletion_days,version,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(organization_id) DO UPDATE SET enabled=excluded.enabled,admin_id=excluded.admin_id,
+      membership_id=excluded.membership_id,membership_version=excluded.membership_version,transfer_to=excluded.transfer_to,
+      soft_delete_days=excluded.soft_delete_days,deletion_days=excluded.deletion_days,version=excluded.version,updated_at=excluded.updated_at`,
+    [params.o, Number(settings.enabled), principal.user.id, grant.id, grant.version, settings.transferTo,
+      settings.softDeleteDays, settings.deletionDays, body.expectedVersion + 1, bound.clock.now()]);
+    await audit(bound, principal, { organizationId: params.o, event: "managed.schedule.configured", targetId: params.o,
+      details: { enabled: settings.enabled, transferTo: settings.transferTo, softDeleteDays: settings.softDeleteDays,
+        deletionDays: settings.deletionDays, version: body.expectedVersion + 1 } });
+    return lifecycleSchedule(bound, params.o);
+  });
+  route(context, endpoints.managedLifecycleTransition, async ({ params, body }, principal, _request, bound) => {
+    requireTeamOrganization(await authorize(bound, principal, { organizationId: params.o, level: "admin" }));
+    await fresh(bound, principal);
+    if (body.action === "lapse") {
+      const policy = await lifecyclePolicy(bound, params.o);
+      if (!policy || policy.enabled !== 1)
+        throw new ServiceError("LIFECYCLE_DISABLED", 409, "Enable an explicit lifecycle schedule before starting a lapse");
+      if (!await lifecycleAuthority(bound, policy))
+        throw new ServiceError("LIFECYCLE_AUTHORITY_REVOKED", 403, "An active organization admin must save the schedule again");
+      if (policy.transfer_to === params.u)
+        throw new ServiceError("INVALID_TRANSFER", 409, "Choose another transfer recipient before suspending this account");
+    }
+    await applyManagedTransition(bound, principal.user.id, {
+      organizationId: params.o, userId: params.u, ...body,
+    });
+    return { ok: true as const, version: body.expectedVersion + 1 };
+  });
+}
+
+/** Each account is isolated; a denied transfer must not starve unrelated due accounts. */
+export async function reconcileManagedLifecycle(context: ModuleContext) {
+  const candidates = z.array(z.object({ organization_id: IdSchema, user_id: IdSchema })).parse(
+    await context.db.all(`SELECT a.organization_id,a.user_id FROM managed_acceptances a
+      JOIN managed_lifecycle_policies p ON p.organization_id=a.organization_id AND p.enabled=1
+      WHERE a.state IN ('suspended','soft_deleted') AND a.lapse_at IS NOT NULL ORDER BY a.organization_id,a.user_id`));
+  const failures: { organizationId: Id; userId: Id; code: string }[] = [];
+  for (const candidate of candidates) {
+    let attempted: { policyVersion: number; managementVersion: number } | undefined;
+    try {
+      await context.uow.run(async tx => {
+        await tx.lock("quire:accounts");
+        const bound = { ...context, db: tx };
+        const policy = await lifecyclePolicy(bound, candidate.organization_id);
+        if (!policy || policy.enabled !== 1) return;
+        const row = managedRow.nullable().parse(await tx.get(
+          "SELECT * FROM managed_acceptances WHERE organization_id=? AND user_id=?", [candidate.organization_id, candidate.user_id]));
+        if (!row || !row.lapse_at || (row.state !== "suspended" && row.state !== "soft_deleted")) return;
+        const days = (Date.parse(bound.clock.now()) - Date.parse(row.lapse_at)) / 86_400_000;
+        if (days < (row.state === "suspended" ? policy.soft_delete_days : policy.deletion_days)) return;
+        attempted = { policyVersion: policy.version, managementVersion: row.version };
+        if (!await lifecycleAuthority(bound, policy))
+          throw new ServiceError("LIFECYCLE_AUTHORITY_REVOKED", 403, "Saved administrator authority is no longer valid");
+        if (!policy.transfer_to) throw new ServiceError("INVALID_TRANSFER", 409, "Schedule has no transfer recipient");
+        await applyManagedTransition(bound, policy.admin_id, { organizationId: candidate.organization_id,
+          userId: candidate.user_id, action: "advance", expectedVersion: row.version,
+          transferTo: policy.transfer_to, lapseDays: policy.soft_delete_days, deletionDays: policy.deletion_days });
+        await tx.run("DELETE FROM managed_lifecycle_results WHERE organization_id=? AND user_id=?",
+          [candidate.organization_id, candidate.user_id]);
+      });
+    } catch (error) {
+      const code = error instanceof ServiceError ? error.code : "LIFECYCLE_FAILED";
+      failures.push({ organizationId: candidate.organization_id, userId: candidate.user_id, code });
+      if (attempted) {
+        const receipt = attempted;
+        await context.uow.run(async tx => {
+          await tx.lock("quire:accounts");
+          await tx.run(`INSERT INTO managed_lifecycle_results(organization_id,user_id,policy_version,management_version,checked_at,error_code)
+            VALUES(?,?,?,?,?,?) ON CONFLICT(organization_id,user_id) DO UPDATE SET policy_version=excluded.policy_version,
+            management_version=excluded.management_version,checked_at=excluded.checked_at,error_code=excluded.error_code`,
+          [candidate.organization_id, candidate.user_id, receipt.policyVersion, receipt.managementVersion, context.clock.now(), code]);
+        });
+      }
+      console.error("MANAGED_LIFECYCLE_FAILED", { ...candidate, code, error });
+    }
+  }
   await context.events.dispatch();
+  return failures;
 }
 export async function reconcileInstitutionEligibility(context: ModuleContext): Promise<number> {
   const result = await context.uow.run(async (tx) => {

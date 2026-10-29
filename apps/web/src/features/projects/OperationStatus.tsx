@@ -15,7 +15,9 @@ export function OperationStatus({ operation: initial, client, navigate, onComple
   const [operation, setOperation] = useState(initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const projectId = IdSchema.safeParse(operation.result?.["projectId"]);
+  const importedProjects = IdSchema.array().length(1).safeParse(operation.result?.["projectIds"]);
+  const projectId = IdSchema.safeParse(operation.result?.["projectId"]
+    ?? (operation.kind.endsWith("-import") && importedProjects.success ? importedProjects.data[0] : undefined));
   const finished = ["succeeded", "failed", "canceled", "timeout"].includes(operation.status);
   async function refresh() {
     setBusy(true);

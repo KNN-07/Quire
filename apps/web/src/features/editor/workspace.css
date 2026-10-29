@@ -132,7 +132,7 @@
   .qe-secondary .q-pdf-toolbar .q-field{display:flex;align-items:center;max-inline-size:none}
   .qe-secondary .q-pdf-toolbar .q-field input{inline-size:64px}
   .qe-mobile-tabs{padding-block-end:env(safe-area-inset-bottom)}
-  .qe-status{padding-inline:var(--q-space-3);max-block-size:80px;overflow-y:auto}
+  .qe-status{padding-inline:var(--q-space-3);overflow-y:auto}
   .qe-status .q-button{min-block-size:var(--q-touch-target)}
   .qe-avatars{display:none}
   .qe-source-header summary,.qe-source-header .q-button{min-block-size:var(--q-touch-target)}

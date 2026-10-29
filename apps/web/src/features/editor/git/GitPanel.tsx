@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, IconButton, Modal, Spinner } from "../../../ui";
-import type { GitPanelProps } from "../shared";
 import { ConflictPanel } from "./ConflictPanel";
 import { DiffView } from "./DiffView";
 import { cloneUrl, shortOid } from "./types";
-import type { CompareTarget, DiffLayout } from "./types";
+import type { CompareTarget, DiffLayout, GitPanelProps } from "./types";
 import { useGitWorkspace } from "./useGitWorkspace";
 import "./git.css";
 
@@ -26,6 +25,8 @@ export function GitPanel(props: GitPanelProps) {
   const [tokenDialog, setTokenDialog] = useState(false);
   const [mergeFrom, setMergeFrom] = useState("");
   const [online, setOnline] = useState(navigator.onLine);
+  const [compileFirst, setCompileFirst] = useState(false);
+  const compileRequired = props.preferences?.compileBeforeCommit === true;
   const status = git.status;
   const writable = props.workspace.access.capabilities.edit && online;
   const changedPath = selectedPath && status?.files.some(file => file.path === selectedPath)
@@ -99,12 +100,15 @@ export function GitPanel(props: GitPanelProps) {
         const message = form.get("message");
         void git.commit({
           message: typeof message === "string" ? message : "",
-          compileFirst: form.get("compileFirst") === "on",
+          compileFirst: compileRequired || compileFirst,
         });
       }}>
         <label className="git-label" htmlFor="git-message">Commit message</label>
         <textarea id="git-message" name="message" rows={4} required placeholder="Describe the staged source" />
-        <label className="git-check"><input type="checkbox" name="compileFirst" />Compile staged tree before commit</label>
+        <label className="git-check"><input type="checkbox" name="compileFirst"
+          checked={compileRequired || compileFirst} disabled={compileRequired}
+          onChange={event => setCompileFirst(event.currentTarget.checked)} />Compile staged tree before commit</label>
+        {compileRequired && <p className="git-muted">Required by your saved compile-before-commit preference.</p>}
         <Button type="submit" variant="primary" busy={git.busy}
           disabled={!writable || status.staged.length === 0}>Commit {status.staged.length} {status.staged.length === 1 ? "hunk" : "hunks"}</Button>
       </form>

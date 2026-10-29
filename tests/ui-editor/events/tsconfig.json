@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/shared/**/*.ts",
+    "../../../apps/web/src/features/editor/assistant/events.ts",
+    "../../../apps/web/src/features/editor/pdf/events.ts",
+    "../../../apps/web/src/features/editor/review/events.ts",
+    "../../../apps/web/src/features/editor/transport/connection.ts",
+    "./**/*.ts"
+  ]
+}

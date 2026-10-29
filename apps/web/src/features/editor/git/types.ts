@@ -1,4 +1,9 @@
-import type { endpoints, ResponseOf } from "@quire/contracts";
+import type { endpoints, Preferences, ResponseOf } from "@quire/contracts";
+import type { GitPanelProps as SharedGitPanelProps } from "../shared";
+
+export type GitPanelProps = SharedGitPanelProps & {
+  readonly preferences?: Pick<Preferences, "compileBeforeCommit">;
+};
 
 export type GitStatus = ResponseOf<typeof endpoints.gitStatus>;
 export type GitBranch = ResponseOf<typeof endpoints.gitBranches>[number];

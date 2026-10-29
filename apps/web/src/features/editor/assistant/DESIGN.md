@@ -18,16 +18,22 @@ scrolling, fixed-width children, source mutation in a display component.
 The body owns review, messages, disclosures, and composer so a mobile keyboard
 or expanded consent form never hides controls in an oversized fixed footer.
 Source previews wrap; textareas may scroll their own editable text.
+Layout: run progress - recorded stages in execution order -> stack
+(https://github.com/changeroa/StyleGallery/blob/main/patterns/stacking/stack.md);
+scroll owner: `.qa-assistant__body`;
+anti-patterns: a separate progress scroller, fixed stage counts, unreached rows.
 
 ## Brief
 
 Primary action: Send in empty/chat states; Accept all when pending proposals
-exist (Send becomes neutral). Priorities: (1) reviewable changes or conversation,
+exist (Send becomes neutral). Priorities: (1) current recorded progress, then reviewable changes or conversation,
 (2) explicit selected context and prompt, (3) governance/settings.
 Left out on purpose: fabricated run steps/timings, sample citations, static
 usage numbers, marketing chips, placeholder model output, global app chrome.
 
-Required content: Assistant title; Ask/Agent; all 20 contextual tools; exact
+Required content: Assistant title; recorded stage kind/status and actual start/finish times;
+honest missing-history state for legacy receipts; result-ready distinct from acceptance;
+Ask/Agent; all 20 contextual tools; exact
 file selection; opt-in UTF-16 selection and preview; diagnostic selection and
 consent; PNG/JPEG upload and consent; prompt; translation target; Send,
 regenerate, cancel; real run status/version/errorCode/conversationId;
@@ -46,8 +52,18 @@ states. Assistant controls use 44px minimum hit targets. Native details elements
 contain secondary context/settings and preserve keyboard/Escape conventions.
 Review edits use neutral borders and before/after tonal rows, never accent
 edges. Status and error text are selectable and exposed to assistive technology.
-Loading renders immediately; asynchronous progress is the real run status,
-not a speculative spinner or step list. No decorative motion is introduced.
+Loading renders immediately. Run progress is an ordered list of only persisted
+`AiRun.steps`, keyed by kind. Running/completed/failed/canceled states use a
+shared Icon glyph plus explicit text, not color alone. The run summary is a
+polite atomic live region; static stage history is separately readable.
+Times use native local date/time formatting with the original UTC `dateTime`;
+no elapsed estimate, timer, percentage, or pending stage is manufactured.
+An empty steps array means no recorded history, including on legacy terminal
+runs. Result publication says ready, not accepted; existing review controls
+remain the only way to accept proposed source edits.
+The list reuses neutral hairlines, `--q-inset`, `--q-ink`, `--q-secondary`,
+`--q-ai`, `--q-success`, `--q-error`, `--q-space-*`, existing type and icon
+tokens. No decorative motion is introduced.
 
 ## Integration constraints
 

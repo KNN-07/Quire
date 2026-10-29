@@ -20,8 +20,18 @@ cp -R /src/. .
 find /work -mindepth 1 -exec chmod u+w {} +
 mkdir -p tmp cache
 export TMPDIR=/work/tmp XDG_CACHE_HOME=/work/cache
-if [ "$profile" = knitr ] && [ -f main.Rnw ] && { [ "$main" = main.Rnw ] || [ "$main" = main.tex ]; }; then
-  Rscript --vanilla -e 'knitr::opts_chunk$set(cache=FALSE); knitr::knit("main.Rnw", output="main.tex", quiet=TRUE)' >&2
+knit=""
+if [ "$profile" = knitr ]; then
+  case "$main" in
+    main.Rnw|main.Rtex) knit="$main" ;;
+    main.tex)
+      if [ -f main.Rnw ]; then knit=main.Rnw
+      elif [ -f main.Rtex ]; then knit=main.Rtex
+      fi ;;
+  esac
+fi
+if [ -n "$knit" ]; then
+  Rscript --vanilla -e 'knitr::opts_chunk$set(cache=FALSE); knitr::opts_hooks$set(cache=function(options) { if (!isTRUE(options$cache == 0)) stop("QUIRE_KNITR_CACHE_UNSUPPORTED: use cache=FALSE; chunk caches are not retained between jobs", call.=FALSE); options }); knitr::knit(commandArgs(TRUE)[1], output="main.tex", quiet=TRUE)' "$knit" >&2
   main=main.tex
 fi
 escape="-no-shell-escape"

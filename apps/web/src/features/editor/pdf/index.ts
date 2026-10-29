@@ -4,6 +4,7 @@ export { PdfCompileController } from "./controller";
 export { PdfViewer } from "./viewer";
 export type { PdfViewerProps } from "./viewer";
 export { CompileLogs } from "./logs";
+export type { DiagnosticFixRequest } from "./logs";
 export { PdfComparison } from "./comparison";
 export { comparePdfs, PdfDifferenceSchema } from "./difference";
 export type { PdfDifference } from "./difference";

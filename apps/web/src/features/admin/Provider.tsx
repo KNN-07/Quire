@@ -8,6 +8,7 @@ import { useAdminResource } from "./useAdminResource";
 
 export function Provider({ client }: { readonly client: AdminClient }) {
   const settings = useAdminResource(client, endpoints.providerGet, { params: { kind: "ai" }, query: {}, body: undefined });
+  const policy = useAdminResource(client, endpoints.providerAiPolicyGet, { params: {}, query: {}, body: undefined });
   const [message, setMessage] = useState("");
   return <section aria-labelledby="admin-provider-title">
     <div className="admin-row admin-page-heading"><h1 id="admin-provider-title">AI provider</h1>
@@ -18,7 +19,61 @@ export function Provider({ client }: { readonly client: AdminClient }) {
       : settings.resource && <ProviderForm key={settings.resource.data.version} client={client}
         configuration={settings.resource.data} etag={settings.resource.etag}
         onSaved={() => { setMessage("Provider configuration saved."); settings.refresh(); }} />}
+    {policy.error ? <p role="alert">{policy.error}</p> : policy.loading ? <Spinner label="Loading AI data policy" />
+      : policy.resource && <DataPolicyForm key={policy.resource.data.version} client={client}
+        policy={policy.resource.data} etag={policy.resource.etag}
+        onRefresh={policy.refresh}
+        onSaved={() => { setMessage("AI data policy saved."); policy.refresh(); }} />}
   </section>;
+}
+
+function DataPolicyForm({ client, policy, etag, onSaved, onRefresh }: {
+  readonly client: AdminClient; readonly policy: NonNullable<ProviderConfig["aiPolicy"]>;
+  readonly etag: string | null; readonly onSaved: () => void; readonly onRefresh: () => void;
+}) {
+  const [requestLogging, setRequestLogging] = useState(policy.requestLogging);
+  const [citationWebSearch, setCitationWebSearch] = useState(policy.citationWebSearch);
+  const [blockConfidentialTags, setBlockConfidentialTags] = useState(policy.blockConfidentialTags);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function save() {
+    if (!etag) { setMessage("Refresh the AI data policy before saving."); return; }
+    setBusy(true); setMessage("");
+    try {
+      const result = await client.call(endpoints.providerAiPolicyPut, {
+        params: {}, query: {}, headers: { "if-match": etag },
+        body: { requestLogging, citationWebSearch, blockConfidentialTags, expectedVersion: policy.version },
+      });
+      if ("error" in result) setMessage(result.error.message);
+      else onSaved();
+    } catch (failure) { setMessage(errorMessage(failure)); }
+    finally { setBusy(false); }
+  }
+  return <form className="admin-form admin-policy" aria-labelledby="ai-data-policy-title"
+    onSubmit={event => { event.preventDefault(); void save(); }}>
+    <h2 id="ai-data-policy-title">AI data policy</h2>
+    <p className="admin-muted">Policy version {policy.version}. Saved separately from the connection. Changes cancel pending AI output.</p>
+    <label className="admin-label">Request logging<select value={requestLogging}
+      onChange={event => setRequestLogging(event.currentTarget.value === "retained-content" ? "retained-content"
+        : event.currentTarget.value === "metadata" ? "metadata" : "off")}>
+      <option value="off">Off</option><option value="metadata">Request metadata only</option>
+      <option value="retained-content">Retained prompts and responses</option>
+    </select></label>
+    <p className="admin-muted">Content audit encrypts only prompts and responses already retained in Agent or shared conversations.
+      Private Ask stays session-local. File context, images and credentials are never copied into this log.
+      Turning logging off stops new logs; usage receipts, security audit and reviewed-edit history remain.</p>
+    <label className="admin-check"><input type="checkbox" checked={citationWebSearch}
+      onChange={event => setCitationWebSearch(event.currentTarget.checked)} />Allow web search for citations</label>
+    <p className="admin-muted">Users must still accept AI terms, enable citation search and select retrieval providers.
+      This does not enable autonomous web browsing or verify citations invented in ordinary chat.</p>
+    <label className="admin-check"><input type="checkbox" checked={blockConfidentialTags}
+      onChange={event => setBlockConfidentialTags(event.currentTarget.checked)} />Block owner-tagged confidential projects</label>
+    <p className="admin-muted">Matches the owner's confidential tag, ignoring case and surrounding spaces.
+      Explicit project confidentiality always blocks AI, even when this additional tag rule is off.</p>
+    <div className="admin-row"><Button type="submit" variant="primary" busy={busy} disabled={!etag}>Save AI data policy</Button>
+      <Button onClick={onRefresh} disabled={busy}>Refresh AI data policy</Button></div>
+    {message && <p role="status">{message}</p>}
+  </form>;
 }
 
 function ProviderForm({ client, configuration, etag, onSaved }: {

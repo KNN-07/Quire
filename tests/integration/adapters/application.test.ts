@@ -43,10 +43,10 @@ test("leaves explicitly assembled adapter start and close with the custom caller
       expect(app.adapters).toBeUndefined();
       expect(listeners.size).toBe(0);
       adapters.start();
-      expect(listeners.size).toBe(3);
+      expect(listeners.size).toBe(5);
       // Then: custom caller retains ownership through host shutdown.
       await app.close();
-      expect(listeners.size).toBe(3);
+      expect(listeners.size).toBe(5);
       await adapters.close();
       expect(listeners.size).toBe(0);
     } finally { await adapters.close(); await app.close(); }

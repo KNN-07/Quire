@@ -135,7 +135,39 @@ coarse pointers and narrow screens.
 ## 7. Persisted proposal contract
 
 Tracked proposals load through `endpoints.suggestionsList`, scoped by branch,
-current file or project overview, and edit status. The complete suggestion DTO
-is retained when one edit matches a filter. `review.changed` refreshes proposal
+then filtered locally by current file or project overview, edit status, and
+persisted suggestion author. Counts describe pending edits, not invented
+document ownership. The complete suggestion DTO is retained while only matching
+edits are displayed. `review.changed` refreshes proposal
 metadata; `tree.changed` refreshes both branch authority and proposals before a
 decision. No browser-only proposal store is authoritative.
+
+The read-only inline preview resolves each pending proposal's exact relative
+anchor and quote against the active live document. Unresolved, deleted, and
+already-decided proposals are explicitly separate from a live overlay.
+Participants without a supplied display name receive distinct collaborator
+labels; the panel does not request the access-management directory.
+
+## 8. Recorded history actors
+
+`historyCompare` remains the endpoint comparison and source-copy contract.
+`historyChanges` separately returns consecutive immutable file transitions,
+recorded applying actors, and ID/display-name-only participants. Every
+intermediate version is checked before reading bytes and again before response
+publication. A retained endpoint does not authorize hidden intermediate source.
+
+Colors identify the applying actor of a recorded file transition, not original
+character ownership. The inline comparison presents one exact replacement span
+with unchanged prefix/suffix retained. Equal interior text within a replacement
+span is not separately attributed. Imports, restores, and accepted suggestions
+retain the distinction between applying actor and original/proposal author.
+Unknown account names are unknown, not presumed former collaborators.
+
+History navigation opens the current file. A precise line is revealed only
+when the currently loaded text equals the transition's complete after-text;
+historical coordinates are never silently reused in divergent current source.
+
+These previews do not intercept ordinary source typing. Source tracking and
+thread-to-Assistant context are separately owned requirements under
+`docs/handoffs/p29-history-contract-decision.md`; full D10 acceptance cannot
+follow from this bounded presentation alone.

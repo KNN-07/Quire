@@ -7,6 +7,7 @@ import { hydrate, treeInputs } from "./trees";
 import { raw, objects, zero, branchName } from "./process";
 import { compileStaged } from "./compile";
 import type { GitReceipt } from "./journal";
+import { store as identityStore } from "../../accounts/identity/store";
 
 export type Mutation = { readonly scope: Scope; readonly head: GitOid; readonly expectedVersion: number };
 export async function stage(repo: GitRepository, actorId: Id, input: Mutation & {
@@ -84,7 +85,9 @@ export async function commit(repo: GitRepository, actorId: Id, input: Mutation &
   await repo.service.authorize(actorId, input.scope, "git.commit");
   const cached = await previousReceipt(repo, actorId, { key: input.key, digest });
   if (cached) return cached;
-  const candidate = input.compileFirst ? await repo.service.serialized(input.scope, async lease => {
+  // Sample this user preference at admission, not on replay or internal checkpoints.
+  const preferences = await identityStore(repo.service.context).preferences(actorId);
+  const candidate = (input.compileFirst || preferences.compileBeforeCommit) ? await repo.service.serialized(input.scope, async lease => {
     const state = await repo.check(actorId, input, lease);
     return patchedTree(repo.service, input.scope, { base: state.head, hunks: state.hunks.filter(item => item.hunk.staged) });
   }) : null;

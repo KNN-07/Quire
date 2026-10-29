@@ -4,8 +4,8 @@ import { IdSchema as id, CountSchema, InstantSchema, ScopeSchema as scope, RoleS
   DigestSchema, ProjectPathSchema as path, OkSchema as ok, pageSchema } from "./primitives";
 import { ProjectParamsSchema as p, ProjectIdParamsSchema as pi, FileParamsSchema as pf,
   IdParamsSchema as ids, BranchQuerySchema as branch, BytesSchema } from "./endpoint";
-import { ProjectSchema, ProjectSummarySchema, CompileSettingsSchema, FileEntrySchema, TextDocumentSchema, AnchorSchema,
-  ProposedEditSchema, SuggestionSchema, ThreadSchema, CommentSchema, HistoryVersionSchema,
+import { EngineSchema, ProjectSchema, ProjectSummarySchema, CompileSettingsSchema, FileEntrySchema, TextDocumentSchema, AnchorSchema,
+  ProposedEditSchema, SuggestionSchema, ThreadSchema, CommentSchema, HistoryVersionSchema, HistoryChangesSchema,
   GitHunkSchema, GitStatusSchema, GitBranchSchema, GitConflictSchema, GitComparisonSchema,
   TemplateVersionSchema, TagSchema } from "./projects";
 import { InvitationSchema, AccessRequestSchema, UserSchema, ProjectBenefitsSchema } from "./accounts";
@@ -35,8 +35,9 @@ const effectiveAccess = z.strictObject({
   }),
 });
 export const coreEndpoints = {
-  projectList: r("GET", "/api/projects", { params: none, query: list.extend({ q: z.string().optional(), owner: z.enum(["me", "shared", "all"]).default("all"), state: z.enum(["active", "archived", "trash"]).default("active"), tag: id.optional(), sort: z.enum(["updated", "title", "owner"]).default("updated"), direction: z.enum(["asc", "desc"]).default("desc") }), body: noBody, output: pageSchema(ProjectSummarySchema) }),
-  projectCreate: r("POST", "/api/projects", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), workspaceId: id.optional(), origin: z.discriminatedUnion("kind", [z.strictObject({ kind: z.literal("blank") }), z.strictObject({ kind: z.literal("example") }), z.strictObject({ kind: z.literal("template"), templateVersionId: id })]) }), output: ProjectSchema, ...key }),
+  projectWorkspaces: r("GET", "/api/project-workspaces", { params: none, query: list, body: noBody, output: pageSchema(z.strictObject({ id, name: z.string(), kind: z.enum(["team", "institution"]) })) }),
+  projectList: r("GET", "/api/projects", { params: none, query: list.extend({ workspace: z.union([z.enum(["all", "personal"]), id]).default("all"), q: z.string().optional(), owner: z.enum(["me", "shared", "all"]).default("all"), state: z.enum(["active", "archived", "trash"]).default("active"), tag: id.optional(), sort: z.enum(["updated", "title", "owner"]).default("updated"), direction: z.enum(["asc", "desc"]).default("desc") }), body: noBody, output: pageSchema(ProjectSummarySchema) }),
+  projectCreate: r("POST", "/api/projects", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), workspaceId: id.optional(), mainPath: path.optional(), engine: EngineSchema.optional(), environmentId: id.optional(), origin: z.discriminatedUnion("kind", [z.strictObject({ kind: z.literal("blank") }), z.strictObject({ kind: z.literal("example") }), z.strictObject({ kind: z.literal("template"), templateVersionId: id })]) }), output: ProjectSchema, ...key }),
   projectGet: r("GET", "/api/projects/:p", { params: p, query: branch, body: noBody, output: ProjectSchema }),
   projectAccess: r("GET", "/api/projects/:p/effective-access", { params: p, query: branch, body: noBody, output: effectiveAccess }),
   projectJoin: r("POST", "/api/projects/:p/join", { params: p, query: none, body: z.strictObject({ scope }), output: effectiveAccess }),
@@ -78,6 +79,7 @@ export const coreEndpoints = {
   accessGet: r("GET", "/api/projects/:p/access", { params: p, query: branch, body: noBody, output: z.strictObject({ members: z.array(z.strictObject({ user: UserSchema, role: RoleSchema, version: CountSchema, memberId: id.nullable(), effectiveRole: RoleSchema, capacityLimited: z.boolean() })), writableSelection: z.strictObject({ memberIds: z.array(id).nullable(), capacity: CountSchema.nullable(), effectiveCount: CountSchema, selectionRequired: z.boolean() }), invitations: z.array(InvitationSchema), requests: z.array(AccessRequestSchema), link: z.strictObject({ role: z.enum(["off", "viewer", "editor"]), version: CountSchema }) }) }),
   accessWritableMembersPut: r("PUT", "/api/projects/:p/writable-members", { params: p, query: none, body: z.strictObject({ memberIds: z.array(id).nullable(), ...version }), output: ok }),
   invitationCreate: r("POST", "/api/projects/:p/invitations", { params: p, query: none, body: z.strictObject({ email: z.email(), role: RoleSchema.exclude(["owner"]), ...version }), output: InvitationSchema, ...key }),
+  invitationGet: r("GET", "/api/invitations/:id", { params: ids, query: none, body: noBody, output: z.strictObject({ invitation: InvitationSchema, projectName: z.string() }) }),
   invitationAccept: r("POST", "/api/invitations/:id/accept", { params: ids, query: none, body: z.strictObject({ token: z.string(), ...version }), output: ok, ...key }),
   invitationResend: r("POST", "/api/projects/:p/invitations/:id/resend", { params: pi, query: none, body: existing, output: InvitationSchema }),
   invitationDelete: r("DELETE", "/api/projects/:p/invitations/:id", { params: pi, query: none, body: existing, output: ok }),
@@ -104,6 +106,7 @@ export const coreEndpoints = {
   historyLabel: r("POST", "/api/projects/:p/history/:id/labels", { params: pi, query: none, body: z.strictObject({ name: z.string(), ...version }), output: HistoryVersionSchema, ...key }),
   historyLabelDelete: r("DELETE", "/api/projects/:p/history/:id/labels/:labelId", { params: pi.extend({ labelId: id }), query: none, body: existing, output: ok }),
   historyCompare: r("GET", "/api/projects/:p/history/compare", { params: p, query: branch.extend({ from: id, to: id, fileId: id.optional() }), body: noBody, output: z.strictObject({ files: z.array(FileEntrySchema), hunks: z.array(GitHunkSchema), authors: z.array(id) }) }),
+  historyChanges: r("GET", "/api/projects/:p/history/changes", { params: p, query: branch.extend({ from: id, to: id, fileId: id.optional() }), body: noBody, output: HistoryChangesSchema }),
   historyRestore: r("POST", "/api/projects/:p/history/:id/restore", { params: pi, query: none, body: z.strictObject({ scope, fileIds: z.array(id).optional(), ...version }), output: HistoryVersionSchema, ...key }),
   historySource: r("GET", "/api/projects/:p/history/:id/source.zip", { params: pi, query: branch, body: noBody, output: BytesSchema, transport: "bytes" }),
   gitStatus: r("GET", "/api/projects/:p/git/status", { params: p, query: branch, body: noBody, output: GitStatusSchema }),

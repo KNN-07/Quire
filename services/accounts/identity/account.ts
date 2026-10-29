@@ -4,6 +4,7 @@ import { ServiceError } from "@quire/runtime";
 import type { ModuleContext } from "@quire/runtime";
 import { newId } from "./store";
 import type { IdentityDependencies } from "./credentials";
+import { requireRemovableAccount } from "../governance/managed";
 
 export function registerAccount(context: ModuleContext, dependencies: IdentityDependencies): void {
   const { routes, uow, clock } = context;
@@ -48,16 +49,14 @@ export function registerAccount(context: ModuleContext, dependencies: IdentityDe
     const result = await uow.run(async (tx) => {
       await tx.lock("quire:accounts");
 
-      if ((await repository.find(row.id, tx)).operator === 1) {
-        const operators = z.object({ total: z.number() }).parse((await tx.get("SELECT count(*) AS total FROM users WHERE operator=1 AND suspended=0 AND deleted_at IS NULL", [])));
-        if (operators.total <= 1) throw new ServiceError("LAST_OPERATOR", 409, "Keep an active operator before deleting this account");
-      }
+      await repository.find(row.id, tx);
+      await requireRemovableAccount({ ...context, db: tx }, row.id);
       const version = await repository.version(tx, row.id, body.expectedVersion);
       const projects = z.array(z.object({ id: IdSchema })).parse(
-        (await tx.all("SELECT id FROM projects WHERE owner_id=?", [row.id])));
+        (await tx.all("SELECT id FROM projects WHERE owner_id=? AND deleted_at IS NULL", [row.id])));
       for (const project of projects) {
         const target = body.reassignment?.[project.id];
-        if (!target || target === row.id) throw new ServiceError("REASSIGNMENT_REQUIRED", 409, "Every owned project needs a new owner");
+        if (!target || target === row.id) throw new ServiceError("REASSIGNMENT_REQUIRED", 409, "Transfer or delete each remaining owned project before deleting your account");
         const recipient = await repository.find(target, tx);
         if (!(await tx.get("SELECT id FROM verified_emails WHERE user_id=? AND lower(email)=lower(?)", [target, recipient.primary_email]))) {
           throw new ServiceError("REASSIGNMENT_INVALID", 409, "New owner needs a verified account");

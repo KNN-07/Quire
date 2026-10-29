@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { IdSchema, OrganizationSchema, MembershipSchema, PolicySchema } from "@quire/contracts";
-import type { Endpoint, Id, Policy } from "@quire/contracts";
+import type { Endpoint, Id, Organization, Policy } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { ModuleContext, Principal, RequestContext, Transaction } from "@quire/runtime";
 
@@ -14,6 +14,10 @@ export function conflict(actual: number, expected: number): void {
 }
 export const missing = () => new ServiceError("NOT_FOUND", 404, "Resource not found");
 export const denied = () => new ServiceError("FORBIDDEN", 403, "Insufficient permission");
+export function requireTeamOrganization(org: Organization): void {
+  if (org.kind !== "team") throw new ServiceError("INSTITUTION_ACCOUNT_CONTROL", 409,
+    "Institution users must self-enroll and retain control of their accounts");
+}
 export async function organization(context: ModuleContext, id: Id) {
   const value = (await context.db.get("SELECT * FROM organizations WHERE id=?", [id]));
   if (!value) throw missing();

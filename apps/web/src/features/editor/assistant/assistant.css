@@ -41,5 +41,22 @@
 .qa-assistant__run dl,.qa-assistant__consent{margin:var(--q-space-3) 0 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--q-space-2) var(--q-space-3)}
 .qa-assistant__run dd,.qa-assistant__consent dd{margin:0;overflow-wrap:anywhere}
 .qa-assistant__run dt,.qa-assistant__consent dt{color:var(--q-secondary)}
+.qa-assistant__progress{display:flex;flex-direction:column;gap:var(--q-space-3);font-size:max(var(--q-text-form),1em)}
+.qa-assistant__progress-summary{font-weight:600}
+.qa-assistant__steps{list-style:none;padding:0;margin:0;display:flex;flex-direction:column}
+.qa-assistant__steps li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--q-space-3);padding-block:var(--q-space-4);border-bottom:1px solid var(--q-border);overflow-wrap:anywhere}
+.qa-assistant__steps .q-icon{color:var(--q-secondary)}
+.qa-assistant__steps [data-step-status=running] .q-icon{color:var(--q-ai)}
+.qa-assistant__steps [data-step-status=succeeded] .q-icon{color:var(--q-success)}
+.qa-assistant__steps [data-step-status=failed] .q-icon{color:var(--q-error)}
+.qa-assistant__step-status{color:var(--q-secondary)}
+.qa-assistant__step-times{color:var(--q-secondary)}
+.qa-assistant__step-times summary{cursor:pointer;padding:var(--q-space-2);border-radius:var(--q-radius-sm)}
+.qa-assistant__step-times summary:hover{background:var(--q-wash)}
+.qa-assistant__step-times dl{display:flex;flex-direction:column;gap:var(--q-space-4);margin:0}
+.qa-assistant__step-times dt{font-weight:500;color:var(--q-ink)}
+.qa-assistant__step-times dd{margin:0;overflow-wrap:anywhere}
 .qa-assistant__settings form+form{border-top:1px solid var(--q-border);padding-top:var(--q-space-5)}
+.qa-assistant__claims{display:flex;flex-direction:column;gap:var(--q-space-4)}
+.qa-assistant__claims blockquote{margin:var(--q-space-3) 0;padding-inline-start:var(--q-space-3);border-inline-start:1px solid var(--q-border);overflow-wrap:anywhere}
 @media(max-width:600px){.qa-assistant{font-size:17px}.qa-assistant h2,.qa-assistant h3{font-size:17px}.qa-assistant__governance,.qa-assistant__composer>p{font-size:15px}.qa-assistant pre{font-size:15px}.qa-assistant__body{padding:var(--q-space-5)}}

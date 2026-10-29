@@ -127,6 +127,9 @@ export function ThreadsPanel(props: ReviewPanelProps) {
           <header className="quire-thread__header">
             <div><strong>{thread.resolved ? "Resolved thread" : "Open thread"}</strong>
               {thread.anchor && <span>{anchor ? `Line ${anchor.location.line}` : "Anchor needs recovery"}</span>}</div>
+            {props.onAskThread && <Button size="small" disabled={!online || !workspace.access.actorId || busy !== null}
+              onClick={() => props.onAskThread?.({ key: crypto.randomUUID(), thread, version: record.version })}>
+              Ask Assistant about thread</Button>}
             {threadAnchor && <Button size="small" variant="ghost" onClick={() => {
               if (anchor) void navigation.revealSource(anchor.location);
               else void navigation.openFile(threadAnchor.fileId);

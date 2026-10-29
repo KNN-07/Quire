@@ -3,7 +3,8 @@
 The application composes one fresh `createApplicationAdapters()` factory from
 `services/adapters/index.ts` per runtime. It installs actual adapter modules,
 not a second implementation of identity, source, Git, governance, or provider
-routes. Native Bun 1.3.14 remains the executable baseline.
+routes. Use the repository-pinned Bun 1.4.4 runtime. Historical 1.3.14
+receipts describe those earlier runs, not the current runtime requirement.
 
 `createApplication({adapters?: AdapterDeployment | false})` installs the
 aggregate by default in native and scale profiles. An explicit `modules` list
@@ -136,12 +137,23 @@ Billing merchant routes are lane A, portal routes lane X, and provider/
 federation administration lane O.
 
 The host starts scheduler wake timers explicitly at application start.
-Each whole reference, Dropbox and delivery pass uses
+Each whole reference, Dropbox, institution eligibility and delivery pass uses
 `runtime.admission.background`; one pass per task runs at a time.
 An unexpected task failure stops that task's wake subscription and is retained
 for shutdown reporting; sibling tasks keep their independent lifetimes.
 Stored due times and shared operation/grant claims govern multi-API work.
 There is no automatic replay of uncertain model or paid provider calls.
+
+Institution eligibility reconciliation runs on each configured host wake
+(30 seconds by default), not at an exact real-time expiry deadline. It checks
+persisted verified-domain eligibility against current verified emails, current
+institution domains and an existing `expires_at`, when present. It removes
+only self-enrolled, unlicensed ordinary memberships. Explicit licensed or
+administrative grants and accepted management remain independent; account
+credentials, projects and unrelated memberships are retained. This trigger
+does not configure an institution's reconfirmation interval or imply a live
+IdP check. An explicitly disabled adapter aggregate has no such scheduled
+pass; custom aggregate callers retain responsibility for starting and closing it.
 
 Stop accepting HTTP requests and drain active handlers before closing.
 Stop timers, await active scheduled passes, abort/drain AI, close converter/

@@ -8,7 +8,7 @@ an arbitrary host root. A failed executed probe leaves a manifest unavailable.
 
 ## Provision an isolated image
 
-Requirements: native Bun 1.3.14, a Linux Docker engine with cgroup v2, the
+Requirements: repository-pinned Bun 1.4.4, a Linux Docker engine with cgroup v2, the
 default seccomp profile, and network access during the explicit image build.
 No tool is installed into the host's system or user directories.
 The executed build evidence uses Docker 29 with its containerd image store.
@@ -41,7 +41,7 @@ different manifest IDs and executed capabilities:
 | --- | --- | --- |
 | default | BibTeX, Biber, SyncTeX | `-no-shell-escape` |
 | restricted | Same, plus `latexminted` and `quire-tikz` | `-shell-restricted`, exactly those two helper commands |
-| knitr | Same as default, plus actual R/knitr | explicit `main.Rnw` preprocessing, then no-shell TeX |
+| knitr | Same as default, plus actual R/knitr | explicit `main.Rnw`/`main.Rtex` preprocessing, then no-shell TeX |
 
 Every profile probes pdfLaTeX, LaTeX/DVI conversion, XeLaTeX, LuaLaTeX, plain
 TeX, local classes/styles, Unicode fonts, resolved BibTeX/Biber content, actual
@@ -52,21 +52,65 @@ fixed `main.tex` using pdfLaTeX without shell escape. It does not accept engine
 flags, TeX fragments or arbitrary commands. Use the fixture's explicit
 `\tikzset{external/system call={quire-tikz \image}}` configuration.
 
-Knitr accepts `main.Rnw`, or an editable `main.tex` alongside an uploaded
-`main.Rnw` when the editor selects TeX mains. The Rnw preprocessor replaces
+Knitr accepts exact root `main.Rnw` or `main.Rtex`, or an editable `main.tex`
+alongside one of those inputs. With `main.tex` selected, `main.Rnw` takes
+precedence if both R inputs exist; select the R input explicitly to remove
+that ambiguity. Knitr detects the input chunk syntax. The preprocessor replaces
 only the private working copy, never the read-only source mount or stored
 blob. Generated files and R caches are job-local, never an
-implicit persistent project mutation. Each job starts clean. R chunks and
+implicit persistent project mutation. Each job starts clean. Ordinary chunk
+caching is unsupported: the configured knitr option hook rejects enabled
+`cache` options with `QUIRE_KNITR_CACHE_UNSUPPORTED` and directs the author
+to `cache=FALSE`. This is a supported-workflow check, not a security boundary
+against R code deliberately replacing knitr's hooks. Even such code executes
+only within the disposable job; no cross-job R cache is retained. R chunks and
 project latexmkrc files are executable code inside the same isolated boundary,
 not configuration asserted safe for host execution. System latexmkrc is read
 before project `.latexmkrc` (preferred over `latexmkrc`); selected engine and
 shell policy flags are applied afterward. Draft and stop-on-first-error settings
 are preserved. A partial PDF from a failed job is not successful output.
-Core publication accepts exact editable `main.Rnw` when its selected persisted
+Core publication accepts exact editable `main.Rnw` or `main.Rtex` when its selected persisted
 environment uses Docker and advertises knitr. Import must explicitly choose
 that main and environment. The alternate selected `main.tex` plus uploaded
 `main.Rnw` workflow also remains supported; both preprocess private working
 input rather than changing the stored project.
+
+## Reuse pre-rendered TikZ assets
+
+For the supported restricted Docker helper, use root `main.tex`, pdfLaTeX and
+the configured restricted environment. A minimal preamble is:
+
+```tex
+\usepackage{tikz}
+\usetikzlibrary{external}
+\tikzexternalize
+\tikzset{external/system call={quire-tikz \image}}
+```
+
+Compile normally once. In Logs, download the matching generated files for
+each figure: `output-figure0.pdf`, `output-figure0.md5`, and
+`output-figure0.dpth`, then the corresponding set for subsequent figures.
+The helper supports these root basenames, not arbitrary prefixes or commands.
+Use Files > File actions > Upload files to persist those exact bytes in the
+project. Downloaded artifacts alone are not project files.
+
+Change the externalization line to:
+
+```tex
+\tikzexternalize[mode=only graphics]
+```
+
+Recompile to include the uploaded PDFs without regenerating their figures.
+Clearing generated cache removes reusable job results, not uploaded source
+assets. Each subsequent job still uses a fresh isolated working directory;
+the persistent copies are materialized from the project's immutable blobs.
+
+Only-graphics mode does not refresh stale figures. If figure source,
+numbering or names change, return to normal externalization and regenerate
+and replace the complete matching asset set. Missing assets fail rather than
+silently manufacturing a figure. This workflow does not expand quotas,
+promise particular timing improvements or make arbitrary TeX constructs
+compatible with externalization.
 
 ## Operator API and CLI
 

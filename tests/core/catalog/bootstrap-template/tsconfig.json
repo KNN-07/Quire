@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../scripts/seed.ts",
+    "../../../../scripts/seed-template.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../tests/operations/environments/assets.d.ts"
+  ],
+  "exclude": []
+}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { endpoints } from "@quire/contracts";
+import { CompileSettingsSchema, endpoints, IdSchema, InstantSchema } from "@quire/contracts";
 import type { Capability } from "@quire/contracts";
 import { DiskBlobStore, LocalRepositoryService, ServiceError } from "@quire/runtime";
 import type { ModuleContext } from "@quire/runtime";
@@ -21,6 +21,31 @@ export function adapterTopology(context: Pick<ModuleContext, "db" | "blobs" | "r
 }
 
 export function register(context: ModuleContext): void {
+  context.routes.register(endpoints.adminCompileQueue, async (input, request) => {
+    const principal = await context.services.get("identity").require(request.request);
+    if (!principal.operator) throw new ServiceError("FORBIDDEN", 403, "Operator access required");
+    request.responseHeaders.set("cache-control", "private, no-store");
+    const cursor = input.query.cursor ? await context.db.get<{ queued_at: string }>(
+      "SELECT queued_at FROM compile_jobs WHERE id=?", [input.query.cursor]) : null;
+    if (input.query.cursor && !cursor) throw new ServiceError("INVALID_CURSOR", 400, "Queue cursor no longer exists");
+    const rows = z.array(z.object({
+      id: IdSchema, project_id: IdSchema, project_name: z.string(), branch: z.string(), settings_json: z.string(),
+      status: z.enum(["queued", "running"]), worker_id: IdSchema.nullable(),
+      queued_at: InstantSchema, started_at: InstantSchema.nullable(),
+    })).parse(await context.db.all(`SELECT j.id,s.project_id,p.name AS project_name,s.branch,j.settings_json,
+      j.status,j.worker_id,j.queued_at,j.started_at FROM compile_jobs j
+      JOIN snapshots s ON s.id=j.snapshot_id JOIN projects p ON p.id=s.project_id
+      WHERE j.status IN ('queued','running')
+        AND (?='' OR j.queued_at>? OR (j.queued_at=? AND j.id>?))
+      ORDER BY j.queued_at,j.id LIMIT ?`,
+    [input.query.cursor ?? "", cursor?.queued_at ?? "", cursor?.queued_at ?? "", input.query.cursor ?? "", input.query.limit + 1]));
+    const items = rows.slice(0, input.query.limit).map(row => ({
+      id: row.id, projectId: row.project_id, projectName: row.project_name, branch: row.branch,
+      engine: CompileSettingsSchema.parse(JSON.parse(row.settings_json)).engine,
+      status: row.status, workerId: row.worker_id, queuedAt: row.queued_at, startedAt: row.started_at,
+    }));
+    return { items, nextCursor: rows.length > input.query.limit ? items.at(-1)?.id ?? null : null };
+  });
   context.routes.register(endpoints.adminOverview, async (_input, request) => {
     const principal = await context.services.get("identity").require(request.request);
     if (!principal.operator) throw new ServiceError("FORBIDDEN", 403, "Operator access required");

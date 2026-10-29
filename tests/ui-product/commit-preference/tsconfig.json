@@ -1,0 +1,5 @@
+{
+  "extends": "../../ui-editor/tsconfig.json",
+  "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"] },
+  "include": ["../../../packages/runtime/src/assets.d.ts", "./**/*.ts"]
+}

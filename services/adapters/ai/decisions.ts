@@ -1,10 +1,12 @@
 import { z } from "zod";
 import * as Y from "yjs";
-import { AiRunSchema, GitOidSchema, IdSchema, assertNever } from "@quire/contracts";
-import type { AiRun, Id, ProposedEdit, Scope, RepositoryRefUpdate } from "@quire/contracts";
+import { AiRunSchema, CompileSettingsSchema, GitOidSchema, IdSchema, assertNever } from "@quire/contracts";
+import type { AiRun, CompileJob, Id, ProposedEdit, Scope, RepositoryRefUpdate } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { GitRepository } from "../../core/git";
 import { branchName, raw } from "../../core/git/process";
+import { compileStaged } from "../../core/git/compile";
+import { store as identityStore } from "../../accounts/identity/store";
 import type { AiStore } from "./store";
 import { AiJournal } from "./journal";
 import { applyProposal } from "./proposals";
@@ -43,7 +45,8 @@ export class AiDecisions {
     if (selected.some(edit => edit.status !== (input.decision === "undo" ? "accepted" : "pending"))) throw new ServiceError("AI_ALREADY_DECIDED", 409, "Selected edits cannot receive this decision");
     switch (input.decision) {
       case "reject": return this.metadata(actor, { run, input, hash, selected, status: "rejected" });
-      case "accept": case "undo": return this.apply(actor, { run, input, hash, selected });
+      case "accept": case "undo": return this.apply(actor, { run, input, hash, selected,
+        compile: input.commit === true && (await identityStore(this.store.context).preferences(actor.id)).compileBeforeCommit });
       default: return assertNever(input.decision);
     }
   }
@@ -74,6 +77,7 @@ export class AiDecisions {
   }
   private async apply(actor: Actor, plan: {
     readonly run: RunRecord; readonly input: Decision; readonly hash: string; readonly selected: readonly ProposedEdit[];
+    readonly compile: boolean;
   }) {
     const { run, input } = plan;
     const original = scopeOf(run);
@@ -81,8 +85,25 @@ export class AiDecisions {
     if (input.newBranch) await branchName(input.newBranch);
     const target: Scope = { ...original, branch: input.newBranch ?? original.branch };
     const core = this.store.core();
-    return core.serialized(original, async originalLease => {
+    let candidate: { tree: string; settings: string; revision: number; head: string | null } | undefined;
+    let compiled: CompileJob | undefined;
+    const execute = () => core.serialized(original, async originalLease => {
+      const cached = await this.store.context.db.get<{ request_digest: string; response_json: string }>(
+        "SELECT request_digest,response_json FROM idempotency_results WHERE actor_id=? AND key=? AND route=?",
+        [actor.id, input.key, `aiDecision:${run.id}`]);
+      if (cached) {
+        if (cached.request_digest !== plan.hash) throw new ServiceError("IDEMPOTENCY_CONFLICT", 409, "Decision key changed");
+        return AiRunSchema.parse(JSON.parse(cached.response_json));
+      }
+      const current = await this.store.record(run.id);
+      await this.store.authorize(actor, { scope: scopeOf(current), mode: "agent" });
+      await core.authorize(actor.id, original, "write");
+      if (current.version !== input.expectedVersion) throw new ServiceError("VERSION_CONFLICT", 409, "AI run changed");
       const branch = await core.getBranch(original);
+      const settings = JSON.stringify((await core.getProject(original.projectId)).settings);
+      if (candidate && (candidate.revision !== branch.revision || candidate.settings !== settings)) {
+        throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "AI source or compile settings changed");
+      }
       const row = z.object({ undo_json: z.string(), manifest_json: z.string() }).parse(
         await this.store.context.db.get("SELECT undo_json,manifest_json FROM ai_run_metadata WHERE run_id=?", [run.id]));
       const undo = UndoSchema.parse(JSON.parse(row.undo_json));
@@ -112,6 +133,7 @@ export class AiDecisions {
         const state = input.newBranch || input.commit ? await repo.inspect(actor.id, original, originalLease) : null;
         if (state?.hunks.length) throw new ServiceError("AI_DIRTY_BRANCH", 409, "Commit existing source changes before creating an AI branch or commit");
         const head = state?.head ?? null;
+        if (candidate && candidate.head !== head) throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "AI branch head changed");
         const lease = input.newBranch ? await this.store.context.branches.acquire(target, crypto.randomUUID(), 60_000) : originalLease;
         if (!lease) throw new ServiceError("BRANCH_BUSY", 409, "AI target branch busy");
         try {
@@ -130,6 +152,23 @@ export class AiDecisions {
               const document = documents.get(file.id);
               return { file, ...(document ? { document } : {}) };
             }) });
+          if (plan.compile && !compiled) {
+            candidate = { tree: raw(source.snapshot.tree), settings, revision: branch.revision, head };
+            return null;
+          }
+          if (compiled && (raw(compiled.snapshot.tree) !== raw(source.snapshot.tree)
+            || candidate?.tree !== raw(source.snapshot.tree))) {
+            throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "Compile gate must cover the exact reviewed AI tree");
+          }
+          if (compiled && candidate) {
+            const job = z.object({ settings_json: z.string() }).parse(await this.store.context.db.get(
+              "SELECT settings_json FROM compile_jobs WHERE id=?", [compiled.id]));
+            const project = await core.getProject(original.projectId);
+            if (JSON.stringify(CompileSettingsSchema.parse(JSON.parse(job.settings_json))) !== candidate.settings
+              || JSON.stringify(project.settings) !== candidate.settings || source.projectVersion !== project.version) {
+              throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "Compile gate must cover the reviewed AI settings");
+            }
+          }
           const updates: RepositoryRefUpdate[] = [{ ref: `refs/quire/history/${source.snapshot.id}`, expected: null,
             next: GitOidSchema.parse(`sha1:${source.commit}`) }];
           if (head && (input.newBranch || input.commit)) {
@@ -154,5 +193,14 @@ export class AiDecisions {
         } finally { if (input.newBranch) await this.store.context.branches.release(lease); }
       } finally { for (const document of documents.values()) document.destroy(); }
     });
+    const result = await execute();
+    if (result) return result;
+    if (!candidate) throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "Missing reviewed AI candidate");
+    // No original/target lease or source queue may span the compiler's 120 second gate.
+    compiled = await compileStaged(new GitRepository(core), actor.id, { scope: original, tree: candidate.tree,
+      key: `aiDecision:${run.id}:${input.key}` });
+    const published = await execute();
+    if (!published) throw new ServiceError("COMPILE_TREE_MISMATCH", 409, "Missing reviewed AI publication");
+    return published;
   }
 }

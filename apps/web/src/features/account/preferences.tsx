@@ -23,7 +23,7 @@ const fields = {
 } as const;
 const checks = {
   editor: [["spellCheck", "Spell check"], ["autoCompile", "Compile on save"], ["autocomplete", "Autocomplete commands and references"], ["autoClose", "Auto-close brackets and environments"], ["cursors", "Show collaborators’ cursors"]],
-  ai: [["inlineCompletion", "Inline completions"], ["errorAssist", "Offer Fix with AI on compile errors"], ["citationWebSearch", "Search the web for citations"], ["aiBranch", "Put agent changes on a new Git branch"], ["shareAiChat", "Show the assistant to collaborators"]],
+  ai: [["inlineCompletion", "Inline completions"], ["errorAssist", "Offer Fix with AI on compile errors"], ["citationWebSearch", "Search the web for citations"], ["aiBranch", "Default future Agent approvals to a new branch"], ["shareAiChat", "Default future conversation choice to shared"]],
   git: [["compileBeforeCommit", "Compile before every commit"]],
 } as const;
 export type PreferenceTab = keyof typeof fields;
@@ -34,6 +34,7 @@ export function PreferenceForm(props: SettingsProps & { readonly tab: Preference
   const title = { editor: "Editor", ai: "AI assistant", git: "Git preferences" }[props.tab];
   return <Panel title={title}>
     {props.tab === "ai" && <p className="account-muted">{props.account.capabilities["ai"]?.reason ?? "Model invocation depends on the configured AI provider and project policy. Saving preferences does not enable a provider."}</p>}
+    {props.tab === "ai" && <p className="account-muted">These are defaults, not permissions. Review and Accept still authorize Agent edits, with a per-run branch override. Create or Open selects a shared conversation; Send shares future messages only. Saving never shares earlier private chat.</p>}
     <form key={generation + ":" + preferences.version} className="account-form" onSubmit={event => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
       void action.run(async () => {

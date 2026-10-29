@@ -1,4 +1,4 @@
-import { endpoints, IdSchema, PolicySchema } from "@quire/contracts";
+import { endpoints, IdSchema, MemberRoleSchema, PolicySchema } from "@quire/contracts";
 import type { ModuleContext } from "@quire/runtime";
 import { ServiceError } from "@quire/runtime";
 import { z } from "zod";
@@ -34,9 +34,19 @@ export function registerOrganizations(context: ModuleContext): void {
     request.responseHeaders.set("etag", `"v${org.version}"`);
     return org;
   });
+  route(context, endpoints.organizationAccess, async ({ params }, principal, request, bound) => {
+    const org = await authorize(bound, principal, { organizationId: params.o, level: "member" });
+    const member = z.object({ role: MemberRoleSchema }).nullable().parse(
+      await bound.db.get("SELECT role FROM members WHERE organization_id=? AND user_id=?", [org.id, principal.user.id]));
+    request.responseHeaders.set("cache-control", "private, no-store");
+    request.responseHeaders.set("etag", `"v${org.version}"`);
+    return { role: member?.role ?? null, operator: principal.operator };
+  });
   route(context, endpoints.organizationPatch, async ({ params, body }, principal, request, bound) => {
     const org = (await authorize(bound, principal, { organizationId: params.o, level: "admin" }));
     conflict(org.version, body.expectedVersion);
+    if (body.kind !== undefined && body.kind !== org.kind)
+      throw new ServiceError("ORGANIZATION_KIND_FIXED", 409, "Organization kind is fixed at creation");
     if (body.name !== undefined && !body.name.trim()) throw new ServiceError("INVALID_NAME", 400, "Name is required");
     await bound.db.run("UPDATE organizations SET name=?,kind=?,domains_json=?,version=version+1,updated_at=? WHERE id=?", [body.name?.trim() ?? org.name, body.kind ?? org.kind, JSON.stringify(domains(body.domains ?? org.domains)), clock.now(), org.id]);
     await audit(bound, principal, { organizationId: org.id, event: "organization.updated", targetId: org.id });

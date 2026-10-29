@@ -7,13 +7,16 @@ import type { AssistantState } from "./use-assistant";
 
 export function AssistantReview({ state }: { readonly state: AssistantState }) {
   const [commit, setCommit] = useState(false);
-  const [branch, setBranch] = useState("");
+  const [branchOverride, setBranch] = useState<string | null>(null);
   const edits = state.run?.proposals.flatMap(proposal => proposal.edits) ?? [];
   const pending = edits.filter(edit => edit.status === "pending");
   const accepted = edits.filter(edit => edit.status === "accepted");
-  const disabled = state.busy || !state.online || !state.workspace.access.capabilities.edit;
+  const branch = branchOverride ?? (state.preferences?.aiBranch && state.run?.mode === "agent" && !accepted.length
+    ? `ai/${state.run.id}` : "");
+  const disabled = state.busy || !state.online || !state.workspace.access.capabilities.edit || state.tracking;
   async function decide(decision: "accept" | "reject" | "undo", editIds: readonly Id[]) {
     if (!state.run) return;
+    if (state.tracking) throw new TypeError("Turn off Track changes before deciding Agent edits.");
     await state.document?.flush(state.signal);
     const latest = await state.readRun(state.run.id);
     const headers = { ...state.headers, "idempotency-key": crypto.randomUUID() };
@@ -39,6 +42,9 @@ export function AssistantReview({ state }: { readonly state: AssistantState }) {
   if (!edits.length) return null;
   return <section aria-label="Proposed changes" className="qa-assistant__review">
     <div className="qa-assistant__row"><h3>Review changes</h3><span>{pending.length} pending</span></div>
+    <p>Accept into {branch.trim() ? <>new branch <code>{branch.trim()}</code></> : <>current branch <code>{state.run?.scope.branch}</code></>}.
+      {" "}Nothing is created or changed until you accept.</p>
+    {state.tracking && <p>Turn off Track changes before deciding Agent edits. Your proposal draft is retained.</p>}
     <div className="qa-assistant__row">
       <Button disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("reject", pending.map(edit => edit.id)))}>Reject all</Button>
       <Button variant="ai" disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("accept", pending.map(edit => edit.id)))}>Accept all</Button>
@@ -59,11 +65,13 @@ export function AssistantReview({ state }: { readonly state: AssistantState }) {
         {edit.status === "conflict" && <p role="alert">This edit conflicts with current source. Regenerate; source remains unchanged.</p>}
       </article>;
     })}
-    <details><summary>Git options</summary>
+    <details open><summary>Git options</summary>
       <label className="qa-assistant__check"><input type="checkbox" checked={commit}
         onChange={event => setCommit(event.target.checked)} />Commit accepted changes</label>
       <label>New branch (optional, ai/ prefix)<input value={branch} placeholder="ai/revise-abstract"
         onChange={event => setBranch(event.target.value)} /></label>
+      <Button disabled={disabled || !pending.length} onClick={() => setBranch("")}>Use current branch for this run</Button>
+      <p>The saved branch preference defaults future runs. You can override it here for this run.</p>
       <p>Existing dirty source must be committed first. Branches and commits are created only on acceptance.</p>
     </details>
     {state.run?.tool === "error-fix" && accepted.length > 0 && <Button disabled={disabled || !state.compile}

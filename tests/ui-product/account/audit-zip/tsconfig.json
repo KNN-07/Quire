@@ -1,0 +1,10 @@
+{
+  "extends": "../organizations/tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../apps/web/src/features/account/organizations/reports.tsx",
+    "../../../../apps/web/src/features/admin/Audit.tsx",
+    "../../../../packages/runtime/src/assets.d.ts"
+  ],
+  "exclude": ["../../../../node_modules"]
+}

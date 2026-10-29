@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { endpoints } from "@quire/contracts";
 import { BrandMark, Button, Field } from "../../ui";
@@ -7,6 +7,8 @@ import type { AccountPageProps } from "./shared";
 import { StartingPoint } from "./starting-point";
 import { ProviderOptions, useAuthOptions } from "./auth-options";
 import { PasswordCreationField } from "./PasswordStrength";
+import { onboardingScreen, rememberOnboardingScreen } from "./onboarding-progress";
+import { authPath, billingReturnPath, clearBillingReturn, useAuthReturn } from "./onboarding-return";
 
 function AuthShell({ signup = false, children }: { readonly signup?: boolean; readonly children: ReactNode }) {
   return <div className={`account-auth${signup ? " account-signup" : ""}`}>
@@ -27,14 +29,21 @@ function AuthShell({ signup = false, children }: { readonly signup?: boolean; re
 export function SignIn(props: AccountPageProps) {
   const action = useAction();
   const availability = useAuthOptions(props.client);
-  return <AuthShell><div><h1>Sign in</h1><p className="account-muted">New here? <a href="/sign-up">Create an account</a></p></div>
-    <ProviderOptions client={props.client} availability={availability} returnTo="/projects" /><div className="account-divider">with email</div>
+  const params = new URL(props.path, location.origin).searchParams;
+  const requested = useAuthReturn(props.path, params.get("onboarding") === "1");
+  const returnTo = requested ?? (params.get("onboarding") === "1" ? "/sign-up?step=start" : "/projects");
+  function navigate(path: string) {
+    if (billingReturnPath(path, location.origin)) clearBillingReturn();
+    props.navigate(path);
+  }
+  return <AuthShell><div><h1>Sign in</h1><p className="account-muted">New here? <a href={authPath("/sign-up", requested)}>Create an account</a></p></div>
+    <ProviderOptions client={props.client} availability={availability} returnTo={returnTo} onSessionChange={props.onSessionChange} navigate={navigate} organizationDiscovery /><div className="account-divider">with email</div>
     {availability.options && !availability.options.passwordEnabled && <p>Password sign-in is disabled by this server. Use an enabled identity provider.</p>}
     <form className="account-form" onSubmit={event => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
       void action.run(async () => {
         unwrap(await props.client.call(endpoints.authLogin, { params: {}, query: {}, body: { email: value(form, "email"), password: value(form, "password") } }));
-        await props.onSessionChange(); props.navigate(new URL(props.path, location.origin).searchParams.get("onboarding") === "1" ? "/sign-up?step=start" : "/projects");
+        await props.onSessionChange(); navigate(returnTo);
       });
     }}>
       <fieldset disabled={action.busy || !availability.options?.passwordEnabled}><Field label="Email" name="email" type="email" required autoComplete="email" />
@@ -48,36 +57,56 @@ export function SignIn(props: AccountPageProps) {
 }
 export function SignUp(props: AccountPageProps) {
   const params = new URL(props.path, location.origin).searchParams;
-  const [step, setStep] = useState(params.get("step") === "start" ? "start" : params.has("token") || params.get("step") === "verify" ? "verify" : "create");
-  const [email, setEmail] = useState("");
+  const returnTo = useAuthReturn(props.path);
+  const signInPath = authPath("/sign-in?onboarding=1", returnTo);
+  const explicitStep = params.get("step") === "start" ? "start" : params.has("token") || params.get("step") === "verify" ? "verify"
+    : params.get("step") === "create" ? "create" : null;
+  const [resumedStep, setResumedStep] = useState<string>(onboardingScreen);
+  const step = explicitStep ?? resumedStep;
   const action = useAction();
   const availability = useAuthOptions(props.client);
+  useEffect(() => {
+    if (explicitStep) return undefined;
+    const controller = new AbortController();
+    void props.client.call(endpoints.me, { params: {}, query: {}, body: undefined }, controller.signal).then(result => {
+      if (!controller.signal.aborted && "data" in result) setResumedStep("start");
+    }).catch((cause: unknown) => { if (!controller.signal.aborted && cause instanceof Error) action.setError(cause.message); });
+    return () => controller.abort();
+  }, [explicitStep, props.client]);
   return <AuthShell signup>
-    {step === "start" ? <StartingPoint {...props} /> : step === "verify" ? <>
-      <h1>Verify your email</h1><p>Open the verification link delivered to {email || "your email address"}, or enter its token below.</p>
+    {step === "start" ? <StartingPoint {...props} returnTo={returnTo} /> : step === "signin" ? <>
+      <h1>Continue to sign in</h1><p>Sign in with your verified account to resume your starting point.</p>
+      <a href={signInPath}>Continue to sign in</a>
+      <a href={authPath("/sign-up?step=create", returnTo)} onClick={() => rememberOnboardingScreen("create")}>Create a different account</a>
+    </> : step === "verify" ? <>
+      <h1>Verify your email</h1><p>If registration can proceed, open the verification link in your email, or enter its token below.</p>
       <form className="account-form" onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
         void action.run(async () => {
           unwrap(await props.client.call(endpoints.authVerifyEmail, { params: {}, query: {}, body: { token: value(form, "token") } }));
-          action.setMessage("Email verified. Sign in to choose your starting point.");
+          rememberOnboardingScreen("signin");
+          props.navigate(signInPath);
         });
       }}>
         <Field label="Verification token" name="token" required defaultValue={params.get("token") ?? ""} autoComplete="one-time-code" />
         <Notice {...action} /><Button type="submit" variant="primary" busy={action.busy}>Verify email</Button>
       </form>
-      <a href="/sign-in?onboarding=1">Continue to sign in</a><p className="account-muted">No message? Contact your server administrator to check mail delivery. This server has no resend endpoint.</p>
+      <a href={signInPath}>Continue to sign in</a>
+      <a href={authPath("/sign-up?step=create", returnTo)} onClick={() => rememberOnboardingScreen("create")}>Use a different email</a>
+      <p className="account-muted">No message? Contact your server administrator to check mail delivery. This server has no resend endpoint.</p>
     </> : <>
-      <div><h1>Create your account</h1><p>Already have one? <a href="/sign-in">Sign in</a></p></div>
-      <ProviderOptions client={props.client} availability={availability} returnTo="/sign-up?step=start" /><div className="account-divider">with email</div>
+      <div><h1>Create your account</h1><p>Already have one? <a href={authPath("/sign-in", returnTo)}>Sign in</a></p></div>
+      {billingReturnPath(returnTo, location.origin) && <p>Verify your email and sign in to continue to your selected plan. Creating a project is optional.</p>}
+      <ProviderOptions client={props.client} availability={availability} returnTo="/sign-up?step=start" onSessionChange={props.onSessionChange} navigate={props.navigate} /><div className="account-divider">with email</div>
       {availability.options && !availability.options.registrationEnabled && <p>Account registration is disabled by this server.</p>}
       {availability.options && !availability.options.passwordEnabled && <p>Password registration is disabled. Choose an enabled identity provider.</p>}
       <form className="account-form" onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
         void action.run(async () => {
           const result = unwrap(await props.client.call(endpoints.authRegister, { params: {}, query: {}, body: { name: value(form, "name"), email: value(form, "email"), password: value(form, "password") }, headers: mutationHeaders() }));
-          setEmail(value(form, "email"));
-          if (result.verificationRequired) setStep("verify");
-          else { await props.onSessionChange(); setStep("start"); }
+          if (result.verificationRequired) {
+            rememberOnboardingScreen("verify"); props.navigate(authPath("/sign-up?step=verify", returnTo));
+          } else { await props.onSessionChange(); props.navigate(authPath("/sign-up?step=start", returnTo)); }
         });
       }}>
         <fieldset disabled={action.busy || !availability.options?.registrationEnabled || !availability.options.passwordEnabled}>

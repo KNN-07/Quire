@@ -55,9 +55,12 @@ test("exports real account metadata without credentials and deduplicates retries
 });
 
 test("requires complete project reassignment before anonymizing and revoking a deleted account", async () => {
-  // Given: a seeded owner of a real project.
+  // Given: a seeded project owner whose organization retains another active administrator.
   await using fixture = await identityFixture({ seed: true });
   const login = await fixture.login();
+  await fixture.runtime.db.run(`INSERT INTO members(id,organization_id,user_id,role,licensed,created_at)
+    VALUES(?,?,?,'admin',0,?)`,
+  [crypto.randomUUID(), fixtureIds.team, fixtureIds.mai, fixture.runtime.clock.now()]);
   const body = { confirmation: login.user.primaryEmail, password, expectedVersion: 0 };
   // When: deletion without reassignment is rejected, then a complete reassignment is submitted.
   const blocked = await fixture.request("/api/me", { method: "DELETE", headers: login.headers, body: JSON.stringify(body) });

@@ -94,6 +94,9 @@
 .qm-plan-grid .qm-link-button{margin-top:auto}
 .qm-tonal{background:var(--q-inset)}
 .qm-table-wrap{margin-top:24px;border:1px solid var(--q-border);border-radius:12px;overflow:hidden}
+.qm-comparison-group{margin-top:32px}
+.qm-comparison-group .qm-table-wrap{margin-top:12px}
+.qm-comparison-caption{text-align:left;padding:12px 20px;color:var(--q-secondary)}
 .qm table{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
 .qm th,.qm td{padding:14px 20px;border-bottom:1px solid var(--q-wash);text-align:left;overflow-wrap:anywhere}
 .qm thead{background:var(--q-inset)}

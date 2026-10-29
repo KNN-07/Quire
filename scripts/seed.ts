@@ -148,7 +148,9 @@ if (import.meta.main) {
     ...(config.profile === "scale" ? { createAdapters: createScaleAdapters } : {}) });
   try {
     const result = await seed(runtime, process.env["QUIRE_SEED_PASSWORD"]);
-    console.info("seed.persisted", { createdUsers: result.createdUsers, projectId: ids.project });
+    const { seedStarterTemplate } = await import("./seed-template");
+    const template = await seedStarterTemplate(runtime);
+    console.info("seed.persisted", { createdUsers: result.createdUsers, projectId: ids.project, ...template });
     if (result.password) console.info("Local seed password (displayed once):", result.password);
   } finally { await runtime.close(); }
 }

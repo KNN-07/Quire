@@ -4,7 +4,7 @@ import { referenceBlob, ServiceError } from "@quire/runtime";
 import type { AiStore } from "./store";
 import { newId } from "./model";
 import type { Actor, CreateRun, RunContext, SelectedFile } from "./model";
-import type { Id } from "@quire/contracts";
+import type { Id, SqlExecutor } from "@quire/contracts";
 import { isCodePointBoundary } from "../../core/base/unicode";
 
 export function checkContextSize(value: unknown): void {
@@ -14,11 +14,20 @@ export function checkContextSize(value: unknown): void {
 }
 const imageRow = z.object({ mime: z.enum(["image/png", "image/jpeg"]), digest: DigestSchema, bytes: z.number() });
 export async function collectContext(store: AiStore, actor: Actor, request: CreateRun): Promise<RunContext> {
+  if (!request.diagnosticId && request.tool !== "citation-reviewer") return collectSelectedContext(store, actor, request, store.context.db);
+  return store.context.uow.run(async tx => {
+    // Source finalization takes this same lock before advancing the branch.
+    await tx.lock("quire:accounts");
+    await store.authorize(actor, request, tx);
+    return collectSelectedContext(store, actor, request, tx);
+  });
+}
+async function collectSelectedContext(store: AiStore, actor: Actor, request: CreateRun, db: SqlExecutor): Promise<RunContext> {
   if (new Set(request.fileIds).size !== request.fileIds.length) throw new ServiceError("AI_CONTEXT_INVALID", 400, "Select distinct files");
   if (request.selection && !request.fileIds.includes(request.selection.fileId)) throw new ServiceError("AI_CONTEXT_INVALID", 400, "Selection file must be explicit");
   const files: SelectedFile[] = [];
   for (const id of request.fileIds) {
-    const document = await store.core().readDocument(request.scope, id);
+    const document = await store.core(db).readDocument(request.scope, id);
     const selection = request.selection?.fileId === id ? request.selection : undefined;
     if (selection && (selection.to > document.text.length || selection.from > selection.to ||
       !isCodePointBoundary(document.text, selection.from) || !isCodePointBoundary(document.text, selection.to)
@@ -30,18 +39,22 @@ export async function collectContext(store: AiStore, actor: Actor, request: Crea
   let diagnostic: string | null = null;
   if (request.tool === "error-fix" && !request.diagnosticId) throw new ServiceError("AI_DIAGNOSTIC_REQUIRED", 400, "Choose an actual compiler diagnostic");
   if (request.diagnosticId) {
-    const row = await store.context.db.get(`SELECT d.*,s.project_id,s.branch,a.sha256 FROM diagnostics d
+    const row = await db.get(`SELECT d.*,s.project_id,s.branch,s.revision AS snapshot_revision,a.sha256 FROM diagnostics d
       JOIN compile_jobs j ON j.id=d.job_id JOIN snapshots s ON s.id=j.snapshot_id
       JOIN artifacts a ON a.job_id=j.id AND a.kind='log' WHERE d.id=? AND s.project_id=? AND s.branch=?`,
     [request.diagnosticId, request.scope.projectId, request.scope.branch]);
     if (!row) throw new ServiceError("AI_DIAGNOSTIC_NOT_FOUND", 404, "Diagnostic and log must belong to this project branch");
-    const parsed = z.object({ message: z.string(), raw_start: z.number(), raw_end: z.number(), sha256: DigestSchema }).parse(row);
+    const parsed = z.object({ message: z.string(), raw_start: z.number(), raw_end: z.number(),
+      snapshot_revision: z.number().int().nonnegative(), sha256: DigestSchema }).parse(row);
+    if ((await store.core(db).getBranch(request.scope)).revision !== parsed.snapshot_revision) {
+      throw new ServiceError("AI_DIAGNOSTIC_STALE", 409, "Source changed since this diagnostic; recompile before requesting a fix");
+    }
     const bytes = await store.context.blobs.get(parsed.sha256);
     diagnostic = `${parsed.message}\n${new TextDecoder().decode(bytes.slice(parsed.raw_start, parsed.raw_end))}`;
   }
   const images: RunContext["images"][number][] = [];
   for (const id of request.imageUploadIds ?? []) {
-    const row = await store.context.db.get(`SELECT mime,digest,bytes FROM ai_images
+    const row = await db.get(`SELECT mime,digest,bytes FROM ai_images
       WHERE id=? AND actor_id=? AND session_id=? AND project_id=? AND expires_at>?`,
     [id, actor.id, actor.sessionId, request.scope.projectId, store.context.clock.now()]);
     if (!row) throw new ServiceError("AI_IMAGE_NOT_FOUND", 404, "Image expired or belongs to another session/project");

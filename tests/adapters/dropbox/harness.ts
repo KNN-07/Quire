@@ -48,10 +48,13 @@ export async function dropboxFixture(provider: ReturnType<typeof dropboxServer>)
       const projectId = options.projectId ?? fixtureIds.project;
       const previous = await fixture.runtime.db.get<{ cursor: string | null }>(
         "SELECT cursor FROM adapter_cursors WHERE grant_id=? AND action=? AND project_id=?", [grant.id, name, projectId]);
-      return fixture.request(`/api/connections/${grant.id}/actions`, { method: "POST",
+      const response = await fixture.request(`/api/connections/${grant.id}/actions`, { method: "POST",
         headers: { ...owner.headers, "idempotency-key": options.key ?? crypto.randomUUID() },
         body: JSON.stringify({ action: name, projectId, parameters: options.parameters ?? {},
           expectedCursor: options.expectedCursor === undefined ? previous?.cursor ?? null : options.expectedCursor, expectedVersion: grant.version }) });
+      console.info("DROPBOX_SYNC_RECEIPT", JSON.stringify({ root: fixture.path, api: fixture.origin,
+        action: name, status: response.status, body: await response.clone().json() }));
+      return response;
     };
     return { fixture, owner, grant, action, async restart() { await fixture.restart(); await register(); }, get integration() {
       if (!integration) throw new TypeError("Dropbox integration missing"); return integration;
@@ -62,7 +65,10 @@ export async function dropboxFixture(provider: ReturnType<typeof dropboxServer>)
         if (response.status !== 202) throw new TypeError(`Action failed ${response.status}: ${JSON.stringify(body)}`);
         return z.object({ data: OperationSchema }).parse(body).data;
       },
-      async [Symbol.asyncDispose]() { await fixture[Symbol.asyncDispose](); },
+      async [Symbol.asyncDispose]() {
+        await fixture[Symbol.asyncDispose]();
+        console.info("DROPBOX_CLEANED", JSON.stringify({ root: fixture.path, api: fixture.origin, provider: provider.origin }));
+      },
     };
   } catch (error) { await fixture[Symbol.asyncDispose](); throw error; }
 }

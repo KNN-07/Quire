@@ -1,6 +1,6 @@
 import type {
   CompileJob, CompileRequest, Diagnostic, FileEntry, Id,
-  Preferences, Project, RequestOf, ResponseOf, Scope, Version, createClient, endpoints,
+  Preferences, Project, RequestOf, ResponseOf, Scope, Thread, Version, createClient, endpoints,
 } from "@quire/contracts";
 import type { ReactNode } from "react";
 import type { Doc, Text } from "yjs";
@@ -108,11 +108,13 @@ export interface SourceToolsHandle {
   readonly open: (tool: SourceTool) => void;
   readonly close: () => void;
   readonly format: (command: SourceCommand) => boolean;
+  readonly readOnly?: boolean;
 }
 export type SourcePanelProps = AuthoringProps & {
   /** Embedded callers must expose every standalone toolbar action. */
   readonly presentation?: "standalone" | "embedded";
   readonly onToolsHandle?: (handle: SourceToolsHandle | null) => void;
+  readonly onTrackingChange?: (enabled: boolean) => void;
 };
 export type VisualPanelProps = AuthoringProps;
 export type ToolsPanelProps = {
@@ -132,6 +134,11 @@ export type PdfPanelProps = {
   readonly onController: (controller: CompileController | null) => void;
   readonly onCompileStateChange: (state: CompileState) => void;
 };
+export type ReviewThreadRequest = {
+  readonly key: string;
+  readonly thread: Thread;
+  readonly version: number;
+};
 export type ReviewPanelProps = {
   readonly client: EditorClient;
   readonly workspace: EditorWorkspace;
@@ -140,6 +147,7 @@ export type ReviewPanelProps = {
   readonly navigation: EditorNavigation;
   readonly refreshWorkspace: () => Promise<void>;
   readonly view: "review" | "history" | "share" | "chat";
+  readonly onAskThread?: (request: ReviewThreadRequest) => void;
 };
 export type GitPanelProps = {
   readonly client: EditorClient;

@@ -14,6 +14,10 @@ export function Environments({ client, navigate }: {
   const environments = useAdminResource(client, endpoints.adminEnvironments, {
     params: {}, query: { limit: 50, cursor }, body: undefined,
   });
+  const admissions = useAdminResource(client, endpoints.environmentsAdmission, {
+    params: {}, query: {}, body: undefined,
+  });
+  const refresh = () => { environments.refresh(); admissions.refresh(); };
   const [selected, setSelected] = useState<{ readonly environment: Environment; readonly retire: boolean } | null>(null);
   const [manifest, setManifest] = useState<File | null>(null);
   const [base, setBase] = useState("");
@@ -35,8 +39,8 @@ export function Environments({ client, navigate }: {
       const result = await client.call(endpoints.environmentCreate, input);
       if ("error" in result) setMessage(result.error.message);
       else {
-        setMessage(`${result.data.label} registered${result.data.available ? " and available" : "; not yet available"}.`);
-        setRequestKey(crypto.randomUUID()); environments.refresh();
+        setMessage(`${result.data.label} registered; toolchain ${result.data.available ? "probes passed" : "unavailable"}. Review execution admission separately.`);
+        setRequestKey(crypto.randomUUID()); refresh();
       }
     } catch (failure) { setMessage(errorMessage(failure)); }
     finally { setBusy(false); }
@@ -59,7 +63,8 @@ export function Environments({ client, navigate }: {
     finally { setBusy(false); }
   }
   async function update() {
-    const version = environments.resource?.version;
+    const status = admissions.resource?.data.find(item => item.environment.id === selected?.environment.id);
+    const version = status?.version;
     if (!selected || version === null || version === undefined) return;
     setBusy(true); setMessage("");
     try {
@@ -68,32 +73,42 @@ export function Environments({ client, navigate }: {
         params: { id: selected.environment.id }, query: {}, body: { expectedVersion: version },
       });
       if ("error" in result) setMessage(result.error.message);
-      else { setMessage(selected.retire ? "Environment retired." : "Default environment saved."); setSelected(null); environments.refresh(); }
+      else { setMessage(selected.retire ? "Environment retired." : "Default environment saved."); setSelected(null); refresh(); }
     } catch (failure) { setMessage(errorMessage(failure)); }
     finally { setBusy(false); }
   }
   return <section aria-labelledby="admin-environments-title">
     <div className="admin-row admin-page-heading"><h1 id="admin-environments-title">TeX Live images</h1>
-      <Button onClick={environments.refresh}>Refresh</Button></div>
+      <Button onClick={refresh}>Refresh</Button></div>
     <p className="admin-muted">Manage pinned compiler environments. Existing projects keep their selected environment.</p>
+    <p>Toolchain probes and signed execution admission are separate. Building an image does not authorize managed workers.
+      An operator must review an admission proposal and deploy its exact environment ID and image profile in the next signed release.</p>
+    {admissions.error && <p role="alert">Execution admission could not be read: {admissions.error}</p>}
     {message && <p role="status" className="admin-message">{message}</p>}
     {operation && <Button onClick={() => navigate(`/admin/support?operation=${operation}`)}>View build operation</Button>}
     {environments.error ? <p role="alert">{environments.error}</p> : environments.loading ? <Spinner label="Loading environments" />
       : environments.resource?.data.items.length ? <div className="admin-user-table"><table className="admin-table">
-        <thead><tr><th>Environment</th><th>Runtime</th><th>Engines</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>{environments.resource.data.items.map(environment => <tr key={environment.id}>
+        <thead><tr><th>Environment</th><th>Runtime</th><th>Engines</th><th>Toolchain / execution</th><th>Actions</th></tr></thead>
+        <tbody>{environments.resource.data.items.map(environment => {
+          const admission = admissions.resource?.data.find(item => item.environment.id === environment.id);
+          return <tr key={environment.id}>
           <td data-label="Environment"><strong>{environment.label}</strong><small>{environment.release}</small></td>
           <td data-label="Runtime">{environment.backend}<small>{environment.experimental ? "Experimental" : "Stable"}</small></td>
           <td data-label="Engines">{environment.engines.join(", ")}<small>{environment.helpers.join(", ")}</small></td>
-          <td data-label="Status">{environment.available ? "Available" : "Unavailable"}<small>{environment.probeAt
-            ? `Checked ${new Date(environment.probeAt).toLocaleString()}` : "Not probed"}</small></td>
+          <td data-label="Toolchain / execution">Toolchain: {admission?.probe ?? "unknown"}<small>{environment.probeAt
+            ? `Checked ${new Date(environment.probeAt).toLocaleString()}` : "Not probed"}</small>
+            <small>{admission?.execution.state === "admitted" ? "Signed execution admitted"
+              : admission?.execution.state === "not-admitted" ? "Signed admission required"
+                : admission?.execution.state === "unmanaged" ? "Unmanaged deployment" : "Execution admission unknown"}</small>
+            {admission?.execution.route && <small>{admission.execution.route.workerRole}: {admission.execution.route.profileIds.join(", ")}</small>}
+          </td>
           <td data-label="Actions"><div className="admin-row">
-            <Button size="small" disabled={!environment.available || environments.resource?.version === null}
+            <Button size="small" disabled={!admission?.selectable}
               onClick={() => setSelected({ environment, retire: false })}>Set default</Button>
-            <Button size="small" disabled={environments.resource?.version === null}
+            <Button size="small" disabled={!admission}
               onClick={() => setSelected({ environment, retire: true })}>Retire</Button>
           </div></td>
-        </tr>)}</tbody>
+        </tr>; })}</tbody>
       </table></div> : <EmptyState title="No environments registered" description="Import a compiler manifest or build a verified environment." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {environments.resource?.data.nextCursor && <Button onClick={() => setCursor(environments.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>

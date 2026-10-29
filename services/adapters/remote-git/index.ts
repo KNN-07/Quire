@@ -133,7 +133,7 @@ export function createRemoteGitIntegration(options: RemoteGitIntegrationOptions 
           throw new ServiceError(
             "GIT_GRANT_REQUIRED",
             503,
-            "Saved credentials are required; generic non-OAuth enrollment is not present in the shared contract",
+            "Save a GitHub or repository-bound Git connection in Settings before importing.",
           );
         }
         const provider = input.body.kind === "github" ? "github" : "git";
@@ -148,6 +148,11 @@ export function createRemoteGitIntegration(options: RemoteGitIntegrationOptions 
           url: input.body.source.url,
           branch: input.body.source.branch,
           ...(input.body.workspaceId ? { workspaceId: input.body.workspaceId } : {}),
+          ...(input.body.mainPath ? { mainPath: input.body.mainPath } : {}),
+          ...(input.body.engine ? { engine: input.body.engine } : {}),
+          ...(input.body.environmentId ? { environmentId: input.body.environmentId } : {}),
+          ...(input.body.preserveHistory !== undefined ? { preserveHistory: input.body.preserveHistory } : {}),
+          ...(input.body.keepConnected !== undefined ? { keepConnected: input.body.keepConnected } : {}),
         };
         return adapterServices.operations.execute(definition, {
           actorId,

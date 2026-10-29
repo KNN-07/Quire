@@ -12,16 +12,23 @@ function history(view: EditorView): UndoManager {
 Vim.defineAction("quireUndo", (cm, args) => {
   const view = EditorView.findFromDOM(cm.getInputField());
   if (!view) throw new TypeError("Vim source view is missing");
+  if (view.state.readOnly) return;
   for (let repeat = 0; repeat < args.repeat; repeat++) history(view).undo();
 });
 Vim.defineAction("quireRedo", (cm, args) => {
   const view = EditorView.findFromDOM(cm.getInputField());
   if (!view) throw new TypeError("Vim source view is missing");
+  if (view.state.readOnly) return;
   for (let repeat = 0; repeat < args.repeat; repeat++) history(view).redo();
 });
 Vim.mapCommand("u", "action", "quireUndo", {}, { context: "normal" });
 Vim.mapCommand("<C-r>", "action", "quireRedo", {}, { context: "normal" });
-EmacsHandler.bindKey("C-x u|C-/", (view: EditorView) => { history(view).undo(); });
+EmacsHandler.bindKey("C-x u|C-/", (view: EditorView) => {
+  if (!view.state.readOnly) history(view).undo();
+});
+EmacsHandler.bindKey("S-C-/|S-C-x u|C--|S-C-z", (view: EditorView) => {
+  if (!view.state.readOnly) history(view).redo();
+});
 
 /** Both maintained emulations use the same Yjs history as the standard keymap. */
 export function collaborativeHistory(manager: UndoManager) {

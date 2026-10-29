@@ -42,6 +42,10 @@ export const ProviderConfigSchema = z.strictObject({
   id: IdSchema, kind: z.string(), baseUrl: z.string(), model: z.string().optional(), enabled: z.boolean(),
   secretPresent: z.boolean(), capabilities: z.record(z.string(), CapabilitySchema),
   policy: PolicySchema, version: CountSchema,
+  aiPolicy: z.strictObject({
+    requestLogging: z.enum(["off", "metadata", "retained-content"]),
+    citationWebSearch: z.boolean(), blockConfidentialTags: z.boolean(), version: CountSchema,
+  }).readonly().optional(),
 }).readonly();
 export const AiToolSchema = z.enum([
   "chat", "texgpt", "error-fix", "table-prompt", "table-image", "equation-prompt", "equation-image",
@@ -49,11 +53,32 @@ export const AiToolSchema = z.enum([
   "title", "abstract", "translate", "inline-completion", "citation-reviewer",
 ]);
 export type AiTool = z.infer<typeof AiToolSchema>;
+export const AiClaimAssessmentSchema = z.strictObject({
+  fileId: IdSchema, path: z.string().min(1), from: CountSchema, to: CountSchema,
+  quote: z.string().min(1).max(262144), assessment: z.enum(["supported", "unsupported"]),
+  explanation: z.string().min(1).max(8192),
+  citations: z.array(z.strictObject({ provider: z.string().min(1), providerId: z.string().min(1) })).max(100),
+});
+export const AiClaimFindingSchema = AiClaimAssessmentSchema.extend({
+  revision: CountSchema, epoch: CountSchema,
+}).readonly();
+export type AiClaimFinding = z.infer<typeof AiClaimFindingSchema>;
+export const AiRunStepSchema = z.strictObject({
+  kind: z.enum(["context", "retrieval", "provider", "validation", "publication"]),
+  status: z.enum(["running", "succeeded", "failed", "canceled"]),
+  startedAt: InstantSchema, finishedAt: InstantSchema.nullable(),
+}).readonly();
+export type AiRunStep = z.infer<typeof AiRunStepSchema>;
 export const AiRunSchema = z.strictObject({
   id: IdSchema, scope: ScopeSchema, mode: z.enum(["ask", "agent"]), status: JobStatusSchema,
   tool: AiToolSchema, version: CountSchema, errorCode: z.string().nullable(), conversationId: IdSchema.nullable(),
   messages: z.array(z.strictObject({ role: z.enum(["user", "assistant"]), text: z.string() }).readonly()).readonly(),
   proposals: z.array(SuggestionSchema).readonly(), sources: z.array(PublicationSchema).readonly(), usageId: IdSchema,
+  // Pre-reviewer stored runs and older provider fixtures have no structured findings.
+  findings: z.array(AiClaimFindingSchema).max(100).readonly().default([]),
+  findingsCurrent: z.boolean().default(false),
+  // Older runs have no recorded execution history.
+  steps: z.array(AiRunStepSchema).max(5).readonly().default([]),
 }).readonly();
 export const WorkerSchema = z.strictObject({
   id: IdSchema, poolId: IdSchema, state: z.enum(["idle", "busy", "draining", "offline"]),

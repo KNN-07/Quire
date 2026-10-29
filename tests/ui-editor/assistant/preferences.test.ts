@@ -79,7 +79,6 @@ test("clears private session memory through the actual session endpoint", async 
   await browser.page.getByLabel("Message the assistant").fill("Private session context");
   await sendAndRefresh(browser.page, app);
   await waitForRenderedText(browser.page, "Ask run · succeeded");
-  await browser.page.getByText("Conversation privacy", { exact: true }).click();
   // When the user explicitly clears the private session.
   await browser.page.getByRole("button", { name: "Clear private session", exact: true }).click();
   await waitForRenderedText(browser.page, "Private session chat cleared");
@@ -101,13 +100,16 @@ test.each(["private", "shared"] as const)("accepts retained Agent review after %
   const scope = { projectId: app.project.id, branch: app.project.defaultBranch };
   const original = await app.core.readDocument(scope, app.project.settings.mainFileId);
   if (privacy === "shared") {
-    await browser.page.getByText("Conversation privacy", { exact: true }).click();
+    await browser.page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("shared");
+    const created = browser.page.waitForResponse(response => response.request().method() === "POST"
+      && response.url().endsWith(`/projects/${app.project.id}/ai/conversations`));
     await browser.page.getByRole("button", { name: "Create shared conversation", exact: true }).click();
-    await waitForRenderedText(browser.page, "Shared project conversation created");
-    await browser.page.getByText("Conversation privacy", { exact: true }).click();
+    const response = await created;
+    expect(response.status()).toBe(200);
+    const conversation = editorValue(resultSchema(endpoints.aiConversationCreate.output).parse(await response.json()));
+    await waitForRenderedText(browser.page, conversation.id);
   }
   await generate(browser.page, app);
-  await browser.page.getByText("Conversation privacy", { exact: true }).click();
   await browser.page.getByRole("button", { name: privacy === "shared" ? "Clear shared chat" : "Clear private session", exact: true }).click();
   await waitForRenderedText(browser.page, privacy === "shared" ? "Shared chat cleared" : "Private session chat cleared");
   // When the user accepts that separately retained Agent review.

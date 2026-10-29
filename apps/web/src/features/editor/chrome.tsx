@@ -35,6 +35,7 @@ export type EditorChromeModel = {
   readonly location: SourceLocation | null;
   readonly compilerAvailable: boolean;
   readonly working: boolean;
+  readonly sourceTracking?: boolean;
 };
 type Metadata = { readonly git: GitStatus | null; readonly environment: Environment | null; readonly error: string | null };
 const emptyMetadata: Metadata = { git: null, environment: null, error: null };
@@ -123,7 +124,7 @@ export function EditorSourceChrome({ document, tools, readOnly }: {
       }}>{label}</Button>)}
       <hr />
       {sourceFormats.map(({ command, label }) => <Button size="small" variant="ghost" key={command}
-        disabled={!tools || readOnly && command !== "complete" && command !== "line"} onClick={event => {
+        disabled={!tools || (tools.readOnly ?? readOnly) && command !== "complete" && command !== "line"} onClick={event => {
           event.currentTarget.closest("details")?.removeAttribute("open"); tools?.format(command);
         }}>{label}</Button>)}
     </nav></details>
@@ -196,7 +197,7 @@ export function EditorStatus({ model, actions, metadata }: ChromeProps) {
     {location && <Button size="small" variant="ghost" disabled={!compilation.preview} onClick={actions.sourceToPdf} title="Jump from source to PDF">Ln {location.line}, Col {location.column}</Button>}
     <span>UTF-8</span>
     <span role="status" aria-live="polite" data-save-state={snapshot?.persistence.kind} data-save-revision={snapshot?.persistence.kind === "saved" ? snapshot.persistence.revision : undefined}>
-      {snapshot?.persistence.kind === "saved" ? "All changes saved" : snapshot?.readOnlyReason ?? (snapshot?.persistence.kind === "saving" ? "Saving changes" : "Opening source")}</span>
+      {snapshot?.persistence.kind === "saved" ? model.sourceTracking ? "Shared source saved · tracking on" : "Shared source saved" : snapshot?.readOnlyReason ?? (snapshot?.persistence.kind === "saving" ? "Saving changes" : "Opening source")}</span>
     {metadata.error && <span role="alert">{metadata.error}</span>}
   </>;
 }

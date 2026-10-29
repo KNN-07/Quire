@@ -80,6 +80,44 @@ The provider must support this documented protocol for the chosen model.
 Provider-side retention policies are external prerequisites; `store:false`
 does not promise third-party zero retention.
 
+### Operator data policy
+
+The AI provider panel saves data policy independently from connection settings.
+`GET/PUT /api/admin/providers/ai/policy` uses an independent integer version,
+`If-Match: "<version>"`, and `expectedVersion`. The PUT body contains
+`requestLogging` (`off`, `metadata`, or `retained-content`),
+`citationWebSearch`, and `blockConfidentialTags`. Both endpoints require an
+operator; mutations also require CSRF and recheck operator authority inside
+the same locked transaction as the compare-and-swap and audit event.
+Connection-only saves cannot overwrite this policy.
+
+Defaults preserve existing opt-in citation retrieval, disable optional request
+logging, and block owner-tagged confidential projects. The tag rule matches
+the current owner's tag named `confidential`, ignoring case and outer spaces.
+Other users' private dashboard tags cannot classify the owner's project.
+Disabling the tag rule never overrides `ai_project_security.confidential`,
+account/organization/project restrictions, or current user terms consent.
+
+Each admitted run pins both connection and data-policy versions. Rechecks
+occur before each citation provider, before inference dispatch, and before
+publishing output. Policy changes emit `policy.changed`, abort local active
+requests, and fence late output even on another runtime. Already-dispatched
+calls remain charged. Disabling citation search denies Citation Reviewer
+before reservation or disclosure; enabling it still requires the user's
+explicit search preference and selected retrieval providers.
+
+Optional `ai_request_logs` contain tool, mode, status, policy version and
+timestamps. `retained-content` adds AES-GCM encrypted prompt/response text
+only for Agent or explicitly shared conversations, whose content was already
+durable under the existing retention contract. Private Ask remains
+session-local even when content logging is selected. Selected source,
+diagnostics, images, credentials and provider payloads are not copied to the
+log. Clearing/expiring shared Ask also clears its audit ciphertext. Agent
+review history remains retained. Turning logging off stops new optional logs,
+not existing logs, mandatory security audits, usage receipts or reviewed
+edits. This deliberately bounds the design's blanket prompt/response logging
+control to preserve the stronger existing private-chat contract.
+
 Model selection and writing style use the existing account preferences.
 `aiModel:null` chooses the configured default; an explicit different model
 is rejected until the operator selects it. Language is independent of the

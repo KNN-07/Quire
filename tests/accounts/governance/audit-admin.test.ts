@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { z } from "zod";
+import { unzipSync } from "fflate";
 import { AdminUserSummarySchema, AuditEntrySchema, OperationSchema, UserSchema, IdSchema } from "@quire/contracts";
 import { governanceFixture, data } from "./harness";
 import { fixtureIds as ids } from "../../fixtures/foundation";
@@ -33,16 +34,19 @@ test("paginates the audit by monotonic sequence with organization isolation", as
 });
 test("exports a private persisted audit operation rather than a backup or leaked credentials", async () => {
   // Given: an audited organization mutation and a non-operator admin.
-  await using app = await governanceFixture();
+  await using app = await governanceFixture({ core: true });
   const admin = await app.login();
   await admin.write(`/api/organizations/${ids.team}`, { name: 'Lab,"quoted"\nline', expectedVersion: 0 }, { method: "PATCH" });
   // When: the organization admin explicitly exports its audit.
   const operation = await data(await admin.write(`/api/organizations/${ids.team}/audit/export`), OperationSchema);
-  // Then: the export contains actual CSV and remains owned by that actor.
+  // Then: the export downloads an actual ZIP of CSV and remains owned by that actor.
   expect(operation.status).toBe("succeeded");
-  const result = z.object({ format: z.literal("csv"), csv: z.string(), rows: z.number() }).parse(operation.result);
+  const result = z.object({ format: z.literal("zip"), rows: z.number() }).parse(operation.result);
   expect(result.rows).toBe(1);
-  expect(result.csv).not.toContain("password_hash");
+  const download = await admin.get(`/api/operations/${operation.id}/download`);
+  expect(download.status).toBe(200);
+  const files = unzipSync(new Uint8Array(await download.arrayBuffer()));
+  expect(new TextDecoder().decode(files["audit-0001.csv"])).not.toContain("password_hash");
   expect(z.object({ actor_id: IdSchema }).parse((await app.runtime.db.get("SELECT actor_id FROM operations WHERE id=?", [operation.id]))).actor_id).toBe(ids.kien);
   expect((await admin.get("/api/admin/audit")).status).toBe(403);
 });

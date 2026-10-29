@@ -19,7 +19,7 @@ export type SourceCommitInput = {
 export type SourcePreparation = SourceCommitInput & { readonly newBranchId?: Id };
 export type PreparedSources = {
   readonly publication: { readonly id: Id; readonly lease: BranchLease };
-  readonly sources: readonly { readonly source: SourceIntent; readonly lease: BranchLease }[];
+  readonly sources: readonly { readonly source: SourceIntent; readonly lease: BranchLease; readonly creation?: Project }[];
 };
 
 /** One existing publication, one caller-owned SQL transaction, deferred events. */
@@ -32,7 +32,7 @@ export async function finalizePreparedSources(context: ModuleContext, tx: Transa
     await tx.get("SELECT project_id,updates_json FROM repository_intents WHERE id=?", [input.publication.id]));
   const updates = z.array(z.object({ ref: z.string(), next: GitOidSchema.nullable() })).parse(JSON.parse(published.updates_json));
   const scopes = new Set<string>();
-  for (const { source, lease } of input.sources) {
+  for (const { source, lease, creation } of input.sources) {
     const scope = source.snapshot.scope;
     const key = `${scope.projectId}:${scope.branch}`;
     if (scopes.has(key)) fail("DUPLICATE_SOURCE_SCOPE", 409, "Only one prepared source per branch may be finalized");
@@ -42,6 +42,35 @@ export async function finalizePreparedSources(context: ModuleContext, tx: Transa
       fail("SOURCE_PUBLICATION_MISMATCH", 409, "The publication must contain every prepared source checkpoint");
     }
     await context.branches.assert(tx, lease);
+    if (creation) {
+      if (source.createBranch || creation.id !== scope.projectId || creation.ownerId !== source.snapshot.authorId
+        || creation.defaultBranch !== scope.branch || creation.version !== 0 || source.projectVersion !== 0
+        || source.previousRevision !== 0 || source.snapshot.revision !== 1
+        || lease.scope.projectId !== scope.projectId || lease.scope.branch !== scope.branch
+        || input.publication.lease.scope.projectId !== scope.projectId) {
+        fail("SOURCE_CREATION_MISMATCH", 409, "Creation must match its source author, project, branch and publication");
+      }
+      await service.readUser(creation.ownerId);
+      if (creation.workspaceId && !await tx.get("SELECT 1 FROM members WHERE organization_id=? AND user_id=?",
+        [creation.workspaceId, creation.ownerId])) fail("FORBIDDEN", 403, "Workspace membership required");
+      if (await tx.get("SELECT 1 FROM projects WHERE id=?", [creation.id])
+        || await tx.get("SELECT 1 FROM branch_workspaces WHERE id=?", [source.branchId])
+        || await tx.get("SELECT 1 FROM repositories WHERE project_id=?", [creation.id])) {
+        fail("SOURCE_CREATION_EXISTS", 409, "Prepared creation identity already exists");
+      }
+      const main = source.files.find(file => file.id === creation.settings.mainFileId);
+      if (!main?.editable || main.link || (creation.settings.engine !== "plain"
+        && !source.documents.find(document => document.fileId === main.id)?.text.includes("\\documentclass"))) {
+        fail("INVALID_MAIN", 422, "Prepared creation requires its validated editable main");
+      }
+      await tx.run(`INSERT INTO projects(id,name,owner_id,workspace_id,default_branch,settings_json,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?)`, [creation.id, creation.name, creation.ownerId, creation.workspaceId,
+        creation.defaultBranch, JSON.stringify(creation.settings), creation.createdAt, creation.updatedAt]);
+      await tx.run("INSERT INTO branch_workspaces(id,project_id,branch,created_at,updated_at) VALUES(?,?,?,?,?)",
+        [source.branchId, creation.id, scope.branch, creation.createdAt, creation.updatedAt]);
+      await tx.run("INSERT INTO repositories(project_id,relative_path,created_at) VALUES(?,?,?)",
+        [creation.id, `git/${creation.id}.git`, creation.createdAt]);
+    }
     if (source.createBranch) {
       const project = await service.getProject(scope.projectId);
       await service.authorize(source.snapshot.authorId, { ...scope, branch: project.defaultBranch }, "write");

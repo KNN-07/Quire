@@ -8,11 +8,13 @@ import { compare, fail, uuid, page } from "./store";
 import { finishRestores } from "./recovery";
 import { finishDecisions } from "./decisions";
 import { AccessStore } from "../base/access";
+import { registerHistoryChanges } from "./history-changes";
 
 export async function registerHistory(context: ModuleContext, store: HistoryStore): Promise<() => Promise<void>> {
   (await finishRestores(store));
   (await finishDecisions(store));
   (await store.captureMissing());
+  registerHistoryChanges(context, store);
   let tail = Promise.resolve();
   const unsubscribe = context.events.subscribe(event => {
     if (event.topic !== "tree.changed") return;

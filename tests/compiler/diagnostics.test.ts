@@ -46,3 +46,40 @@ test("classifies located box warnings as typesetting diagnostics", () => {
   // Then: typesetting warnings remain distinct from compiler errors.
   expect(diagnostics[0]).toMatchObject({ severity: "typesetting", fileId: file.id, line: 8 });
 });
+
+test("final latexmk pass replaces transient warnings while preserving raw spans and errors", () => {
+  // Given: reruns resolved an earlier citation/box warning, but a real error and a final warning remain.
+  const log = [
+    "Run number 1 of rule 'pdflatex'",
+    "(/src/sections/snippet.inc",
+    "LaTeX Warning: Citation `first-pass-only' undefined.",
+    "Overfull \\hbox (3.0pt too wide)",
+    "/src/sections/snippet.inc:12: Undefined control sequence.",
+    ")",
+    "Run number 2 of rule 'pdflatex'",
+    "(/src/sections/snippet.inc",
+    "LaTeX Warning: Citation `still-missing' undefined.",
+    "Underfull \\hbox (badness 1000)",
+    ")",
+  ].join("\n");
+  // When: the complete raw transcript is summarized.
+  const diagnostics = parseDiagnostics({ jobId: fixtureIds.snapshot, log, files: [file] });
+  // Then: earlier errors are retained; warning/type-setting spans belong to the final TeX pass.
+  expect(diagnostics.map(item => item.severity)).toEqual(["error", "warning", "typesetting"]);
+  expect(diagnostics.map(item => item.message)).toEqual([
+    "Undefined control sequence.", "LaTeX Warning: Citation `still-missing' undefined.", "Underfull \\hbox (badness 1000)",
+  ]);
+  for (const item of diagnostics.slice(1)) {
+    expect(item.fileId).toBe(file.id);
+    expect(log.slice(item.rawStart, item.rawEnd)).toBe(item.message);
+  }
+});
+
+test("final latexmk clean pass does not suppress single-pass or non-latexmk warnings", () => {
+  const warning = "LaTeX Warning: Citation `missing' undefined.";
+  expect(parseDiagnostics({ jobId: fixtureIds.snapshot, log: warning, files: [] })).toHaveLength(1);
+  expect(parseDiagnostics({ jobId: fixtureIds.snapshot,
+    log: `Run number 1 of rule 'lualatex'\r\n${warning}\r\n`, files: [] })).toHaveLength(1);
+  expect(parseDiagnostics({ jobId: fixtureIds.snapshot, files: [],
+    log: `Run number 1 of rule 'lualatex'\r\n${warning}\r\nRun number 2 of rule 'lualatex'\r\nOutput written.\r\n` })).toEqual([]);
+});

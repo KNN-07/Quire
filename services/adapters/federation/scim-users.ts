@@ -2,11 +2,12 @@ import { z } from "zod";
 import type { Id, IdentityConfig, Transaction } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { defaultPreferences, newId } from "../../accounts/identity/store";
-import { requireRemovableAccount, revokeSessions, transferProjects } from "../../accounts/governance/managed";
+import { isManagedTransferRecipient, requireRemovableAccount, revokeSessions, transferProjects } from "../../accounts/governance/managed";
 import { trustedAttributes } from "./provisioning";
 import { userInput } from "./scim-schema";
 import type { ResourceRow } from "./scim-schema";
 import type { ScimStore } from "./scim-store";
+import { requireOrganizationIdentityAuthority } from "../../accounts/identity/managed-release";
 
 export class ScimUsers {
   constructor(private readonly store: ScimStore) {}
@@ -37,7 +38,10 @@ export class ScimUsers {
       Record<IdentityConfig["protocol"], string | undefined>;
     const issuer = issuers[config.protocol];
     if (!issuer) throw new ServiceError("SCIM_UNCONFIGURED", 503, "Configured identity issuer required");
-    await tx.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)", [newId(), userId, issuer, input.externalId, now]);
+    const organizationId = this.store.configurations.deployment.organizationId;
+    if (!organizationId) throw new ServiceError("SCIM_UNCONFIGURED", 503, "Configured organization required");
+    await tx.run("INSERT INTO identities(id,user_id,issuer,subject,created_at,authority_kind,organization_id) VALUES(?,?,?,?,?,'organization',?)",
+      [newId(), userId, issuer, input.externalId, now, organizationId]);
     const row = await this.store.insert(tx, { kind: "Users", userId, data: input });
     if (input.active) await this.store.reconcile(tx, row.id);
     return { row, created: true };
@@ -47,6 +51,9 @@ export class ScimUsers {
     const previous = userInput.parse(JSON.parse(input.row.data_json));
     const userId = input.row.user_id;
     if (!userId) throw new ServiceError("SCIM_RESOURCE_INVALID", 500, "SCIM user has no account");
+    const organizationId = this.store.configurations.deployment.organizationId;
+    if (!organizationId) throw new ServiceError("SCIM_UNCONFIGURED", 503, "Configured organization required");
+    await requireOrganizationIdentityAuthority(tx, { userId, organizationId });
     if (next.userName !== previous.userName || next.externalId !== previous.externalId) throw new ServiceError("SCIM_IMMUTABLE", 400, "userName and externalId are immutable");
     if (JSON.stringify(next.emails) !== JSON.stringify(previous.emails)) throw new ServiceError("SCIM_IMMUTABLE", 400, "Email changes require the account's verified-email workflow");
     if (await tx.get("SELECT user_id FROM identity_breakglass WHERE user_id=?", [userId])) throw new ServiceError("BREAKGLASS_PROTECTED", 403, "SCIM cannot modify an enrolled break-glass operator");
@@ -80,8 +87,9 @@ export class ScimUsers {
         [userId, configurations.deployment.organizationId ?? null])) {
         throw new ServiceError("MANAGED_ACCEPTANCE_REQUIRED", 409, "Project transfer requires explicit accepted management by this organization");
       }
-      if (!await tx.get("SELECT id FROM members WHERE organization_id=? AND user_id=?", [configurations.deployment.organizationId ?? null, target])) {
-        throw new ServiceError("SCIM_TRANSFER_DENIED", 409, "Transfer target must be a member of the configured organization");
+      if (!configurations.deployment.organizationId || !await isManagedTransferRecipient(bound,
+        { organizationId: configurations.deployment.organizationId, userId: target })) {
+        throw new ServiceError("SCIM_TRANSFER_DENIED", 409, "Transfer requires an active member with accepted management by the configured team");
       }
       await transferProjects(bound, { from: userId, to: target });
     }

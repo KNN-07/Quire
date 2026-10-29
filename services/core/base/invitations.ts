@@ -8,6 +8,19 @@ import { invitation, accessEvent, addMember, queueInvitation, secretToken, hashT
 import { saveHttp } from "./receipts";
 
 export function registerInvitations(context: ModuleContext, service: CoreProjects): void {
+  context.routes.register(endpoints.invitationGet, async (input, request) => {
+    const actorId = await actor(context, request);
+    const item = await invitation(service, input.params.id);
+    const user = await service.readUser(actorId);
+    if (!user.verifiedEmails.some(email => email.toLowerCase() === item.email.toLowerCase())) {
+      fail("INVITATION_EMAIL", 403, "Invitation requires a matching verified email");
+    }
+    if (!item.projectId) fail("NOT_FOUND", 404, "Project invitation not found");
+    const project = await service.getProject(item.projectId);
+    request.responseHeaders.set("cache-control", "private, no-store");
+    etag(request, item.version);
+    return { invitation: item, projectName: project.name };
+  });
   context.routes.register(endpoints.invitationCreate, async (input, request) => {
     const actorId = await actor(context, request);
     return replay(context, { actorId, request, route: `invitationCreate:${input.params.p}`, body: input.body, schema: InvitationSchema }, async (http) => {

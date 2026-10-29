@@ -110,11 +110,13 @@ describe("real editor bibliography and settings", () => {
     expect(reopenSource.text).toBe(before.text);
     await disposePage(page);
   }), 120_000);
-  test.each([1440, 390])("selects and reloads exact main.Rnw only for a chosen Docker knitr environment at width %i", width => toolScenario(async () => {
+  test.each([[1440, "main.Rnw"], [390, "main.Rnw"], [1440, "main.Rtex"], [390, "main.Rtex"]] as const)(
+    "selects and reloads a Docker knitr main at width %i: %s", (width, mainPath) => toolScenario(async () => {
     // Given real operator registration: availability is re-probed, not fabricated.
     if (!rnwEnvironments) {
       await using operator = await authenticatedContext(browser, app, { email: "operator@quire.local" });
-      const report = ProbeReportSchema.parse(JSON.parse(await readFile(new URL("../../../docs/evidence/p2o-environments/knitr-report.json", import.meta.url), "utf8")));
+      const report = ProbeReportSchema.parse(JSON.parse(await readFile(process.env["QUIRE_TEST_KNITR_REPORT"]
+        ?? new URL("../../../docs/evidence/p2o-environments/knitr-report.json", import.meta.url), "utf8")));
       const manifest = ManifestInputSchema.parse(manifestFromProbe({ id: crypto.randomUUID(), label: "Tools knitr selector", report }));
       const register = async (requested: ReturnType<typeof ManifestInputSchema.parse>) => {
         const response = await operator.context.request.post("/api/admin/environments", {
@@ -129,25 +131,27 @@ describe("real editor bibliography and settings", () => {
     }
     await using actor = await authenticatedContext(browser, app, { viewport: { width, height: width === 390 ? 844 : 900 },
       ...(width === 390 ? { isMobile: true, hasTouch: true, deviceScaleFactor: 3 } : {}) });
-    const project = await createProject(actor, { name: `Rnw selector ${width}`, origin: app.url.origin });
+    const project = await createProject(actor, { name: `${mainPath} selector ${width}`, origin: app.url.origin });
     const text = String.raw`\documentclass{article}
 \begin{document}Rnw selector proof.\end{document}`;
-    const rnw = await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: "main.Rnw", text });
-    await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: "other.Rnw", text });
-    await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: "nested/main.Rnw", text });
+    const rnw = await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: mainPath, text });
+    const other = mainPath.replace("main.", "other.");
+    await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: other, text });
+    await createInputFile(actor, { projectId: project.id, origin: app.url.origin, path: `nested/${mainPath}`, text });
     expect(rnw.editable).toBe(true);
     const page = await actor.context.newPage();
     await mount(page, project.id);
     await page.getByLabel("Editor tool", { exact: true }).selectOption("settings");
-    await waitForRenderedText(page, "Installed");
+    await waitForRenderedText(page, rnwEnvironments.knitr.label);
     const main = page.getByLabel("Main document", { exact: true });
-    expect(await main.getByRole("option", { name: "main.Rnw", exact: true }).count()).toBe(0);
+    expect(await main.getByRole("option", { name: mainPath, exact: true }).count()).toBe(0);
     await page.getByLabel("TeX environment", { exact: true }).selectOption(rnwEnvironments.texOnly.id);
-    expect(await main.getByRole("option", { name: "main.Rnw", exact: true }).count()).toBe(0);
+    expect(await main.getByRole("option", { name: mainPath, exact: true }).count()).toBe(0);
     // When the actual knitr environment is chosen, only the exact root path is offered.
     await page.getByLabel("TeX environment", { exact: true }).selectOption(rnwEnvironments.knitr.id);
-    expect(await main.getByRole("option", { name: "main.Rnw", exact: true }).count()).toBe(1);
-    expect(await main.getByRole("option", { name: /other\.Rnw|nested\/main\.Rnw/ }).count()).toBe(0);
+    expect(await main.getByRole("option", { name: mainPath, exact: true }).count()).toBe(1);
+    expect(await main.getByRole("option", { name: other, exact: true }).count()).toBe(0);
+    expect(await main.getByRole("option", { name: `nested/${mainPath}`, exact: true }).count()).toBe(0);
     await main.selectOption(rnw.id);
     const saved = await responseAfter(page, { path: `/api/projects/${project.id}`, method: "PATCH" }, () =>
       page.getByRole("button", { name: "Save project settings" }).click());
@@ -155,12 +159,15 @@ describe("real editor bibliography and settings", () => {
     expect(persisted.settings.mainFileId).toBe(rnw.id);
     expect(persisted.settings.environmentId).toBe(rnwEnvironments.knitr.id);
     await waitForRenderedText(page, "Project settings saved.");
-    await page.screenshot({ path: fileURLToPath(new URL(`./evidence/settings-rnw-${width}-light.png`, import.meta.url)), fullPage: true });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.screenshot({ path: `${evidence}/settings-${mainPath}-${width}-${colorScheme}.png`, fullPage: true });
+    }
     await disposePage(page);
     // Then a fresh workspace and editable source reopen the persisted main/environment pair.
     await mount(page, project.id);
     await page.getByLabel("Editor tool", { exact: true }).selectOption("settings");
-    await waitForRenderedText(page, "Installed");
+    await waitForRenderedText(page, rnwEnvironments.knitr.label);
     expect(await main.inputValue()).toBe(rnw.id);
     expect(await page.getByLabel("TeX environment", { exact: true }).inputValue()).toBe(rnwEnvironments.knitr.id);
     expect((await projectDocument(actor.context, { projectId: project.id, branch: "main", fileId: rnw.id })).text).toBe(text);

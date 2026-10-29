@@ -1,0 +1,14 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../tests/operations/environments/assets.d.ts",
+    "../../../../apps/web/src/features/account/auth.tsx",
+    "../../../../apps/web/src/features/account/starting-point.tsx",
+    "../../../../apps/web/src/features/account/onboarding-progress.ts",
+    "../../../../apps/web/src/features/account/onboarding-import.ts",
+    "../../../../tests/adapters/identity/onboarding-return.test.ts"
+  ],
+  "exclude": []
+}

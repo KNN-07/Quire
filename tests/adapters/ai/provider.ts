@@ -45,7 +45,7 @@ export function providerServer() {
       choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(reply(context)) } }] });
   } });
   return { origin: server.url.origin, received, contexts,
-    respond(value: Answer | ((context: z.infer<typeof ContextSchema>) => unknown)) { reply = typeof value === "function" ? value : () => value; },
+    respond(value: Omit<Answer, "findings"> & { readonly findings?: Answer["findings"] } | ((context: z.infer<typeof ContextSchema>) => unknown)) { reply = typeof value === "function" ? value : () => value; },
     status(value: number) { status = value; },
     gate() {
       const entered = Promise.withResolvers<void>();

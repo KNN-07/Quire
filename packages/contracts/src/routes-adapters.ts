@@ -9,8 +9,8 @@ const r = routesFor("X");
 export const AdapterActions = {
   github: ["listRepositories", "import", "exportNew", "pull", "push", "disconnect"],
   gitlab: ["listRepositories", "import", "exportNew", "pull", "push", "disconnect"],
-  git: ["clone", "fetch", "push"], dropbox: ["initialSync", "sync", "disconnect"],
-  zotero: ["librarySync", "bulkBib", "refresh"], mendeley: ["bulkBib", "search", "refresh"],
+  git: ["clone", "fetch", "push"], dropbox: ["discoverFolders", "inspectFolder", "importFolder", "reauthorizeFolderImport", "initialSync", "sync", "disconnect"],
+  zotero: ["librarySync", "bulkBib", "refresh"], mendeley: ["bulkBib", "search", "refresh", "groups"],
   readcube: ["bulkBib", "search", "refresh"], doi: ["lookup"],
   crossref: ["search"], arxiv: ["search"], semanticScholar: ["search"], dimensions: ["search"],
   publisher: ["prepare", "submit", "status"], billing: ["quote", "checkout", "cancel", "invoices"],
@@ -18,6 +18,20 @@ export const AdapterActions = {
 } as const;
 export type AdapterProvider = keyof typeof AdapterActions;
 export type AdapterAction<P extends AdapterProvider> = (typeof AdapterActions)[P][number];
+export const DropboxFolderSchema = z.strictObject({
+  id: z.string().min(1), path: z.string().min(1), projectId: id.nullable(),
+});
+export const DropboxFoldersResultSchema = z.strictObject({ folders: z.array(DropboxFolderSchema) });
+export const DropboxFolderInspectionSchema = z.strictObject({
+  folder: DropboxFolderSchema, mainPaths: z.array(z.string()), fileCount: z.number().int().nonnegative(),
+  bytes: z.number().int().nonnegative(),
+  pendingImport: z.strictObject({
+    name: z.string(), mainPath: z.string(), preparedAt: z.iso.datetime(), requiresReauthorization: z.boolean(),
+  }).nullable().default(null),
+});
+export const DropboxFolderImportSchema = z.strictObject({
+  projectId: id, folderId: z.string(), path: z.string(), recovered: z.boolean(),
+});
 export { AiToolSchema } from "./work";
 export type { AiTool } from "./work";
 const aiConversation = z.strictObject({

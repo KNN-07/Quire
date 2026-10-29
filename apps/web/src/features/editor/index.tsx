@@ -3,16 +3,18 @@ import type { Preferences } from "@quire/contracts";
 import { Button, Modal, Spinner } from "../../ui";
 import { SourcePanel } from "./source";
 import type { SourceToolsHandle } from "./source";
+import { draftKey, readDraft } from "./source/tracking";
+import { sourceToolsClient } from "./source/tools-client";
 import { VisualPanel } from "./visual";
 import { ToolsPanel } from "./tools";
 import type { ToolPanel } from "./tools";
 import { PdfPanel } from "./pdf";
-import type { PdfPanelHandle } from "./pdf";
+import type { DiagnosticFixRequest, PdfPanelHandle } from "./pdf";
 import { ReviewPanel } from "./review";
 import { GitPanel } from "./git";
 import { AssistantPanel } from "./assistant";
 import { EditorApiError, parseEditorRoute } from "./shared";
-import type { AuthoringHandle, CompileController, CompileState, EditorDocument, EditorLayout, EditorNavigation, EditorPageProps, EditorRoute, SourceLocation, SourceSelection } from "./shared";
+import type { AuthoringHandle, CompileController, CompileState, EditorDocument, EditorLayout, EditorNavigation, EditorPageProps, EditorRoute, ReviewThreadRequest, SourceLocation, SourceSelection } from "./shared";
 import { EditorWorkspaceFrame } from "./workspace";
 import { EditorSessionController } from "./session-controller";
 import type { EditorSessionSnapshot } from "./session-controller";
@@ -47,10 +49,25 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
   const [selection, setSelection] = useState<SourceSelection>({ anchor: 0, head: 0 });
   const [authoring, setAuthoring] = useState<AuthoringHandle | null>(null);
   const [sourceTools, setSourceTools] = useState<SourceToolsHandle | null>(null);
+  const [sourceTracking, setSourceTracking] = useState(false);
   const [compile, setCompile] = useState<CompileController | null>(null);
   const [compilation, setCompilation] = useState<CompileState>({ job: null, preview: null });
+  const [diagnosticFix, setDiagnosticFix] = useState<DiagnosticFixRequest | null>(null);
+  const [threadContext, setThreadContext] = useState<ReviewThreadRequest | null>(null);
   const snapshot = useSyncExternalStore(loaded?.document?.subscribe ?? subscribeEmpty, loaded?.document?.getSnapshot ?? snapshotEmpty);
   const metadata = useEditorMetadata(client, loaded?.workspace ?? null);
+  const trackingEnabled = loaded?.document
+    ? readDraft(draftKey(loaded.workspace, loaded.document), loaded.document).enabled : sourceTracking;
+  const toolsSession = useRef(loaded);
+  toolsSession.current = loaded;
+  const toolsClient = useMemo(() => sourceToolsClient(client, () => {
+    const current = toolsSession.current;
+    return current === null || current.document !== null
+      && readDraft(draftKey(current.workspace, current.document), current.document).enabled;
+  }), [client]);
+  useEffect(() => () => { toolsSession.current = null; }, []);
+  const visibleLayout = trackingEnabled && layout === "visual" ? "source" : layout;
+  useEffect(() => { if (trackingEnabled && layout === "visual") setLayout("source"); }, [trackingEnabled, layout]);
   const report = useCallback((cause: unknown) => { if (cause instanceof Error) setError(cause.message); else throw cause; }, []);
   const run = useCallback(async (action: () => Promise<unknown>) => {
     setError(""); setWorking(true);
@@ -62,7 +79,10 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
     setController(next); setError("");
     void next.start().then(() => {
       const value = next.getSnapshot();
-      if (active && value.kind === "ready") setLayout(value.preferences.defaultView);
+      if (active && value.kind === "ready") {
+        const tracking = value.document && readDraft(draftKey(value.workspace, value.document), value.document).enabled;
+        setLayout(tracking && value.preferences.defaultView === "visual" ? "source" : value.preferences.defaultView);
+      }
     }).catch(cause => { if (active) report(cause); });
     return () => { active = false; void next.dispose().catch(cause => window.reportError(cause)); };
   }, [client, scopeKey, generation, report]);
@@ -131,12 +151,16 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
   const common = { client, workspace, document, navigation, refreshWorkspace };
   const diagnostics = compilation.job?.diagnostics ?? [];
   const onPreferencesChange = (value: Preferences) => {
-    if (value.defaultView !== preferences.defaultView) setLayout(value.defaultView);
+    if (value.defaultView !== preferences.defaultView) {
+      if (value.defaultView === "visual" && trackingEnabled) setError("Turn off Track changes in Source before using Visual. Your proposal draft will be retained.");
+      else setLayout(value.defaultView);
+    }
     controller.updatePreferences(value);
     window.document.documentElement.dataset["theme"] = value.theme;
     void props.onSessionChange().catch(report);
   };
   const source = document ? { ...common, document, preferences, selection, onSelectionChange: setSelection, onPreferencesChange, onHandle, diagnostics } : null;
+  const committedSelection = trackingEnabled ? { anchor: 0, head: 0 } : selection;
   const chooseTool = (next: ToolPanel) => { setAssistantOpen(false); setToolsOpen(value => tool === next ? !value : true); setTool(next); };
   const prefix = document?.source.toJSON().slice(0, selection.head).split("\n") ?? [];
   const location: SourceLocation | null = document ? { fileId: document.file.id, line: prefix.length, column: (prefix.at(-1)?.length ?? 0) + 1 } : null;
@@ -146,7 +170,13 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
       if (!controller) throw new EditorApiError("EDITOR_LOADING", "The editor is still connecting");
       await controller.settle(); await controller.dispose(); props.navigate("/projects");
     }); },
-    layout: setLayout, tool: chooseTool,
+    layout: next => {
+      if (next === "visual" && trackingEnabled) {
+        setError("Turn off Track changes in Source before using Visual. Your proposal draft will be retained.");
+        return;
+      }
+      setLayout(next);
+    }, tool: chooseTool,
     assistant: () => { if (matchMedia("(max-width:1023px)").matches) setToolsOpen(false); setAssistantOpen(value => !value); },
     share: () => { setAssistantOpen(false); if (matchMedia("(max-width:1023px)").matches) setToolsOpen(false); setDialog("share"); },
     chat: () => { setAssistantOpen(false); if (matchMedia("(max-width:1023px)").matches) setToolsOpen(false); setDialog("chat"); },
@@ -158,22 +188,29 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
       await viewer.current.forward(location); if (layout === "source") setLayout("split");
     }); },
   };
-  const model: EditorChromeModel = { session: loaded, page: route.page, layout, tool, toolsOpen, assistantOpen, snapshot, compilation, location, compilerAvailable: compile !== null, working };
+  const model: EditorChromeModel = { session: loaded, page: route.page, layout: visibleLayout, tool, toolsOpen, assistantOpen, snapshot, compilation, location, compilerAvailable: compile !== null, working, sourceTracking: trackingEnabled };
   const header = <><EditorHeader model={model} actions={actions} metadata={metadata} />
     {error && <p className="qe-message" role="alert">{error}</p>}
     <EditorRecovery retained={loaded.retained} discard={controller.discardRecovery} copy={text => { void run(() => navigator.clipboard.writeText(text)); }} /></>;
-  return <><EditorWorkspaceFrame userId={loaded.userId} page={route.page} layout={layout}
+  return <><EditorWorkspaceFrame userId={loaded.userId} page={route.page} layout={visibleLayout}
     toolsOpen={toolsOpen} onToolsOpenChange={value => { if (value) setAssistantOpen(false); setToolsOpen(value); }}
     assistantOpen={assistantOpen} onAssistantOpenChange={value => { if (value) setToolsOpen(false); setAssistantOpen(value); }}
     rail={<EditorRail model={model} actions={actions} metadata={metadata} />}
-    slots={{ header, tools: <ToolsPanel {...common} filesPresentation="compact" authoring={authoring} panel={tool} onPanelChange={setTool} onPreferencesChange={onPreferencesChange} onSessionChange={props.onSessionChange} />,
+    slots={{ header, tools: <ToolsPanel {...common} client={toolsClient} filesPresentation="compact" authoring={trackingEnabled ? null : authoring} panel={tool} onPanelChange={setTool} onPreferencesChange={onPreferencesChange} onSessionChange={props.onSessionChange} />,
       source: source ? <div className="qe-source"><EditorSourceChrome document={source.document} tools={sourceTools} readOnly={snapshot?.readOnly ?? true} />
-        <SourcePanel {...source} presentation="embedded" onToolsHandle={setSourceTools} /></div> : <p className="qe-message">No editable text file is selected. Open Files to create or select one.</p>,
+        <SourcePanel {...source} presentation="embedded" onToolsHandle={setSourceTools} onTrackingChange={setSourceTracking} /></div> : <p className="qe-message">No editable text file is selected. Open Files to create or select one.</p>,
       visual: source ? <VisualPanel {...source} /> : <p className="qe-message">Select an editable text file to use Visual.</p>,
-      pdf: <PdfPanel {...common} presentation="embedded" preferences={preferences} onController={setCompile} onCompileStateChange={setCompilation} onViewer={value => { viewer.current = value; }} view={route.page === "logs" ? "logs" : route.page === "pdf-diff" ? "diff" : "pdf"} />,
-      review: <ReviewPanel {...common} selection={selection} view={route.page === "history" ? "history" : "review"} />,
-      git: <GitPanel {...common} />,
-      assistant: <AssistantPanel {...common} selection={selection} compile={compile} diagnostics={diagnostics} />,
+      pdf: <PdfPanel {...common} presentation="embedded" preferences={preferences} onController={setCompile} onCompileStateChange={setCompilation} onViewer={value => { viewer.current = value; }} view={route.page === "logs" ? "logs" : route.page === "pdf-diff" ? "diff" : "pdf"}
+        {...preferences.errorAssist && !trackingEnabled ? { onFixDiagnostic: (request: DiagnosticFixRequest) => {
+          setThreadContext(null); setDiagnosticFix(request); void run(() => go("agent"));
+        } } : {}} />,
+      review: <ReviewPanel {...common} selection={committedSelection} view={route.page === "history" ? "history" : "review"}
+        onAskThread={request => { setDiagnosticFix(null); setThreadContext(request); void run(() => go("agent")); }} />,
+      git: <GitPanel {...common} preferences={preferences} />,
+      assistant: <AssistantPanel {...common} preferences={preferences} onPreferencesChange={onPreferencesChange}
+        selection={committedSelection} authoring={trackingEnabled ? null : authoring} citationClient={toolsClient} tracking={trackingEnabled}
+        compile={compile} diagnostics={diagnostics} diagnosticFix={diagnosticFix} onClearDiagnosticFix={() => setDiagnosticFix(null)}
+        threadContext={threadContext} onClearThreadContext={() => setThreadContext(null)} />,
       status: <EditorStatus model={model} actions={actions} metadata={metadata} />,
     }} />
     {dialog && <Modal open className={dialog === "share" ? "qe-share-dialog" : "qe-chat-dialog"} title={dialog === "share" ? `Share “${workspace.project.name}”` : "Project chat"} onClose={() => setDialog(null)}

@@ -14,7 +14,7 @@ PTYs, environment injection and user rc files are unavailable.
 
 ## Prerequisites and authority
 
-Run Bun 1.3.14, Git and OpenSSH on Linux. Execute `bun --version`,
+Run the repository-pinned Bun 1.4.4, Git and OpenSSH on Linux. Execute `bun --version`,
 `git --version`, `sshd -V` and `sshd -t -f <owned-config>`; finding binaries on
 PATH alone does not verify the service. `/usr/bin/env` is the root-owned
 AuthorizedKeysCommand launcher; all configuration, Bun code and private files

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Id, Scope, Transaction } from "@quire/contracts";
+import type { AiClaimFinding, Id, Scope, Transaction } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { AiStore } from "./store";
 import { CreateRunSchema, MessagesSchema, newId } from "./model";
@@ -8,6 +8,7 @@ import type { Actor, RunRecord } from "./model";
 export class AiConversations {
   private readonly local = new Map<string, z.infer<typeof MessagesSchema>>();
   private readonly runMessages = new Map<Id, z.infer<typeof MessagesSchema>>();
+  private readonly runFindings = new Map<Id, readonly AiClaimFinding[]>();
   constructor(readonly store: AiStore, readonly retentionDays: number) {}
   private key(actor: Actor, scope: Scope) { return `${actor.sessionId}:${scope.projectId}:${scope.branch}`; }
   async create(actor: Actor, projectId: Id) {
@@ -44,7 +45,9 @@ export class AiConversations {
       : this.local.get(this.key(actor, input.scope)) ?? [];
   }
   messages(run: RunRecord) { return run.conversation_id ? undefined : this.runMessages.get(run.id); }
-  remember(actor: Actor, run: RunRecord, messages: z.infer<typeof MessagesSchema>) {
+  findings(run: RunRecord) { return this.runFindings.get(run.id); }
+  remember(actor: Actor, run: RunRecord, messages: z.infer<typeof MessagesSchema>, findings: readonly AiClaimFinding[] = []) {
+    if (run.mode === "ask" && !run.conversation_id) this.runFindings.set(run.id, findings);
     if (!run.conversation_id) this.runMessages.set(run.id, messages);
     if (!run.conversation_id) {
       const key = this.key(actor, { projectId: run.project_id, branch: run.branch });
@@ -83,9 +86,17 @@ export class AiConversations {
         JOIN ai_run_metadata m ON m.run_id=r.id WHERE m.session_id=? AND r.project_id=? AND r.branch=?
         AND m.conversation_id IS NULL AND r.mode='ask'`, [actor.sessionId, scope.projectId, scope.branch]);
       for (const row of rows) {
+        const run = await this.store.record(row.id, tx);
+        if (run.status === "queued" || run.status === "running") {
+          await this.store.steps(tx, run, "canceled");
+          await this.store.changed(tx, { ...run, status: "canceled" });
+        }
         await tx.run("UPDATE ai_runs SET status='canceled',version=version+1 WHERE id=? AND status IN ('queued','running')", [row.id]);
+        await tx.run("UPDATE ai_request_logs SET status='canceled',updated_at=? WHERE run_id=? AND status='running'",
+          [this.store.context.clock.now(), row.id]);
         await tx.run("UPDATE ai_usage SET state='refunded',refunded_at=? WHERE id=? AND state='reserved'", [this.store.context.clock.now(), row.usage_id]);
         this.runMessages.delete(row.id);
+        this.runFindings.delete(row.id);
       }
       await this.store.audit(tx, { actorId: actor.id, targetId: scope.projectId, event: "ai.session.cleared" });
       await this.store.context.events.record(tx, { topic: "policy.changed", aggregateId: scope.projectId,
@@ -105,14 +116,29 @@ export class AiConversations {
       [this.store.context.clock.now()]);
       await tx.run("UPDATE ai_conversations SET shared=0,messages_json='[]' WHERE id IN (SELECT conversation_id FROM ai_conversation_retention WHERE expires_at<=?)", [this.store.context.clock.now()]);
     });
+    await this.store.context.events.dispatch();
   }
   private async redact(tx: Transaction, ids: readonly Id[]) {
     for (const id of ids) for (const row of await tx.all<{ run_id: Id; request_json: string }>(`SELECT m.run_id,m.request_json
-      FROM ai_run_metadata m JOIN ai_runs r ON r.id=m.run_id WHERE m.conversation_id=? AND r.mode='ask'`, [id])) {
+      FROM ai_run_metadata m JOIN ai_runs r ON r.id=m.run_id WHERE m.conversation_id=?`, [id])) {
       const request = CreateRunSchema.parse(JSON.parse(row.request_json));
+      const run = await this.store.record(row.run_id, tx);
+      if (run.status === "queued" || run.status === "running") {
+        await this.store.steps(tx, run, "canceled");
+        await tx.run("UPDATE ai_runs SET status='canceled',version=version+1,updated_at=? WHERE id=?",
+          [this.store.context.clock.now(), run.id]);
+        await tx.run("UPDATE ai_usage SET state='refunded',refunded_at=? WHERE id=? AND state='reserved'",
+          [this.store.context.clock.now(), run.usage_id]);
+        await tx.run("UPDATE ai_request_logs SET status='canceled',updated_at=? WHERE run_id=?",
+          [this.store.context.clock.now(), run.id]);
+        await this.store.changed(tx, { ...run, status: "canceled" });
+      }
+      if (run.mode !== "ask") continue;
       await tx.run("UPDATE ai_run_metadata SET request_json=? WHERE run_id=?",
         [JSON.stringify({ ...request, prompt: "", ...(request.selection ? { selection: { ...request.selection, text: "" } } : {}) }), row.run_id]);
+      await tx.run("UPDATE ai_request_logs SET encrypted_content=NULL WHERE run_id=?", [row.run_id]);
+      await tx.run("UPDATE ai_run_metadata SET findings_json='[]' WHERE run_id=?", [row.run_id]);
     }
   }
-  close() { this.local.clear(); this.runMessages.clear(); }
+  close() { this.local.clear(); this.runMessages.clear(); this.runFindings.clear(); }
 }

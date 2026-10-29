@@ -11,6 +11,9 @@ import { useTool } from "./use-tool";
 import { matchesReference, referenceMetadata } from "./library-metadata";
 import type { ReferenceFilter } from "./library-metadata";
 import { ReferenceSearch } from "./ReferenceSearch";
+import { RemoteReferencePanel } from "./RemoteReferencePanel";
+import { MendeleyBibliography } from "./MendeleyBibliography";
+import { MendeleyBibliographyPreview } from "./MendeleyBibliographyPreview";
 
 type Entry = { readonly file: FileEntry; readonly key: string; readonly offset: number; readonly fields: Readonly<Record<string, string>> };
 export function BibliographyPanel(props: ToolsPanelProps) {
@@ -27,15 +30,19 @@ export function BibliographyPanel(props: ToolsPanelProps) {
   useEffect(() => {
     const abort = new AbortController();
     void state.run(async () => {
-      const loaded = await Promise.all(workspace.files.filter(file => file.path.toLowerCase().endsWith(".bib") && file.kind === "file").map(async file => {
-        const request = { params: { p: workspace.scope.projectId, f: file.id }, query: { branch: workspace.scope.branch },
-          headers: workspace.requestHeaders, body: undefined };
-        const text = file.editable ?
-          editorValue(await client.call(endpoints.fileDocument, request, abort.signal)).text :
-          new TextDecoder("utf-8", { fatal: true }).decode(editorValue(await client.call(endpoints.fileContent, request, abort.signal)));
-        return bibliographyKeys(text).map(entry => ({ ...entry, file, fields: referenceMetadata(text.slice(entry.offset)) }));
-      }));
-      if (!abort.signal.aborted) setEntries(loaded.flat());
+      try {
+        const loaded = await Promise.all(workspace.files.filter(file => file.path.toLowerCase().endsWith(".bib") && file.kind === "file").map(async file => {
+          const request = { params: { p: workspace.scope.projectId, f: file.id }, query: { branch: workspace.scope.branch },
+            headers: workspace.requestHeaders, body: undefined };
+          const text = file.editable ?
+            editorValue(await client.call(endpoints.fileDocument, request, abort.signal)).text :
+            new TextDecoder("utf-8", { fatal: true }).decode(editorValue(await client.call(endpoints.fileContent, request, abort.signal)));
+          return bibliographyKeys(text).map(entry => ({ ...entry, file, fields: referenceMetadata(text.slice(entry.offset)) }));
+        }));
+        if (!abort.signal.aborted) setEntries(loaded.flat());
+      } catch (caught) {
+        if (!abort.signal.aborted) throw caught;
+      }
     });
     return () => abort.abort();
   }, [client, workspace, state.run]);
@@ -53,10 +60,11 @@ export function BibliographyPanel(props: ToolsPanelProps) {
               await insertCommand(props, { command: `\\cite{${entry.key}}` });
               state.setMessage(`Inserted citation ${entry.key}.`);
             })}>Insert citation</Button>
-          <Button disabled={!!state.blocked || state.busy} onClick={() => void state.run(async () => {
+          {entry.file.link ? <MendeleyBibliographyPreview {...props} key={`${entry.file.id}:${entry.file.blob}`}
+            file={entry.file} label="Open bibliography" /> : <Button disabled={!!state.blocked || state.busy} onClick={() => void state.run(async () => {
             await props.document?.flush();
             await props.navigation.openFile(entry.file.id);
-          })}>Open bibliography</Button>
+          })}>Open bibliography</Button>}
         </div>
       </li>)}</ul>
     {!state.busy && entries.length === 0 && <p>No citation keys yet. Add a local Library record below or open a .bib file to edit it.</p>}
@@ -69,6 +77,10 @@ export function BibliographyPanel(props: ToolsPanelProps) {
     {editable.length > 1 && !selectedTarget && <p>Several editable bibliographies exist. Choose a target before copying.</p>}
     {creationBlocked && <p>references.bib is not an editable bibliography. Create a new .bib file in Files before copying Library entries.</p>}
     <Feedback state={state} />
+    <MendeleyBibliography {...props} key={`mendeley:${workspace.scope.projectId}:${workspace.scope.branch}`} />
+    <RemoteReferencePanel {...props} key={`${workspace.scope.projectId}:${workspace.scope.branch}`}
+      target={selectedTarget ? IdSchema.parse(selectedTarget) : null}
+      targetRequired={creationBlocked || (editable.length > 1 && !selectedTarget)} />
     <LibraryPanel {...props} target={selectedTarget ? IdSchema.parse(selectedTarget) : null}
       targetRequired={creationBlocked || (editable.length > 1 && !selectedTarget)} />
   </section>;

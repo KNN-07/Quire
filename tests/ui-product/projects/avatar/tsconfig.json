@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../tests/operations/environments/assets.d.ts",
+    "../../../../apps/web/src/features/projects/ProjectsPage.tsx"
+  ],
+  "exclude": []
+}

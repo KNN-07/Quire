@@ -7,6 +7,10 @@ import { registerProfile } from "./profile";
 import { registerAccount } from "./account";
 import { registerReads } from "./reads";
 import { projectBenefitsMigration } from "./project-benefits-migration";
+import { identityProvenanceMigration } from "./identity-provenance-migration";
+import { onboardingMigration } from "./onboarding-migration";
+import { registerOnboarding } from "./onboarding";
+import { registerOnboardingImports } from "./onboarding-imports";
 
 export const migrations: readonly Migration[] = [{
   id: "010-a-identity-local",
@@ -38,7 +42,7 @@ CREATE TABLE identity_requests (
   response_json TEXT NOT NULL, PRIMARY KEY(actor,route,key)
 ) STRICT;
 `,
-}, projectBenefitsMigration];
+}, projectBenefitsMigration, identityProvenanceMigration, onboardingMigration];
 export function register(context: ModuleContext): void {
   const repository = store(context);
   const auth = authentication(context, repository);
@@ -48,12 +52,14 @@ export function register(context: ModuleContext): void {
   registerProfile(context, { repository, auth });
   registerAccount(context, { repository, auth });
   registerReads(context, { repository, auth });
+  registerOnboarding(context, { repository, auth });
+  registerOnboardingImports(context, { repository, auth });
 }
 export { intersectPolicy } from "./policy";
 export { sessionCookie } from "./authentication";
 export { defaultPreferences } from "./store";
 export type { IdentityPort, PolicyPort, Principal } from "@quire/runtime";
-export { registerAuthProviderCapability } from "./reads";
+export { registerAuthProviderCapability, registerAuthDiscovery } from "./reads";
 export type { AuthProviderCapability } from "./reads";
 export { registerIdentityPolicy, identityPolicy, passwordAllowed, requireEnrolledBreakGlass } from "./reads";
 export type { IdentityPolicy } from "./reads";

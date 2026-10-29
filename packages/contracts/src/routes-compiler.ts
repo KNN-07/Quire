@@ -20,6 +20,13 @@ const fenceQuery = z.strictObject({
 });
 export const compilerEndpoints = {
   environmentsList: r("GET", "/api/environments", { params: none, query: none, body: noBody, output: z.array(EnvironmentSchema) }),
+  environmentsAdmission: r("GET", "/api/environments/admission", { params: none, query: none, body: noBody,
+    output: z.array(z.strictObject({
+      environment: EnvironmentSchema, probe: z.enum(["ready", "unavailable", "untrusted"]),
+      execution: z.strictObject({ state: z.enum(["admitted", "not-admitted", "unmanaged"]), releaseId: id.nullable(),
+        route: z.strictObject({ controllerRole: z.string(), workerRole: z.string(), profileIds: z.array(z.string()) }).nullable() }),
+      selectable: z.boolean(), version: CountSchema, isDefault: z.boolean(), retiredAt: z.string().nullable(),
+    })) }),
   compileCreate: r("POST", "/api/projects/:p/compiles", { params: p, query: none, body: CompileRequestSchema, output: CompileJobSchema, ...key, successStatus: 202 }),
   compileGet: r("GET", "/api/compiles/:id", { params: ids, query: none, body: noBody, output: CompileJobSchema }),
   compilePreview: r("GET", "/api/projects/:p/compile-preview", { params: p,

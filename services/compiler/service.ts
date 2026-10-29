@@ -13,6 +13,7 @@ import { CompilerLeases } from "./leases";
 import { AccessStore } from "../core/base/access";
 import { assertHistoryAccess } from "../core/base/history-access";
 import { installationRoleSession } from "../operations/installation/launch";
+import { diagnosticsCachePrefix } from "./diagnostics";
 
 export type CompilerEnvironments = {
   readonly resolve: (id: Id) => Promise<Environment>;
@@ -71,7 +72,7 @@ export class CompilerService implements CompilePort {
     if (!environment.engines.includes(settings.engine)) throw new ServiceError("ENGINE_UNAVAILABLE", 422, "Requested engine is unavailable in this environment");
     const snapshot = await projects.snapshot(actorId, request.scope, request.expectedRevision);
     const source = await projects.readSnapshot(snapshot.id);
-    const cacheKey = new Bun.CryptoHasher("sha256").update(JSON.stringify({
+    const cacheKey = diagnosticsCachePrefix + new Bun.CryptoHasher("sha256").update(JSON.stringify({
       scope: snapshot.scope, files: source.files.map(file => [file.id, file.path, file.blob]),
       settings, environment: environment.rootOrImageDigest,
     })).digest("hex");

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { assertNever } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { SafeHttpClient, GrantContext, HttpResponse } from "../shared";
-import { contentHash, headerJson, remoteEntry, remoteFile } from "./model";
+import { contentHash, headerJson, remoteEntry, remoteFile, remoteFolder } from "./model";
 import type { RemoteFile } from "./model";
 
 export type DropboxEndpoints = {
@@ -20,7 +20,14 @@ export class DropboxError extends ServiceError {
 }
 export class DropboxApi {
   constructor(private readonly http: SafeHttpClient, private readonly endpoints: DropboxEndpoints,
-    private readonly context: GrantContext) {}
+    private readonly context: GrantContext, private readonly binding?: { readonly folder_id: string; readonly path: string }) {}
+  private writePath(path: string): string {
+    if (!this.binding) return path;
+    if (!path.toLowerCase().startsWith(`${this.binding.path.toLowerCase()}/`)) {
+      throw new ServiceError("DROPBOX_FOLDER_SCOPE", 409, "Write is outside the bound Dropbox folder");
+    }
+    return `${this.binding.folder_id}${path.slice(this.binding.path.length)}`;
+  }
   private async checked(response: HttpResponse): Promise<HttpResponse> {
     if (response.status >= 200 && response.status < 300) return response;
     let summary = "";
@@ -75,13 +82,37 @@ export class DropboxApi {
     }
     throw new ServiceError("DROPBOX_PAGE_LIMIT", 502, "Dropbox listing exceeded 1000 pages");
   }
+  async folder(id: string) {
+    const folder = await this.rpc("files/get_metadata", { path: id, include_deleted: false }, remoteFolder);
+    if (folder.id !== id) throw new ServiceError("DROPBOX_FOLDER_CHANGED", 409, "Selected Dropbox folder identity changed");
+    return folder;
+  }
+  /** Discovery includes unsupported files so an import never silently drops them. */
+  async entries(path: string, recursive: boolean, maximum: number) {
+    const entries: Readonly<Record<string, unknown>>[] = [];
+    let cursor: string | null = null;
+    for (let pageIndex = 0; pageIndex < 1000; pageIndex++) {
+      const page: { entries: Record<string, unknown>[]; cursor: string; has_more: boolean } =
+        await this.rpc(cursor === null ? "files/list_folder" : "files/list_folder/continue",
+          cursor === null ? { path, recursive, include_deleted: false, include_non_downloadable_files: true, limit: 200 }
+            : { cursor }, z.object({
+            entries: z.array(z.record(z.string(), z.unknown())), cursor: z.string().min(1), has_more: z.boolean(),
+          }));
+      entries.push(...page.entries);
+      if (entries.length > maximum) throw new ServiceError("DROPBOX_ENTRY_LIMIT", 413, "Dropbox folder exceeds the import entry limit");
+      cursor = page.cursor;
+      if (!page.has_more) return { entries, cursor };
+    }
+    throw new ServiceError("DROPBOX_PAGE_LIMIT", 502, "Dropbox listing exceeded 1000 pages");
+  }
   async download(file: RemoteFile): Promise<Uint8Array> {
     const response = await this.checked(await this.http.request(new URL("files/download", this.endpoints.content).href, {
       method: "POST", headers: { authorization: `Bearer ${this.context.tokens.accessToken}`,
         "dropbox-api-arg": headerJson({ path: `rev:${file.rev}` }) }, signal: this.context.signal,
     }));
     const metadata = remoteFile.parse(JSON.parse(response.headers.get("dropbox-api-result") ?? "null"));
-    if (metadata.rev !== file.rev || metadata.id !== file.id || contentHash(response.bytes) !== file.content_hash) {
+    if (metadata.rev !== file.rev || metadata.id !== file.id || response.bytes.length !== file.size
+      || contentHash(response.bytes) !== file.content_hash) {
       throw new ServiceError("DROPBOX_INTEGRITY", 502, "Dropbox download revision or content hash differs");
     }
     return response.bytes;
@@ -89,7 +120,7 @@ export class DropboxApi {
   async upload(input: { readonly path: string; readonly bytes: Uint8Array; readonly previous: RemoteFile | null }) {
     const response = await this.checked(await this.http.request(new URL("files/upload", this.endpoints.content).href, {
       method: "POST", headers: { authorization: `Bearer ${this.context.tokens.accessToken}`, "content-type": "application/octet-stream",
-        "dropbox-api-arg": headerJson({ path: input.path, mode: input.previous ? { ".tag": "update", update: input.previous.rev } : "add",
+        "dropbox-api-arg": headerJson({ path: this.writePath(input.path), mode: input.previous ? { ".tag": "update", update: input.previous.rev } : "add",
           strict_conflict: true, autorename: false, mute: true, content_hash: contentHash(input.bytes) }) },
       body: input.bytes, signal: this.context.signal,
     }));
@@ -100,7 +131,7 @@ export class DropboxApi {
     return file;
   }
   async delete(file: RemoteFile): Promise<void> {
-    await this.rpc("files/delete_v2", { path: file.path_display, parent_rev: file.rev }, z.object({ metadata: remoteEntry }));
+    await this.rpc("files/delete_v2", { path: this.writePath(file.path_display), parent_rev: file.rev }, z.object({ metadata: remoteEntry }));
   }
   async revoke(): Promise<void> { await this.rpc("auth/token/revoke", null, z.null()); }
 }

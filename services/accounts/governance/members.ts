@@ -4,7 +4,7 @@ import { endpoints, IdSchema } from "@quire/contracts";
 import type { Id, Membership } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { ModuleContext, Principal } from "@quire/runtime";
-import { authorize, audit, conflict, denied, membership, missing, newId, page, publishPolicyChange, route } from "./shared";
+import { authorize, audit, conflict, denied, membership, missing, newId, page, publishPolicyChange, requireTeamOrganization, route } from "./shared";
 import { csv } from "./reports";
 
 export async function checkSeat(context: TransactionContext, organizationId: Id): Promise<void> {
@@ -34,6 +34,7 @@ export function registerMembers(context: ModuleContext): void {
   });
   route(context, endpoints.memberCreate, async ({ params, body }, principal, _request, bound) => {
     const org = (await authorize(bound, principal, { organizationId: params.o, level: "manager" }));
+    requireTeamOrganization(org);
     conflict(org.version, body.expectedVersion);
     await managerRole(bound, principal, { organizationId: org.id, role: body.role });
     if (Boolean(body.userId) === Boolean(body.email)) throw new ServiceError("INVALID_MEMBER", 400, "Specify exactly one account ID or verified email");

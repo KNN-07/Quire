@@ -71,7 +71,7 @@ test("stops a failing admitted task subscription and still closes sibling factor
     for (const tick of listeners) tick();
     await bounded(stopped.promise, 10_000);
     // Then: the failing task stopped before shutdown, without stopping its siblings.
-    expect(listeners.size).toBe(2);
+    expect(listeners.size).toBe(4);
     // The resource scope now closes all sibling factories and runtime despite the retained failure.
   };
   const failure = await execute().then(() => null, error => {

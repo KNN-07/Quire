@@ -6,6 +6,12 @@ import { CoreProjects } from "../../core/base";
 
 export class DropboxPolicies {
   constructor(private readonly context: ModuleContext) {}
+  async assertImport(actorId: Id, tx: SqlExecutor = this.context.db): Promise<void> {
+    await new CoreProjects({ ...this.context, db: tx }).readUser(actorId);
+    const denied = await tx.get(`SELECT 1 FROM dropbox_policies WHERE enabled=0 AND scope_kind='organization'
+      AND scope_id IN (SELECT organization_id FROM members WHERE user_id=?)`, [actorId]);
+    if (denied) throw new ServiceError("DROPBOX_POLICY_DENIED", 403, "Dropbox disabled by current organization policy");
+  }
   async get(input: {
     readonly actorId: Id; readonly scope: { readonly kind: "organization" | "project"; readonly id: Id };
   }): Promise<{ readonly enabled: boolean; readonly effectiveEnabled: boolean; readonly version: number }> {

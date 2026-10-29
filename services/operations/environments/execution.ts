@@ -20,8 +20,8 @@ export async function runProfile(input: ProfileBuildInput): Promise<BuildResult>
   const limits = input.limits ?? defaultLimits;
   const main = input.files.find(file => file.id === input.settings.mainFileId);
   if (!main || main.kind !== "file" || !main.editable || main.link ||
-      !(main.path.endsWith(".tex") || profile === "knitr" && main.path === "main.Rnw")) {
-    throw new ServiceError("INVALID_MAIN", 422, "Select an editable unlinked TeX main, or main.Rnw in the knitr profile");
+      !(main.path.endsWith(".tex") || profile === "knitr" && ["main.Rnw", "main.Rtex"].includes(main.path))) {
+    throw new ServiceError("INVALID_MAIN", 422, "Select an editable unlinked TeX main, or main.Rnw/main.Rtex in the knitr profile");
   }
   if (input.files.reduce((sum,file) => sum + file.bytes,0) > limits.workspaceBytes) {
     throw new ServiceError("SOURCE_LIMIT", 422, "Snapshot exceeds the writable workspace budget");

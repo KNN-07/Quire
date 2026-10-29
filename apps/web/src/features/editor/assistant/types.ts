@@ -1,7 +1,8 @@
-import type { Diagnostic, ResponseOf, endpoints } from "@quire/contracts";
+import type { Diagnostic, Preferences, ResponseOf, endpoints } from "@quire/contracts";
+import type { DiagnosticFixRequest } from "../pdf";
 import type {
-  CompileController, EditorClient, EditorDocument, EditorNavigation,
-  EditorWorkspace, SourceSelection,
+  AuthoringHandle, CompileController, EditorClient, EditorDocument, EditorNavigation,
+  EditorWorkspace, ReviewThreadRequest, SourceSelection,
 } from "../shared";
 
 export type AssistantPanelProps = {
@@ -12,7 +13,16 @@ export type AssistantPanelProps = {
   readonly navigation: EditorNavigation;
   readonly compile: CompileController | null;
   readonly diagnostics: readonly Diagnostic[];
+  readonly preferences?: Preferences;
+  readonly onPreferencesChange?: (preferences: Preferences) => void;
+  readonly diagnosticFix?: DiagnosticFixRequest | null;
+  readonly onClearDiagnosticFix?: () => void;
+  readonly threadContext?: ReviewThreadRequest | null;
+  readonly onClearThreadContext?: () => void;
   readonly refreshWorkspace: () => Promise<void>;
+  readonly authoring?: AuthoringHandle | null;
+  readonly citationClient?: EditorClient;
+  readonly tracking?: boolean;
 };
 export type Conversation = ResponseOf<typeof endpoints.aiConversationGet>;
 export type Security = ResponseOf<typeof endpoints.aiSecurityGet>;

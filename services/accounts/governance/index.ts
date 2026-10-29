@@ -1,13 +1,17 @@
 import type { Migration, ModuleContext } from "@quire/runtime";
 import { registerOrganizations } from "./organizations";
 import { registerMembers } from "./members";
+import { registerInvitations } from "./invitations";
 import { registerManaged } from "./managed";
+import { registerManagementReads } from "./management-reads";
 import { registerNotifications } from "./notifications";
 import { registerBilling } from "./billing";
 import { registerReports } from "./reports";
 import { registerAdminUsers } from "./admin-users";
 import { registerAdminMutations } from "./admin-mutations";
 import { registerProjectBenefits } from "./project-benefits";
+import { lifecycleMigration } from "./lifecycle-policy";
+import { registerManagedLifecycle } from "./lifecycle";
 
 export const migrations: readonly Migration[] = [{
   id: "011-a-governance-local",
@@ -52,12 +56,15 @@ BEGIN
   DELETE FROM governance_digest_items WHERE user_id=NEW.id;
 END;
 `,
-}];
+}, lifecycleMigration];
 export function register(context: ModuleContext): void {
   context.services.get("identity");
   registerOrganizations(context);
   registerMembers(context);
+  registerInvitations(context);
   registerManaged(context);
+  registerManagementReads(context);
+  registerManagedLifecycle(context);
   registerNotifications(context);
   registerBilling(context);
   registerReports(context);

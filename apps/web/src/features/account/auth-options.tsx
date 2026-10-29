@@ -3,6 +3,9 @@ import { endpoints } from "@quire/contracts";
 import type { AuthOptions, createClient } from "@quire/contracts";
 import { Button } from "../../ui";
 import { Notice, readInput, unwrap } from "./shared";
+import type { AccountPageProps } from "./shared";
+import { LdapSignIn } from "./ldap-sign-in";
+import { OrganizationSignIn } from "./organization-sign-in";
 
 export function useAuthOptions(client: ReturnType<typeof createClient>) {
   const [options, setOptions] = useState<AuthOptions | null>(null);
@@ -22,19 +25,30 @@ export function useAuthOptions(client: ReturnType<typeof createClient>) {
   return { options, error, reload, setError };
 }
 
-export function ProviderOptions({ client, availability, returnTo }: {
+export function ProviderOptions({ client, availability, returnTo, onSessionChange, navigate, organizationDiscovery = false }: Pick<AccountPageProps, "onSessionChange" | "navigate"> & {
   readonly client: ReturnType<typeof createClient>;
   readonly availability: ReturnType<typeof useAuthOptions>;
   readonly returnTo: string;
+  readonly organizationDiscovery?: boolean;
 }) {
+  const [screen, setScreen] = useState<"providers" | "organization" | "ldap">("providers");
   const { options, error } = availability;
-  return <>{error ? <><Notice error={error} message="" /><Button onClick={() => {
+  function selectProvider(provider: string) {
+    if (provider === "ldap") { setScreen("ldap"); return; }
+    location.assign(client.url(endpoints.identityStart, { params: { provider }, query: { returnTo }, body: undefined }).href);
+  }
+  if (screen === "ldap") {
+    return <LdapSignIn client={client} onSessionChange={onSessionChange} navigate={navigate} returnTo={returnTo} onBack={() => setScreen("providers")} />;
+  }
+  if (screen === "organization") {
+    return <OrganizationSignIn client={client} onBack={() => setScreen("providers")} onSelect={selectProvider} />;
+  }
+  return <>{organizationDiscovery && <Button onClick={() => setScreen("organization")}>Sign in with your organization</Button>}
+    {error ? <><Notice error={error} message="" /><Button onClick={() => {
     void availability.reload().catch((cause: unknown) => { if (cause instanceof Error) availability.setError(cause.message); else throw cause; });
   }}>Reload sign-in options</Button></> : !options ? <p role="status">Loading sign-in options…</p> : options.providers.length === 0 ? <p className="account-muted">No external sign-in providers are configured.</p> : <div className="account-stack">
     {options.providers.map(provider => <div key={provider.id} className="account-stack">
-      <Button disabled={!provider.capability.enabled} onClick={() => {
-        location.assign(client.url(endpoints.identityStart, { params: { provider: provider.id }, query: { returnTo }, body: undefined }).href);
-      }}>Continue with {provider.label}</Button>
+      <Button disabled={!provider.capability.enabled} onClick={() => selectProvider(provider.id)}>Continue with {provider.label}</Button>
       {!provider.capability.enabled && <p className="account-muted">{provider.capability.reason ?? `${provider.label} is ${provider.capability.state}.`}</p>}
     </div>)}
   </div>}</>;

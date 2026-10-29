@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { AiRunSchema } from "@quire/contracts";
-import type { Id, Scope, SqlExecutor, Transaction, AiRun } from "@quire/contracts";
+import { AiRunSchema, AiRunStepSchema } from "@quire/contracts";
+import type { Id, Scope, SqlExecutor, Transaction, AiRun, AiRunStep } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { CoreProjects } from "../../core/base";
 import { store as identityStore } from "../../accounts/identity/store";
 import { intersectPolicy } from "../../accounts/identity/policy";
 import type { AdapterServices } from "../shared";
+import { AiOperatorPolicies } from "../shared/provider-policy";
 import { missingConfiguration } from "./provider";
 import { actorOf, scopeOf, newId, RunRecordSchema, CreateRunSchema } from "./model";
 import type { Actor, CreateRun, RunRecord } from "./model";
@@ -14,7 +15,7 @@ export class AiStore {
   constructor(readonly services: AdapterServices, readonly termsVersion: string) {}
   get context() { return this.services.context; }
   core(db: SqlExecutor = this.context.db) { return new CoreProjects({ ...this.context, db }); }
-  async authorize(actor: Actor, input: Pick<CreateRun, "scope" | "mode">, db: SqlExecutor = this.context.db) {
+  async authorize(actor: Actor, input: Pick<CreateRun, "scope" | "mode"> & { readonly tool?: CreateRun["tool"] }, db: SqlExecutor = this.context.db) {
     const { scope, mode } = input;
     await this.core(db).authorize(actor.id, scope, "read");
     if (!await db.get("SELECT 1 FROM sessions WHERE id=? AND user_id=? AND expires_at>?",
@@ -26,6 +27,15 @@ export class AiStore {
     }
     const security = await db.get<{ confidential: number }>("SELECT confidential FROM ai_project_security WHERE project_id=?", [scope.projectId]);
     if (security?.confidential === 1) throw new ServiceError("AI_CONFIDENTIAL", 403, "Confidential project cannot use AI");
+    const operatorPolicy = await new AiOperatorPolicies(this.context).get(db);
+    if (operatorPolicy.blockConfidentialTags && await db.get(`SELECT 1 FROM tag_assignments a
+      JOIN tags t ON t.id=a.tag_id JOIN projects p ON p.id=a.project_id
+      WHERE p.id=? AND t.user_id=p.owner_id AND lower(trim(t.name))='confidential'`, [scope.projectId])) {
+      throw new ServiceError("AI_CONFIDENTIAL", 403, "Owner tagged this project confidential; operator policy blocks AI");
+    }
+    if (input.tool === "citation-reviewer" && !operatorPolicy.citationWebSearch) {
+      throw new ServiceError("AI_CITATION_POLICY_DENIED", 403, "Citation web search is disabled by the operator");
+    }
     const settings = await this.services.configuration.get("ai", db);
     const missing = missingConfiguration(settings);
     if (missing.length || settings.version === 0) throw new ServiceError("AI_UNCONFIGURED", 503, `Missing: ${missing.join("; ") || "operator AI configuration"}`);
@@ -34,10 +44,10 @@ export class AiStore {
     if (policy.ai === "off" || (mode === "agent" && policy.ai !== "agent")) {
       throw new ServiceError("AI_POLICY_DENIED", 403, "Current user, organization, project or provider policy denies this AI mode");
     }
-    return { settings, policy, preferences: await identityStore({ ...this.context, db }).preferences(actor.id, db) };
+    return { settings, policy, operatorPolicy, preferences: await identityStore({ ...this.context, db }).preferences(actor.id, db) };
   }
   async record(id: Id, db: SqlExecutor = this.context.db): Promise<RunRecord> {
-    const row = await db.get(`SELECT r.*,m.session_id,m.config_version,m.conversation_id,m.request_json,m.error_code
+    const row = await db.get(`SELECT r.*,m.session_id,m.config_version,m.operator_policy_version,m.conversation_id,m.request_json,m.error_code,m.findings_json,m.steps_json
       FROM ai_runs r JOIN ai_run_metadata m ON m.run_id=r.id WHERE r.id=?`, [id]);
     if (!row) throw new ServiceError("NOT_FOUND", 404, "AI run not found");
     return RunRecordSchema.parse(row);
@@ -53,12 +63,32 @@ export class AiStore {
     }
     return run;
   }
-  dto(run: RunRecord, messages?: AiRun["messages"]): AiRun {
+  dto(run: RunRecord, messages?: AiRun["messages"], findings?: AiRun["findings"]): AiRun {
     return AiRunSchema.parse({ id: run.id, scope: scopeOf(run), mode: run.mode, status: run.status,
       tool: CreateRunSchema.parse(JSON.parse(run.request_json)).tool, version: run.version,
       errorCode: run.error_code, conversationId: run.conversation_id,
       messages: messages ?? JSON.parse(run.messages_json), proposals: JSON.parse(run.proposals_json),
-      sources: JSON.parse(run.sources_json), usageId: run.usage_id });
+      sources: JSON.parse(run.sources_json), findings: findings ?? JSON.parse(run.findings_json),
+      steps: JSON.parse(run.steps_json), usageId: run.usage_id });
+  }
+  async steps(tx: Transaction, run: RunRecord, finish?: Exclude<AiRunStep["status"], "running">, start?: AiRunStep["kind"]) {
+    const now = this.context.clock.now();
+    const steps = z.array(AiRunStepSchema).max(5).parse(JSON.parse(run.steps_json));
+    const next = steps.map(step => step.status === "running" && finish
+      ? { ...step, status: finish, finishedAt: now } : step);
+    if (start) next.push({ kind: start, status: "running", startedAt: now, finishedAt: null });
+    await tx.run("UPDATE ai_run_metadata SET steps_json=? WHERE run_id=?", [JSON.stringify(next), run.id]);
+  }
+  async progress(id: Id, finish?: Exclude<AiRunStep["status"], "running">, start?: AiRunStep["kind"]) {
+    await this.context.uow.run(async tx => {
+      await tx.lock("quire:accounts");
+      const run = await this.record(id, tx);
+      if (run.status !== "queued" && run.status !== "running") throw new ServiceError("AI_CANCELED", 409, "AI run is no longer active");
+      await this.steps(tx, run, finish, start);
+      await tx.run("UPDATE ai_runs SET version=version+1,updated_at=? WHERE id=?", [this.context.clock.now(), id]);
+      await this.changed(tx, run);
+    });
+    await this.context.events.dispatch();
   }
   async audit(tx: Transaction, input: { readonly actorId: Id; readonly targetId: Id; readonly event: string }) {
     await tx.run("INSERT INTO audit_entries(id,at,actor_id,event,target_id,details_json) VALUES(?,?,?,?,?,'{}')",
@@ -72,6 +102,10 @@ export class AiStore {
     const request = CreateRunSchema.parse(JSON.parse(run.request_json));
     const authority = await this.authorize(actorOf(run), request, db);
     if (authority.settings.version !== run.config_version) throw new ServiceError("AI_CONFIGURATION_CHANGED", 409, "AI configuration changed");
+    if (authority.operatorPolicy.version !== run.operator_policy_version) throw new ServiceError("AI_CONFIGURATION_CHANGED", 409, "Operator AI policy changed");
+    if (request.tool === "citation-reviewer" && (!authority.preferences.citationWebSearch || !authority.preferences.citationProviders.length)) {
+      throw new ServiceError("AI_RETRIEVAL_CONSENT", 403, "Enable citation web search and explicitly select retrieval providers");
+    }
     if (request.tool === "inline-completion" && !authority.preferences.inlineCompletion) throw new ServiceError("AI_INLINE_DISABLED", 403, "Inline completion disabled");
     if (authority.preferences.aiModel && authority.preferences.aiModel !== authority.settings.model) throw new ServiceError("AI_MODEL_UNCONFIGURED", 409, "Selected model changed");
     return authority;

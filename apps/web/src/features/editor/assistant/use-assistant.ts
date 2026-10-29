@@ -9,12 +9,19 @@ export function useAssistant(props: AssistantPanelProps) {
   const { client, workspace } = props;
   const headers = workspace.requestHeaders;
   const params = { p: workspace.scope.projectId };
-  const storageKey = `quire:assistant:${workspace.access.actorId}:${params.p}:${workspace.scope.branch}`;
+  const intent = props.diagnosticFix?.key ?? props.threadContext?.key;
+  const intentKey = intent ? `:${intent}` : "";
+  const storageKey = `quire:assistant:${workspace.access.actorId}:${params.p}:${workspace.scope.branch}${intentKey}`;
   const abort = useRef(new AbortController());
   const current = useRef<AiRun | null>(null);
   const runEpoch = useRef(0);
+  const authorityEpoch = useRef(0);
   const [run, setRun] = useState<AiRun | null>(null);
-  const [preferences, setPreferences] = useState<Preferences | null>(null);
+  const [preferences, setPreferencesValue] = useState<Preferences | null>(null);
+  const setPreferences = (value: Preferences) => {
+    setPreferencesValue(value);
+    if (props.preferences?.version !== value.version) props.onPreferencesChange?.(value);
+  };
   const [security, setSecurity] = useState<Security | null>(null);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [consentMetadata, setConsentMetadata] = useState<AiConsentMetadata | null>(null);
@@ -25,21 +32,34 @@ export function useAssistant(props: AssistantPanelProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const updateRun = useCallback((value: AiRun | null) => {
+    if (abort.current.signal.aborted) return;
     if (value && current.current?.id === value.id && current.current.version > value.version) return;
     if (value?.id !== current.current?.id) runEpoch.current++;
     current.current = value;
     setRun(value);
     if (value) sessionStorage.setItem(
-      `quire:assistant:${workspace.access.actorId}:${value.scope.projectId}:${value.scope.branch}`, value.id);
+      `quire:assistant:${workspace.access.actorId}:${value.scope.projectId}:${value.scope.branch}${intentKey}`, value.id);
     else sessionStorage.removeItem(storageKey);
-  }, [storageKey, workspace.access.actorId]);
+  }, [storageKey, workspace.access.actorId, intentKey]);
   const readRun = async (id: AiRun["id"]) => {
     const signal = abort.current.signal;
     const epoch = runEpoch.current;
     const value = editorValue(await client.call(endpoints.aiRunGet, {
       params: { id }, query: {}, body: undefined, headers,
     }, signal));
+    if (signal.aborted) return value;
     if (epoch !== runEpoch.current) return value;
+    if (props.diagnosticFix && value.proposals.some(proposal => proposal.edits.some(edit => edit.status === "pending"))) {
+      const access = editorValue(await client.call(endpoints.projectAccess, {
+        params, query: { branch: workspace.scope.branch }, body: undefined, headers,
+      }, signal));
+      if (signal.aborted || epoch !== runEpoch.current) return value;
+      if (access.branchRevision !== props.diagnosticFix.revision) {
+        updateRun(null);
+        setNotice("Diagnostic source changed. Discarded the late proposal; recompile and choose a fresh diagnostic.");
+        return value;
+      }
+    }
     updateRun(value);
     const publishedEpoch = runEpoch.current;
     if (value.conversationId && (value.mode === "ask" || conversation?.id === value.conversationId)) {
@@ -92,7 +112,15 @@ export function useAssistant(props: AssistantPanelProps) {
         await refresh();
       }
       if (event.topic === "policy.changed" || event.topic === "access.changed") {
+        authorityEpoch.current++;
+        const reviewer = current.current?.tool === "citation-reviewer" ? current.current : null;
         await refresh(); await props.refreshWorkspace();
+        // Notifications can replay older policy events after reload. Recheck the
+        // current run instead of erasing a still-authorized session receipt.
+        if (reviewer && current.current?.id === reviewer.id) {
+          try { await readRun(reviewer.id); }
+          catch (failure) { if (current.current?.id === reviewer.id) updateRun(null); throw failure; }
+        }
       }
   });
   const subscribe = useEffectEvent((notificationSignal: AbortSignal) =>
@@ -112,7 +140,8 @@ export function useAssistant(props: AssistantPanelProps) {
     };
   }, [client, report]);
   return {
-    ...props, params, headers, get signal() { return abort.current.signal; }, run, preferences, setPreferences,
+    ...props, params, headers, get signal() { return abort.current.signal; },
+    get authorityEpoch() { return authorityEpoch.current; }, run, preferences: props.preferences ?? preferences, setPreferences,
     security, setSecurity, usage, consentMetadata, conversation,
     setConversation: (value: Conversation | null) => {
       runEpoch.current++; setConversationValue(value);

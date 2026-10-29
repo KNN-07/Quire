@@ -10,8 +10,8 @@ import { completionKeymap, startCompletion } from "@codemirror/autocomplete";
 import { gotoLine, search, highlightSelectionMatches } from "@codemirror/search";
 import { setDiagnostics } from "@codemirror/lint";
 import type { Diagnostic } from "@codemirror/lint";
-import { UndoManager } from "yjs";
-import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
+import { Doc, UndoManager } from "yjs";
+import { yCollab } from "y-codemirror.next";
 import type { AuthoringHandle, EditorDocument, SourceSelection } from "../shared";
 import { lineOffset, sourceSelection } from "./tex";
 import type { TexIndex } from "./tex";
@@ -55,6 +55,10 @@ export type SourceEditorOptions = {
   readonly onSelection: (selection: SourceSelection) => void;
   readonly onChange: (source: string) => void;
   readonly onFind: () => void;
+  /** This private text is never connected to the transport or shared awareness. */
+  readonly draft?: { readonly text: string; readonly canEdit: () => boolean };
+  readonly sharedUndo?: UndoManager;
+  readonly externalInsertionBlocked?: () => boolean;
 };
 const highlighting = HighlightStyle.define([
   { tag: [tags.keyword, tags.tagName], color: "var(--q-syntax-command)" },
@@ -67,12 +71,24 @@ const highlighting = HighlightStyle.define([
 export function createSourceEditor(options: SourceEditorOptions) {
   const preferences = new Compartment();
   const access = new Compartment();
-  const undo = new UndoManager(options.document.source);
+  const privateDoc = options.draft ? new Doc() : null;
+  const boundSource = privateDoc?.getText("source") ?? options.document.source;
+  if (privateDoc && options.draft) boundSource.insert(0, options.draft.text);
+  const undo = privateDoc ? new UndoManager(boundSource) : options.sharedUndo ?? new UndoManager(boundSource);
+  const undoCommand = (target: EditorView) => {
+    if (!target.state.readOnly) undo.undo();
+    return true;
+  };
+  const redoCommand = (target: EditorView) => {
+    if (!target.state.readOnly) undo.redo();
+    return true;
+  };
   const completion = texCompletion(options.index);
-  const source = options.document.source.toJSON();
+  const source = boundSource.toJSON();
+  const isReadOnly = () => options.draft ? !options.draft.canEdit() : options.document.getSnapshot().readOnly;
   const editable = () => [
-    EditorState.readOnly.of(options.document.getSnapshot().readOnly),
-    EditorView.editable.of(!options.document.getSnapshot().readOnly),
+    EditorState.readOnly.of(isReadOnly()),
+    EditorView.editable.of(!isReadOnly()),
   ];
   const view = new EditorView({
     parent: options.parent,
@@ -87,6 +103,11 @@ export function createSourceEditor(options: SourceEditorOptions) {
         preferences.of(preferenceExtensions(options.preferences, completion)), access.of(editable()),
         EditorView.domEventHandlers({
           beforeinput(event, target) {
+            if (event instanceof InputEvent && target.state.readOnly
+              && (event.inputType === "historyUndo" || event.inputType === "historyRedo")) {
+              event.preventDefault();
+              return true;
+            }
             if (!(event instanceof InputEvent) || event.isComposing || target.state.readOnly
               || event.inputType !== "insertText" || event.data === null || !event.data.includes("\n")) return false;
             // Preserve the raw multiline insertion before contenteditable reconciles
@@ -102,7 +123,7 @@ export function createSourceEditor(options: SourceEditorOptions) {
           if (transaction.isUserEvent("input.paste")) undo.stopCapturing();
           return null;
         }),
-        yCollab(options.document.source, options.document.awareness, { undoManager: undo }),
+        yCollab(boundSource, privateDoc ? null : options.document.awareness, { undoManager: undo }),
         Prec.highest(keymap.of([
           { key: "Mod-f", run: () => { options.onFind(); return true; } },
           { key: "Ctrl-h", mac: "Mod-Alt-f", run: () => { options.onFind(); return true; } },
@@ -111,7 +132,8 @@ export function createSourceEditor(options: SourceEditorOptions) {
           { key: "Mod-/", run: toggleLineComment },
           { key: "Ctrl-Space", mac: "Ctrl-Space", run: startCompletion },
           { key: "Alt-Space", mac: "Alt-Space", run: startCompletion },
-          ...yUndoManagerKeymap,
+          { key: "Mod-z", run: undoCommand, shift: redoCommand, preventDefault: true },
+          { key: "Mod-y", run: redoCommand, preventDefault: true },
         ])),
         keymap.of([...completionKeymap, ...defaultKeymap, indentWithTab]),
         EditorView.contentAttributes.of({ "aria-label": `Source: ${options.document.file.path}` }),
@@ -126,9 +148,9 @@ export function createSourceEditor(options: SourceEditorOptions) {
     }),
   });
   let active = true;
-  let readOnly = options.document.getSnapshot().readOnly;
+  let readOnly = isReadOnly();
   const unsubscribe = options.document.subscribe(() => {
-    const next = options.document.getSnapshot().readOnly;
+    const next = isReadOnly();
     if (next === readOnly) return;
     readOnly = next;
     // Yjs publishes saving synchronously inside CodeMirror's update transaction.
@@ -144,6 +166,8 @@ export function createSourceEditor(options: SourceEditorOptions) {
       view.focus();
     },
     replaceSelection: text => {
+      if (!active) throw new Error("The source editor changed. Reopen the insertion tool before making changes.");
+      if (options.draft || options.externalInsertionBlocked?.()) throw new Error("External and structural insertions are unavailable while Track changes is on. Type or paste text in Source to propose it.");
       if (options.document.getSnapshot().readOnly) return;
       const safe = sourceSelection(view.state.doc.toString(), view.state.selection.main);
       const from = Math.min(safe.anchor, safe.head);
@@ -153,9 +177,14 @@ export function createSourceEditor(options: SourceEditorOptions) {
   };
   return {
     view, handle,
+    access: () => view.dispatch({ effects: access.reconfigure(editable()) }),
     preferences: (next: Preferences) => view.dispatch({ effects: preferences.reconfigure(preferenceExtensions(next, completion)) }),
     diagnostics: (issues: readonly Diagnostic[]) => view.dispatch(setDiagnostics(view.state, issues)),
-    destroy: () => { active = false; unsubscribe(); view.destroy(); undo.destroy(); },
+    destroy: () => {
+      active = false; unsubscribe(); view.destroy();
+      if (privateDoc || !options.sharedUndo) undo.destroy();
+      privateDoc?.destroy();
+    },
   };
 }
 export type SourceEditor = ReturnType<typeof createSourceEditor>;

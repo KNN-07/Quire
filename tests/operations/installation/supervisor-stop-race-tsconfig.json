@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../services/operations/installation/systemd-authority.ts",
+    "./supervisor-stop-race.test.ts"
+  ],
+  "exclude": []
+}

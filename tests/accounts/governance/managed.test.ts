@@ -25,6 +25,13 @@ async function configureManagedOwnerBenefits(app: Awaited<ReturnType<typeof mana
   ] as const) expect((await operator.write(`/api/admin/project-benefits/${scope}`,
     { benefits, expectedVersion: 0 }, { method: "PUT" })).status).toBe(200);
 }
+async function acceptTransferRecipient(app: Awaited<ReturnType<typeof managedFixture>>) {
+  expect((await app.admin.write(`/api/organizations/${ids.team}/managed/invite`,
+    { userId: ids.kien, expectedVersion: 1 })).status).toBe(200);
+  const recipient = z.object({ id: IdSchema }).parse(await app.runtime.db.get(
+    "SELECT id FROM managed_acceptances WHERE organization_id=? AND user_id=?", [ids.team, ids.kien]));
+  expect((await app.admin.write(`/api/managed/${recipient.id}/accept`, { expectedVersion: 0 })).status).toBe(200);
+}
 test("requires the invited account to accept management before any account control", async () => {
   // Given: an invitation that has not changed user ownership.
   await using app = await managedFixture();
@@ -58,6 +65,7 @@ test("reassigns every owned project before managed deletion and immediately revo
   await using app = await managedFixture();
   await app.user.write(`/api/managed/${app.acceptanceId}/accept`, { expectedVersion: 0 });
   await configureManagedOwnerBenefits(app);
+  await acceptTransferRecipient(app);
   const second = IdSchema.parse(crypto.randomUUID());
   await app.runtime.db.run("INSERT INTO projects(id,name,owner_id,settings_json,created_at,updated_at) SELECT ?,'Personal',?,'{}',created_at,updated_at FROM projects WHERE id=?", [second, ids.mai, ids.project]);
   // When: a valid administrator deletes the managed account with reassignment.
@@ -116,6 +124,7 @@ test("reassigns before terminal deletion exactly at the 90-day lifecycle boundar
   await using app = await managedFixture();
   await app.user.write(`/api/managed/${app.acceptanceId}/accept`, { expectedVersion: 0 });
   await configureManagedOwnerBenefits(app);
+  await acceptTransferRecipient(app);
   await app.runtime.db.run("UPDATE projects SET owner_id=? WHERE id=?", [ids.mai, ids.project]);
   await transitionManaged(app.context, app.admin.principal, { organizationId: ids.team, userId: ids.mai, expectedVersion: 1, action: "lapse" });
   app.setTime("2027-01-24T12:00:00.000Z");

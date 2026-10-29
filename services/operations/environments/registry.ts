@@ -5,6 +5,7 @@ import { ServiceError } from "@quire/runtime";
 import type { ModuleContext } from "@quire/runtime";
 import { ManifestInputSchema, digest } from "./model";
 import type { ProbeReport } from "./model";
+import { requireEnvironmentAdmission } from "./admission";
 
 export const nativeDigests = new WeakMap<object,string>();
 export type EnvironmentActor = {readonly id:Id;readonly sessionId:Id};
@@ -99,6 +100,7 @@ export async function changeEnvironment(context: ModuleContext, input: {
     switch (input.action) {
       case "default": {
         await resolveEnvironment({ ...context, db: tx }, input.id);
+        await requireEnvironmentAdmission({ ...context, db: tx }, record.manifest);
         const previous = await tx.get<{id:string}>("SELECT id FROM environments WHERE is_default=1 AND id<>?",[input.id]);
         if (previous) changed.push(await environmentRecord({db:tx},IdSchema.parse(previous.id)));
         await tx.run("UPDATE environments SET is_default=0 WHERE is_default=1");

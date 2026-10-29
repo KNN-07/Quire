@@ -3,10 +3,12 @@ import { routesFor, none, noBody, list, version, key } from "./route-builders";
 import { IdSchema as id, InstantSchema, CountSchema, CapabilitySchema, OkSchema, pageSchema } from "./primitives";
 import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, PreferencesSchema, SessionSchema, OrganizationSchema, MembershipSchema,
-  MemberRoleSchema, PolicySchema, AuditEntrySchema, BillingAccountSchema, IdentityConfigSchema,
+  MemberRoleSchema, ManagedStateSchema, InvitationSchema, PolicySchema, AuditEntrySchema, BillingAccountSchema, IdentityConfigSchema,
   AuthOptionsSchema, LinkedIdentitySchema, NotificationPreferencesSchema, InvoiceSchema, ProjectBenefitsSchema } from "./accounts";
 import { OperationSchema } from "./work";
 import { AvatarUploadSchema, SamlCallbackSchema } from "./multipart";
+import { OnboardingChoicesSchema, OnboardingSchema, OnboardingImportDraftSchema, OnboardingImportFileSchema } from "./accounts";
+import { ManagedLifecycleSettingsSchema, ManagedLifecycleScheduleSchema } from "./accounts";
 
 const r = routesFor("A");
 const operator = routesFor("O");
@@ -29,10 +31,28 @@ const metrics = z.strictObject({
   from: InstantSchema, to: InstantSchema, activeUsers: CountSchema, activeProjects: CountSchema,
   compileCount: CountSchema, compileMs: CountSchema, storageBytes: CountSchema, aiUses: CountSchema,
 });
+const management = z.strictObject({ id, state: ManagedStateSchema, version: CountSchema });
+const managedMember = z.strictObject({
+  id, name: z.string(), email, member: MembershipSchema, userVersion: CountSchema,
+  management: management.nullable(), canInvite: z.boolean(), canRelease: z.boolean(),
+  canDelete: z.boolean(), canReceiveProjects: z.boolean(),
+});
 export const accountEndpoints = {
+  onboardingGet: r("GET", "/api/me/onboarding", { params: none, query: none, body: noBody, output: OnboardingSchema }),
+  onboardingSave: r("PATCH", "/api/me/onboarding", { params: none, query: none, body: z.strictObject({ actorId: id, choices: OnboardingChoicesSchema, ...version }), output: OnboardingSchema, ...key }),
+  onboardingStart: r("POST", "/api/me/onboarding/start", { params: none, query: none, body: z.strictObject({ actorId: id, ...version }), output: OnboardingSchema, ...key }),
+  onboardingComplete: r("POST", "/api/me/onboarding/complete", { params: none, query: none, body: z.strictObject({ actorId: id, ...version }), output: OnboardingSchema, ...key }),
+  onboardingImportSave: r("PATCH", "/api/me/onboarding/import", { params: none, query: none, body: z.strictObject({ actorId: id, draft: OnboardingImportDraftSchema, ...version }), output: OnboardingSchema, ...key }),
+  onboardingImportStart: r("POST", "/api/me/onboarding/import/start", { params: none, query: none, body: z.strictObject({ actorId: id, file: OnboardingImportFileSchema.nullable(), ...version }), output: OnboardingSchema, ...key }),
+  onboardingImportRecover: r("POST", "/api/me/onboarding/import/recover", { params: none, query: none, body: z.strictObject({ actorId: id }), output: z.strictObject({ progress: OnboardingSchema, operation: OperationSchema.nullable() }) }),
   adminProjectBenefitsGet: r("GET", "/api/admin/project-benefits/:kind/:key", { params: benefitParams, query: none, body: noBody, output: benefitSet }),
   adminProjectBenefitsPut: r("PUT", "/api/admin/project-benefits/:kind/:key", { params: benefitParams, query: none, body: z.strictObject({ benefits: ProjectBenefitsSchema.nullable(), ...version }), output: benefitSet }),
   authOptions: r("GET", "/api/auth/options", { params: none, query: none, body: noBody, output: AuthOptionsSchema }),
+  authDiscover: r("GET", "/api/auth/discover", { params: none, query: z.strictObject({
+    domain: z.string().trim().toLowerCase().max(253).regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/),
+  }), body: noBody, output: z.strictObject({ organizations: z.array(z.strictObject({
+    id, name: z.string(), provider: z.enum(["oidc", "saml", "ldap"]), capability: CapabilitySchema,
+  })) }) }),
   authRegister: r("POST", "/api/auth/register", { params: none, query: none, body: z.strictObject({ name: z.string().min(1), email, password }), output: z.strictObject({ verificationRequired: z.boolean() }), ...key }),
   authVerifyEmail: r("POST", "/api/auth/verify-email", { params: none, query: none, body: z.strictObject({ token }), output: ok }),
   authLogin: r("POST", "/api/auth/login", { params: none, query: none, body: z.strictObject({ email, password: z.string() }), output: UserSchema }),
@@ -67,10 +87,17 @@ export const accountEndpoints = {
   notificationPreferences: r("PATCH", "/api/me/notification-preferences", { params: none, query: none, body: NotificationPreferencesSchema.unwrap().omit({ version: true }).extend(version), output: ok }),
   organizationsList: r("GET", "/api/organizations", { params: none, query: list, body: noBody, output: pageSchema(OrganizationSchema) }),
   organizationGet: r("GET", "/api/organizations/:o", { params: org, query: none, body: noBody, output: OrganizationSchema }),
+  organizationAccess: r("GET", "/api/organizations/:o/access", { params: org, query: none, body: noBody, output: z.strictObject({ role: MemberRoleSchema.nullable(), operator: z.boolean() }) }),
   organizationCreate: r("POST", "/api/organizations", { params: none, query: none, body: OrganizationSchema.unwrap().pick({ name: true, kind: true, domains: true }), output: OrganizationSchema, ...key }),
   organizationPatch: r("PATCH", "/api/organizations/:o", { params: org, query: none, body: OrganizationSchema.unwrap().pick({ name: true, kind: true, domains: true }).partial().extend(version), output: OrganizationSchema }),
   organizationDelete: r("DELETE", "/api/organizations/:o", { params: org, query: none, body: existing, output: ok }),
   membersList: r("GET", "/api/organizations/:o/members", { params: org, query: list, body: noBody, output: pageSchema(MembershipSchema) }),
+  organizationInvitationsList: r("GET", "/api/organizations/:o/invitations", { params: org, query: list, body: noBody, output: pageSchema(InvitationSchema) }),
+  organizationInvitationCreate: r("POST", "/api/organizations/:o/invitations", { params: org, query: none, body: z.strictObject({ email, role: MemberRoleSchema, ...version }), output: InvitationSchema, ...key }),
+  organizationInvitationGet: r("GET", "/api/organization-invitations/:id", { params: ids, query: none, body: noBody, output: z.strictObject({ invitation: InvitationSchema, organizationName: z.string() }) }),
+  organizationInvitationAccept: r("POST", "/api/organization-invitations/:id/accept", { params: ids, query: none, body: z.strictObject({ token, ...version }), output: MembershipSchema, ...key }),
+  organizationInvitationResend: r("POST", "/api/organizations/:o/invitations/:id/resend", { params: orgId, query: none, body: existing, output: InvitationSchema, ...key }),
+  organizationInvitationDelete: r("DELETE", "/api/organizations/:o/invitations/:id", { params: orgId, query: none, body: existing, output: ok, ...key }),
   memberCreate: r("POST", "/api/organizations/:o/members", { params: org, query: none, body: z.strictObject({ userId: id.optional(), email: email.optional(), role: MemberRoleSchema, licensed: z.boolean(), ...version }), output: MembershipSchema, ...key }),
   memberPatch: r("PATCH", "/api/organizations/:o/members/:id", { params: orgId, query: none, body: z.strictObject({ role: MemberRoleSchema.optional(), licensed: z.boolean().optional(), ...version }), output: MembershipSchema }),
   memberDelete: r("DELETE", "/api/organizations/:o/members/:id", { params: orgId, query: none, body: existing, output: ok }),
@@ -83,6 +110,11 @@ export const accountEndpoints = {
   institutionGet: r("GET", "/api/institutions/:slug", { params: z.strictObject({ slug: z.string() }), query: none, body: noBody, output: OrganizationSchema }),
   institutionEnroll: r("POST", "/api/institutions/:slug/enroll", { params: z.strictObject({ slug: z.string() }), query: none, body: none, output: MembershipSchema, ...key }),
   managedInvite: r("POST", "/api/organizations/:o/managed/invite", { params: org, query: none, body: z.strictObject({ userId: id, ...version }), output: ok, ...key }),
+  managedLifecycleGet: r("GET", "/api/organizations/:o/managed-lifecycle", { params: org, query: none, body: noBody, output: ManagedLifecycleScheduleSchema }),
+  managedLifecyclePut: r("PUT", "/api/organizations/:o/managed-lifecycle", { params: org, query: none, body: z.strictObject({ settings: ManagedLifecycleSettingsSchema, ...version }), output: ManagedLifecycleScheduleSchema }),
+  managedLifecycleTransition: r("POST", "/api/organizations/:o/managed/:u/lifecycle", { params: org.extend({ u: id }), query: none, body: z.strictObject({ action: z.enum(["lapse", "recover"]), ...version }), output: ok }),
+  organizationManagementList: r("GET", "/api/organizations/:o/managed", { params: org, query: list, body: noBody, output: pageSchema(managedMember) }),
+  managementList: r("GET", "/api/me/management", { params: none, query: list, body: noBody, output: pageSchema(management.extend({ organizationId: id, organizationName: z.string(), canAccept: z.boolean() })) }),
   managedAccept: r("POST", "/api/managed/:id/accept", { params: ids, query: none, body: existing, output: ok, ...key }),
   managedRelease: r("POST", "/api/organizations/:o/managed/:u/release", { params: org.extend({ u: id }), query: none, body: existing, output: ok }),
   managedDelete: r("POST", "/api/organizations/:o/managed/:u/delete", { params: org.extend({ u: id }), query: none, body: z.strictObject({ transferTo: id, ...version }), output: ok }),

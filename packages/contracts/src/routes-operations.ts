@@ -4,7 +4,7 @@ import { IdSchema as id, CountSchema, InstantSchema, OkSchema as ok, pageSchema,
 import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, AdminUserSummarySchema, AuditEntrySchema, PolicySchema } from "./accounts";
 import { OperationSchema, OperationSummarySchema, WorkerSchema, EnvironmentSchema, ProviderConfigSchema, BackupSchema, ReleaseSchema } from "./work";
-import { ProjectSchema } from "./projects";
+import { EngineSchema, ProjectSchema } from "./projects";
 
 const r = routesFor("O");
 const a = routesFor("A");
@@ -20,6 +20,10 @@ export const operationEndpoints = {
   operationsList: r("GET", "/api/operations", { params: none, query: list.extend({ kind: z.string().optional(), status: JobStatusSchema.optional() }), body: noBody, output: pageSchema(OperationSummarySchema) }),
   operationGet: r("GET", "/api/operations/:id", { params: ids, query: none, body: noBody, output: OperationSchema }),
   adminOverview: r("GET", "/api/admin/overview", { params: none, query: none, body: noBody, output: z.strictObject({ users: CountSchema, projects: CountSchema, storageBytes: CountSchema, queuedJobs: CountSchema, runningJobs: CountSchema, capabilities: z.record(z.string(), CapabilitySchema), topology: z.array(z.strictObject({ role: z.string(), backend: z.string(), state: z.string() })) }) }),
+  adminCompileQueue: r("GET", "/api/admin/compile-queue", { params: none, query: list, body: noBody,
+    output: pageSchema(z.strictObject({ id, projectId: id, projectName: z.string(), branch: z.string(),
+      engine: EngineSchema, status: z.enum(["queued", "running"]), workerId: id.nullable(),
+      queuedAt: InstantSchema, startedAt: InstantSchema.nullable() })) }),
   adminUserGet: a("GET", "/api/admin/users/:u", { params: user, query: none, body: noBody, output: UserSchema }),
   adminUsersList: a("GET", "/api/admin/users", { params: none, query: usersQuery, body: noBody, output: pageSchema(AdminUserSummarySchema) }),
   adminUsersCsv: a("GET", "/api/admin/users.csv", { params: none, query: usersQuery.omit({ cursor: true, limit: true }), body: noBody, output: BytesSchema, transport: "bytes" }),
@@ -53,6 +57,11 @@ export const operationEndpoints = {
   providerGet: r("GET", "/api/admin/providers/:kind", { params: provider, query: none, body: noBody, output: ProviderConfigSchema }),
   providerPut: r("PUT", "/api/admin/providers/:kind", { params: provider, query: none, body: z.strictObject({ baseUrl: z.url(), model: z.string().optional(), secret: z.string().optional(), policy: PolicySchema, ...version }), output: ProviderConfigSchema, ifMatch: true }),
   providerTest: r("POST", "/api/admin/providers/:kind/test", { params: provider, query: none, body: existing, output: z.strictObject({ ok: z.boolean(), reason: z.string().optional() }) }),
+  providerAiPolicyGet: r("GET", "/api/admin/providers/ai/policy", { params: none, query: none, body: noBody,
+    output: ProviderConfigSchema.unwrap().shape.aiPolicy.unwrap() }),
+  providerAiPolicyPut: r("PUT", "/api/admin/providers/ai/policy", { params: none, query: none,
+    body: ProviderConfigSchema.unwrap().shape.aiPolicy.unwrap().unwrap().omit({ version: true }).extend(version),
+    output: ProviderConfigSchema.unwrap().shape.aiPolicy.unwrap(), ifMatch: true }),
   auditList: a("GET", "/api/admin/audit", { params: none, query: list.extend({ event: z.string().optional(), from: InstantSchema.optional(), to: InstantSchema.optional() }), body: noBody, output: pageSchema(AuditEntrySchema) }),
   auditExport: a("POST", "/api/admin/audit/export", { params: none, query: none, body: z.strictObject({ event: z.string().optional(), from: InstantSchema.optional(), to: InstantSchema.optional() }), output: OperationSchema, ...key, successStatus: 202 }),
   auditSiem: r("PUT", "/api/admin/audit/siem", { params: none, query: none, body: z.strictObject({ endpoint: z.url(), secret: z.string().optional(), enabled: z.boolean(), ...version }), output: ok, ifMatch: true }),

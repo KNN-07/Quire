@@ -10,12 +10,14 @@ import type { NewProjectMode } from "./NewProjectDialog";
 import { TemplateBrowser } from "./Templates";
 import { ProjectActions, TagDialog } from "./ProjectActions";
 import { OperationStatus } from "./OperationStatus";
+import { OnboardingImportDialog } from "../account/OnboardingImportDialog";
 import "./projects.css";
 
 const OwnerSchema = z.enum(["all", "me", "shared"]);
 const StateSchema = z.enum(["active", "archived", "trash"]);
 const SortSchema = z.enum(["updated", "title", "owner"]);
 const DirectionSchema = z.enum(["asc", "desc"]);
+const WorkspaceSchema = z.union([z.enum(["all", "personal"]), IdSchema]);
 const lists = [
   { label: "All projects", owner: "all", state: "active" },
   { label: "Your projects", owner: "me", state: "active" },
@@ -23,7 +25,13 @@ const lists = [
   { label: "Archived", owner: "all", state: "archived" },
   { label: "Trash", owner: "all", state: "trash" },
 ] as const;
-export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
+export function ProjectsPage({ client, navigate, path, onSessionChange }: ProjectsPageProps) {
+  const onboardingImport = new URL(path, window.location.origin).searchParams.get("onboarding") === "1"
+    && new URL(path, window.location.origin).searchParams.get("new") === "import";
+  const workspaceQuery = new URL(path, window.location.origin).searchParams.get("workspace") ?? "all";
+  const parsedWorkspace = WorkspaceSchema.safeParse(workspaceQuery);
+  const pathWorkspace = parsedWorkspace.success ? parsedWorkspace.data : "all";
+  const [workspace, setWorkspace] = useState(pathWorkspace);
   const [owner, setOwner] = useState<z.infer<typeof OwnerSchema>>("all");
   const [state, setState] = useState<z.infer<typeof StateSchema>>("active");
   const [query, setQuery] = useState("");
@@ -42,6 +50,7 @@ export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
     const destination = new URL(path, window.location.origin);
     if (destination.searchParams.get("new") === "import") {
       destination.searchParams.delete("new");
+      if (onboardingImport) destination.searchParams.delete("onboarding");
       navigate(`${destination.pathname}${destination.search}${destination.hash}`);
     }
   }
@@ -52,9 +61,31 @@ export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
   const [busy, setBusy] = useState(false);
   const [operation, setOperation] = useState<Operation>();
   const [downloadable, setDownloadable] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const account = useResource(useCallback(async (signal: AbortSignal) => value(await client.call(endpoints.me, {
+    params: {}, query: {}, body: undefined,
+  }, signal)).user, [client]));
+  useEffect(() => {
+    setWorkspace(pathWorkspace);
+    setCursor(undefined);
+    setSelected([]);
+    setActionProject(undefined);
+    setError("");
+  }, [pathWorkspace]);
+  const workspaces = useResource(useCallback(async (signal: AbortSignal) => {
+    const items: z.infer<typeof endpoints.projectWorkspaces.output>["items"][number][] = [];
+    let next: string | undefined;
+    do {
+      const page = value(await client.call(endpoints.projectWorkspaces, {
+        params: {}, query: { limit: 100, ...(next ? { cursor: next } : {}) }, body: undefined, headers: {},
+      }, signal));
+      items.push(...page.items); next = page.nextCursor ?? undefined;
+    } while (next);
+    return items;
+  }, [client]));
   const projects = useResource(useCallback(async (signal: AbortSignal) => value(await client.call(endpoints.projectList, {
-    params: {}, query: { q: query, owner, state, sort, direction, limit: 50, ...(tagId ? { tag: tagId } : {}), ...(cursor ? { cursor } : {}) }, body: undefined, headers: {},
-  }, signal)), [client, query, owner, state, sort, direction, tagId, cursor]));
+    params: {}, query: { workspace, q: query, owner, state, sort, direction, limit: 50, ...(tagId ? { tag: tagId } : {}), ...(cursor ? { cursor } : {}) }, body: undefined, headers: {},
+  }, signal)), [client, workspace, query, owner, state, sort, direction, tagId, cursor]));
   const tags = useResource(useCallback(async (signal: AbortSignal) => {
     const items: Tag[] = [];
     let next: string | undefined;
@@ -110,9 +141,32 @@ export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
     <Button variant="ghost" onClick={() => navigate("/settings/profile")}>Account settings</Button>
   </nav>;
   return <div className="p-projects" data-path={path}>
-    <AppHeader actions={<Button onClick={() => navigate("/settings/profile")}>Account settings</Button>}>
+    <AppHeader actions={<Button aria-label="Account settings" title={account.data?.name}
+      onClick={() => navigate("/settings/profile")}>
+      {account.data && (account.data.avatarBlob && !avatarError
+        ? <img className="p-account-avatar" width={32} height={32} alt="" src={client.url(endpoints.avatarGet, {
+          params: {}, query: {}, body: undefined,
+        }).href} onError={() => setAvatarError("The saved profile photo could not be loaded.")} />
+        : <span className="p-account-avatar" aria-hidden="true">{account.data.name.trim().split(/\s+/u)
+          .slice(0, 2).map(part => Array.from(part)[0] ?? "").join("").toLocaleUpperCase()}</span>)}
+      Account settings</Button>}>
       <Field label="Search projects and templates" placeholder="Search projects and templates" type="search" value={query} onChange={event => { setQuery(event.target.value); resetSelection(); }} />
+      <label className="p-field p-workspace">Workspace<select aria-label="Workspace" value={workspace} disabled={busy} onChange={event => {
+        const destination = new URL(path, window.location.origin);
+        if (event.target.value === "all") destination.searchParams.delete("workspace");
+        else destination.searchParams.set("workspace", event.target.value);
+        resetSelection();
+        navigate(`${destination.pathname}${destination.search}${destination.hash}`);
+      }}>
+        <option value="all">All workspaces</option>
+        <option value="personal">Personal projects (no workspace)</option>
+        {workspaces.data?.map(item => <option key={item.id} value={item.id}>{item.name} ({item.kind === "institution" ? "institution" : "team"})</option>)}
+        {workspace !== "all" && workspace !== "personal" && !workspaces.data?.some(item => item.id === workspace)
+          && <option value={workspace}>Unavailable workspace</option>}
+      </select></label>
     </AppHeader>
+    {account.error && <p role="alert">{account.error} <Button onClick={account.reload}>Retry account</Button></p>}
+    {avatarError && <p role="status">{avatarError}</p>}
     <div className="p-shell"><aside className="p-sidebar">{navigation}</aside><main className="p-main">
       <div className="p-heading"><IconButton className="p-drawer-trigger" label="Project filters" icon="menu" onClick={() => setDrawer(true)} /><h1>{title}</h1><Button className="p-mobile-new" variant="primary" onClick={() => setCreation({ mode: "template" })}>New project</Button><div className="p-cluster">
         {([{ mode: "blank", label: "Blank project" }, { mode: "github", label: "Import from GitHub" }, { mode: "git", label: "Clone git URL" }, { mode: "upload", label: "Upload .zip" }] as const).map(item => <Button key={item.mode} onClick={() => setCreation({ mode: item.mode })}>{item.label}</Button>)}
@@ -133,6 +187,8 @@ export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
         <Button onClick={() => setSelected([])}>Clear selection</Button>
       </div>}
       {error && <p role="alert">{error}</p>}
+      {workspaces.loading && <Spinner label="Loading workspaces" />}
+      {workspaces.error && <p role="alert">{workspaces.error}<Button onClick={workspaces.reload}>Retry workspaces</Button></p>}
       {projects.loading && <Spinner label="Loading projects" />}
       {projects.error && <div role="alert">{projects.error}<Button onClick={projects.reload}>Retry projects</Button></div>}
       {!projects.loading && !projects.error && rows.length === 0 && <EmptyState title="No projects found" description="Change the filters or create a project." action={<Button onClick={() => setCreation({ mode: "blank" })}>Blank project</Button>} />}
@@ -148,7 +204,9 @@ export function ProjectsPage({ client, navigate, path }: ProjectsPageProps) {
       <TemplateBrowser client={client} externalQuery={query} onChoose={template => setCreation({ mode: "template", template })} />
     </main></div>
     {drawer && <Modal open title="Project filters" onClose={() => setDrawer(false)}>{navigation}</Modal>}
-    {creation && <NewProjectDialog open client={client} navigate={navigate} initialMode={creation.mode} {...(creation.template ? { initialTemplate: creation.template } : {})} onClose={closeCreation} onCreated={project => { setCreation(undefined); reload(); navigate(`/projects/${project.id}/edit`); }} />}
+    {creation && (onboardingImport ? <OnboardingImportDialog client={client} navigate={navigate} path={path} onSessionChange={onSessionChange}
+      onClose={closeCreation} onCreated={project => { setCreation(undefined); reload(); navigate(`/projects/${project.id}/edit`); }} />
+      : <NewProjectDialog open client={client} navigate={navigate} initialMode={creation.mode} {...(creation.template ? { initialTemplate: creation.template } : {})} onClose={closeCreation} onCreated={project => { setCreation(undefined); reload(); navigate(`/projects/${project.id}/edit`); }} />)}
     {actionProject && <ProjectActions project={actionProject} tags={tags.data ?? []} client={client} navigate={navigate} onClose={() => setActionProject(undefined)} onChanged={reload} />}
     {tagEditor && <TagDialog client={client} {...(tagEditor.tag ? { tag: tagEditor.tag } : {})} onClose={() => setTagEditor(undefined)} onChanged={tags.reload} />}
   </div>;

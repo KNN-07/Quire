@@ -10,7 +10,9 @@ import type { GrantClaim } from "../shared/grants";
 import { bibliographyDefinition } from "./providers";
 import type { BibliographySync } from "./bibliography";
 import { Zotero, ZoteroSelectionSchema } from "./zotero";
-import type { ZoteroSelection } from "./zotero";
+import { MendeleySelectionSchema } from "./mendeley";
+import { BibliographySelectionSchema } from "./selection";
+import type { BibliographySelection } from "./selection";
 import { publishBibliographyLink } from "./link-source";
 import { providerUrl } from "./transport";
 
@@ -39,8 +41,9 @@ export class BibliographyLinks implements ExternalLinks {
         expectedCursor: null, key: crypto.randomUUID(), signal: AbortSignal.timeout(120_000) }, claim);
     } finally { await this.services.grants.release(claim); }
   }
-  private async selection(context: ActionContext, url?: string): Promise<ZoteroSelection | undefined> {
+  private async selection(context: ActionContext, url?: string): Promise<BibliographySelection | undefined> {
     if (!url) {
+      if (context.grant.provider === "mendeley") return { provider: "mendeley", libraryType: "personal" };
       if (context.grant.provider !== "zotero") return undefined;
       const key = await new Zotero(this.bibliography.retrieval.transport).key({
         baseUrl: context.configuration.baseUrl, apiKey: context.tokens.accessToken, signal: context.signal });
@@ -53,10 +56,14 @@ export class BibliographyLinks implements ExternalLinks {
       throw new ServiceError("INVALID_BIBLIOGRAPHY_URL", 400, "Bibliography selection must use the configured provider origin without credentials, query or fragment");
     }
     if (context.grant.provider === "mendeley") {
-      if (target.href !== providerUrl(context.configuration.baseUrl, "documents").href) {
-        throw new ServiceError("INVALID_BIBLIOGRAPHY_URL", 400, "Mendeley selection must be the configured account documents endpoint");
+      if (target.href === providerUrl(context.configuration.baseUrl, "documents").href) {
+        return { provider: "mendeley", libraryType: "personal" };
       }
-      return undefined;
+      const groupPrefix = providerUrl(context.configuration.baseUrl, "groups/v2/").pathname;
+      const groupId = target.pathname.startsWith(groupPrefix) ? target.pathname.slice(groupPrefix.length) : "";
+      const selected = MendeleySelectionSchema.safeParse({ provider: "mendeley", libraryType: "groups", groupId });
+      if (selected.success) return selected.data;
+      throw new ServiceError("INVALID_BIBLIOGRAPHY_URL", 400, "Select configured Mendeley personal documents or a group UUID");
     }
     const prefix = base.pathname.replace(/\/+$/, "");
     const match = /^\/(users|groups)\/(\d+)(?:\/collections\/([A-Z0-9]{8}))?(?:\/items(?:\/top)?)?\/?$/.exec(target.pathname.slice(prefix.length));
@@ -96,7 +103,7 @@ export class BibliographyLinks implements ExternalLinks {
     if (!row) throw new ServiceError("NOT_FOUND", 404, "Owned bibliography link not found");
     const link = z.object({ id: IdSchema, grant_id: IdSchema, selection_json: z.string(), version: z.number().int().positive() }).parse(row);
     return this.withGrant({ actorId: input.actorId, scope: input.scope, grantId: link.grant_id }, async (context, claim) => {
-      const selection = z.union([ZoteroSelectionSchema, z.null()]).parse(JSON.parse(link.selection_json));
+      const selection = BibliographySelectionSchema.nullable().parse(JSON.parse(link.selection_json));
       const result = await this.bibliography.read(context, selection ?? undefined);
       const updated = FileEntrySchema.parse({ ...file,
         link: { kind: "bibliography", sourceId: link.id, lastRefreshedAt: this.services.context.clock.now() } });

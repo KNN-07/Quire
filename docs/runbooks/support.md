@@ -1,6 +1,6 @@
 # Diagnostics and support
 
-Native Bun 1.3.14 is required. Run `bun scripts/ops/doctor.ts` against an
+Use the repository-pinned Bun 1.4.4 runtime. Run `bun scripts/ops/doctor.ts` against an
 operator-owned `QUIRE_DATA_DIR`. The command uses actual SQL/repository reads,
 fixed tool version commands with checked exits, and the compiler's real
 confined TeX/PDF probe. An installed executable or old environment row is not

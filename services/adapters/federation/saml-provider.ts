@@ -69,6 +69,7 @@ export function samlProvider(services: FederationServices, tests?: FederationHan
         const identity = await protocol.verify(settings.config, encoded);
         return { issuer: identity.issuer, subject: identity.subject, name: identity.name, verifiedEmail: identity.email,
           allowCreate: settings.config.createOnLogin,
+          ...(configurations.deployment.organizationId ? { organizationId: configurations.deployment.organizationId } : {}),
           ...(state.user_id && state.session_id && state.account_version !== null ? {
             link: { userId: state.user_id, sessionId: state.session_id, expectedVersion: state.account_version } } : {}),
           async beforeCommit(tx, userId) {

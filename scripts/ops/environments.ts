@@ -7,6 +7,7 @@ import { ServiceError } from "@quire/runtime";
 import { ImageSchema, ProfileSchema } from "../../services/operations/environments/model";
 import { probeImage, manifestFromProbe } from "../../services/operations/environments/probe";
 import { runCommand } from "../../services/operations/environments/process";
+import { admissionProposalCommand } from "./environment-admission";
 
 const routes = {
   list: endpoints.adminEnvironments, create: endpoints.environmentCreate,
@@ -14,6 +15,7 @@ const routes = {
 } as const;
 export async function environmentCommand(args: readonly string[]): Promise<unknown> {
   const [command,value,profile] = args;
+  if (command === "admission-proposal") return admissionProposalCommand(value);
   if (command === "probe") {
     const image = ImageSchema.parse(value);
     const selected = ProfileSchema.parse(profile ?? "default");

@@ -7,6 +7,8 @@ import { defaultPolicy } from "../../accounts/identity/policy";
 import { newId } from "../../accounts/identity/store";
 import type { FederationDeployment } from "./configuration";
 import { publishPolicyChange } from "../../accounts/governance/shared";
+import { requireOrganizationIdentityAuthority } from "../../accounts/identity/managed-release";
+import { groupInput } from "./scim-schema";
 
 const roleRank = { guest: 0, member: 1, manager: 2, admin: 3 } as const;
 const aiRank = { off: 0, ask: 1, agent: 2 } as const;
@@ -30,10 +32,32 @@ export function trustedAttributes(config: IdentityConfig, attributes: Readonly<R
 }
 export class FederationProvisioning {
   constructor(private readonly context: ModuleContext, private readonly deployment: FederationDeployment) {}
+  async release(tx: Transaction, userId: Id): Promise<void> {
+    // Another assembly organization's explicit ownership is not ours to withdraw.
+    if (await tx.get("SELECT user_id FROM federation_accounts WHERE user_id=? AND organization_id<>?", [userId, this.deployment.organizationId ?? null])) {
+      throw new ServiceError("FEDERATION_OWNERSHIP_CONFLICT", 409, "Resolve federation ownership before release");
+    }
+    const resources = z.array(z.object({ id: IdSchema })).parse(await tx.all(
+      "SELECT id FROM federation_resources WHERE kind='Users' AND user_id=?", [userId]));
+    const resourceIds = new Set(resources.map(resource => resource.id));
+    const groups = z.array(z.object({ id: IdSchema, data_json: z.string() })).parse(await tx.all(
+      `SELECT DISTINCT g.id,g.data_json FROM federation_resources g JOIN federation_members m ON m.group_id=g.id
+        JOIN federation_resources u ON u.id=m.resource_id WHERE u.user_id=?`, [userId]));
+    for (const group of groups) {
+      const data = groupInput.parse(JSON.parse(group.data_json));
+      await tx.run("UPDATE federation_resources SET data_json=?,version=version+1,updated_at=? WHERE id=?",
+        [JSON.stringify({ ...data, members: data.members.filter(member => !resourceIds.has(member.value)) }), this.context.clock.now(), group.id]);
+    }
+    await tx.run("DELETE FROM federation_members WHERE resource_id IN (SELECT id FROM federation_resources WHERE user_id=?)", [userId]);
+    await tx.run("DELETE FROM federation_claims WHERE user_id=?", [userId]);
+    await tx.run("DELETE FROM federation_accounts WHERE user_id=? AND organization_id=?", [userId, this.deployment.organizationId ?? null]);
+    await tx.run("DELETE FROM policy_sets WHERE scope_kind='federation-user' AND scope_id=?", [userId]);
+  }
   async apply(tx: Transaction, input: { readonly userId: Id; readonly config: IdentityConfig; readonly groups: readonly string[] }) {
     const organizationId = this.deployment.organizationId;
     if (!organizationId) throw new ServiceError("FEDERATION_UNCONFIGURED", 503, "Missing assembly organizationId");
     await tx.lock("quire:accounts");
+    await requireOrganizationIdentityAuthority(tx, { userId: input.userId, organizationId });
     if (input.userId === input.config.breakGlassUserId || await tx.get("SELECT user_id FROM identity_breakglass WHERE user_id=?", [input.userId])) {
       throw new ServiceError("BREAKGLASS_PROTECTED", 403, "Federation cannot provision an enrolled break-glass account");
     }

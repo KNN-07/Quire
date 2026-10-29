@@ -2,12 +2,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 
 const authorization = z.object({
-  client_id: z.literal("quire-app"), redirect_uri: z.literal("http://localhost:5173/api/connections/dropbox/callback"),
+  client_id: z.literal("quire-app"), redirect_uri: z.url(),
   response_type: z.literal("code"), scope: z.literal("files.metadata.read files.content.read files.content.write"),
   code_challenge_method: z.literal("S256"), code_challenge: z.string().length(43),
   token_access_type: z.literal("offline"), state: z.string().min(43),
 });
 export function oauthFixture() {
+  let redirectUri = "http://localhost:5173/api/connections/dropbox/callback";
   const codes = new Map<string, z.infer<typeof authorization>>();
   const tokens = new Map<string, { readonly refresh: string; readonly expires: number }>();
   let now = Date.parse("2026-10-27T12:00:00.000Z");
@@ -17,6 +18,12 @@ export function oauthFixture() {
     return Response.json({ access_token: access, refresh_token: refresh, token_type: "bearer", expires_in: 3600 });
   };
   return {
+    redirectTo(value: string) {
+      const url = new URL(value);
+      if (url.protocol !== "http:" || url.hostname !== "127.0.0.1"
+        || url.pathname !== "/api/connections/dropbox/callback") throw new Error("Owned loopback callback required");
+      redirectUri = url.href;
+    },
     tokens, advance(milliseconds: number) { now += milliseconds; },
     accepts(request: Request) {
       const token = tokens.get((request.headers.get("authorization") ?? "").replace(/^Bearer /, ""));
@@ -26,7 +33,7 @@ export function oauthFixture() {
       const url = new URL(request.url);
       if (url.pathname === "/authorize") {
         const parsed = authorization.safeParse(Object.fromEntries(url.searchParams));
-        if (!parsed.success) return Response.json({ error: "invalid_request" }, { status: 400 });
+        if (!parsed.success || parsed.data.redirect_uri !== redirectUri) return Response.json({ error: "invalid_request" }, { status: 400 });
         const code = randomBytes(24).toString("hex"); codes.set(code, parsed.data);
         const target = new URL(parsed.data.redirect_uri);
         target.searchParams.set("code", code); target.searchParams.set("state", parsed.data.state);

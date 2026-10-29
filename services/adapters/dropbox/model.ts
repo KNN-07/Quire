@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { DigestSchema, FileEntrySchema, IdSchema } from "@quire/contracts";
+import { DigestSchema, FileEntrySchema, IdSchema, ProjectPathSchema } from "@quire/contracts";
+
+export const folderSelection = z.strictObject({ folderId: z.string().startsWith("id:").max(255) });
+export const folderImport = folderSelection.extend({
+  name: z.string().trim().min(1).max(255), mainPath: ProjectPathSchema,
+});
+export type FolderImport = z.infer<typeof folderImport>;
+export const folderReservation = z.object({
+  project_id: IdSchema, actor_id: IdSchema, parameters_json: z.string(), payload_json: z.string().nullable(),
+});
 
 export const remoteFile = z.object({
   ".tag": z.literal("file").default("file"), id: z.string().min(1),
@@ -8,9 +17,14 @@ export const remoteFile = z.object({
   rev: z.string().min(1), content_hash: DigestSchema, size: z.number().int().nonnegative(),
 });
 export type RemoteFile = z.infer<typeof remoteFile>;
+export const remoteFolder = z.object({
+  ".tag": z.literal("folder"), id: z.string().min(1),
+  path_lower: z.string().startsWith("/"), path_display: z.string().startsWith("/"),
+});
+export type RemoteFolder = z.infer<typeof remoteFolder>;
 export const remoteEntry = z.discriminatedUnion(".tag", [
   remoteFile,
-  z.object({ ".tag": z.literal("folder"), path_lower: z.string(), path_display: z.string(), id: z.string() }),
+  remoteFolder,
   z.object({ ".tag": z.literal("deleted"), path_lower: z.string(), path_display: z.string() }),
 ]);
 export const baseline = z.object({

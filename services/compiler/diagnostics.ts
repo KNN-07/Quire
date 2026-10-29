@@ -1,13 +1,18 @@
 import { IdSchema } from "@quire/contracts";
 import type { Diagnostic, FileEntry, Id } from "@quire/contracts";
 
+export const diagnosticsCachePrefix = "diagnostics-v1:";
+
 export function parseDiagnostics(input: { readonly jobId: Id; readonly log: string;
   readonly files: readonly FileEntry[] }): readonly Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
+  const passes = [...input.log.matchAll(/^Run number \d+ of rule '(?:pdf|xe|lua)?latex'\r?$/gm)];
+  const finalPassStart = passes.length > 1 ? passes.at(-1)?.index ?? 0 : 0;
   let offset = 0;
   const stack: { readonly file: FileEntry; readonly depth: number }[] = [];
   let depth = 0;
   for (const line of input.log.split("\n")) {
+    if (finalPassStart > 0 && offset === finalPassStart) { stack.length = 0; depth = 0; }
     for (let index = 0; index < line.length; index++) {
       if (line[index] === "(") {
         depth++;
@@ -28,7 +33,7 @@ export function parseDiagnostics(input: { readonly jobId: Id; readonly log: stri
     const warning = /(?:LaTeX|Package .+) Warning:/.test(message);
     const typesetting = /^(?:Over|Under)full \\[hv]box/.test(message);
     const error = line.startsWith("!") || (!!located && !warning && !typesetting);
-    if (error || warning || typesetting) {
+    if (error || (offset >= finalPassStart && (warning || typesetting))) {
       const file = located ? source : stack.at(-1)?.file;
       diagnostics.push({
         id: IdSchema.parse(crypto.randomUUID()), jobId: input.jobId,

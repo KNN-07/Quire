@@ -9,7 +9,7 @@ import { contentHash } from "./model";
 
 export async function exportGenerated(input: {
   readonly context: ModuleContext; readonly projectId: Id; readonly branch: string;
-  readonly remote: readonly RemoteFile[]; readonly transport: SyncTransport;
+  readonly remote: readonly RemoteFile[]; readonly transport: SyncTransport; readonly root?: string;
 }): Promise<readonly RemoteFile[]> {
   const job = await input.context.db.get<{ id: string }>(`SELECT j.id FROM compile_jobs j
     JOIN snapshots s ON s.id=j.snapshot_id WHERE s.project_id=? AND s.branch=? AND j.status='succeeded'
@@ -20,7 +20,7 @@ export async function exportGenerated(input: {
     [job.id], z.object({ name: ProjectPathSchema, sha256: DigestSchema }));
   const files = new Map(input.remote.map(file => [file.path_lower, file]));
   for (const artifact of rows) {
-    const path = `/${input.projectId}/.quire-generated/${IdSchema.parse(job.id)}/${artifact.name}`;
+    const path = `${input.root ?? `/${input.projectId}`}/.quire-generated/${IdSchema.parse(job.id)}/${artifact.name}`;
     const bytes = await input.context.blobs.get(artifact.sha256);
     const existing = files.get(path.toLowerCase());
     if (existing) {

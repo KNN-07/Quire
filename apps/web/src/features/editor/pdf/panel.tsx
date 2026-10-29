@@ -6,6 +6,7 @@ import type { CompileState, PdfLocation, PdfPanelProps, SourceLocation } from ".
 import { useArtifact } from "./artifact";
 import { PdfCompileController } from "./controller";
 import { CompileLogs } from "./logs";
+import type { DiagnosticFixRequest } from "./logs";
 import { forwardSync, reverseSync } from "./navigation";
 import { PdfViewer } from "./viewer";
 import { PdfComparison } from "./comparison";
@@ -21,6 +22,7 @@ export type PdfPanelOptions = PdfPanelProps & {
   readonly view?: "pdf" | "logs" | "diff";
   readonly onViewer?: (handle: PdfPanelHandle | null) => void;
   readonly sourceLocation?: SourceLocation;
+  readonly onFixDiagnostic?: (request: DiagnosticFixRequest) => void;
 };
 const empty: CompileState = { job: null, preview: null };
 const noop = () => () => {};
@@ -181,7 +183,7 @@ export function PdfPanel(props: PdfPanelOptions) {
           <div className="q-pdf-body"><p>{artifact ? "Loading compiled PDF…" : "No successful PDF available. Recompile this project."}</p></div>}
       </div> },
       { value: "logs", label: "Logs", content: tab === "logs" ? <div className="q-pdf-content"><CompileLogs client={props.client}
-        workspace={props.workspace} job={state.job} navigation={props.navigation} onError={onError} /></div> : null },
+        workspace={props.workspace} job={state.job} navigation={props.navigation} onError={onError} onFixDiagnostic={props.onFixDiagnostic} /></div> : null },
       { value: "diff", label: "PDF comparison", content: tab === "diff" ? <PdfComparison client={props.client}
         workspace={props.workspace} onError={onError} /> : null },
     ]} />

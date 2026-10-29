@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { AiToolSchema } from "@quire/contracts";
+import { AiToolSchema, endpoints, resultSchema } from "@quire/contracts";
+import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { assistantApplication } from "./application";
 import { assistantBrowser, assistantIdle, capture, consent, evidenceDir, sendAndRefresh } from "./browser";
 import { waitForRenderedText } from "../shared/browser";
@@ -56,9 +57,14 @@ test("persists explicitly opted-in shared chat and clears it through the actual 
   await app.configure();
   await using browser = await assistantBrowser(app);
   await browser.open(); await consent(browser.page);
-  await browser.page.getByText("Conversation privacy", { exact: true }).click();
+  await browser.page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("shared");
+  const created = browser.page.waitForResponse(response => response.request().method() === "POST"
+    && response.url().endsWith(`/projects/${app.project.id}/ai/conversations`));
   await browser.page.getByRole("button", { name: "Create shared conversation", exact: true }).click();
-  await waitForRenderedText(browser.page, "Shared project conversation created");
+  const response = await created;
+  expect(response.status()).toBe(200);
+  const conversation = editorValue(resultSchema(endpoints.aiConversationCreate.output).parse(await response.json()));
+  await waitForRenderedText(browser.page, conversation.id);
   await browser.page.getByLabel("Message the assistant").fill("Remember in shared chat");
   await sendAndRefresh(browser.page, app);
   await waitForRenderedText(browser.page, "Ask run · succeeded");

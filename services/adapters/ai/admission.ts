@@ -1,10 +1,13 @@
 import { IdSchema } from "@quire/contracts";
+import type { AiRunStep } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { AiStore } from "./store";
 import { digest, newId } from "./model";
 import type { Actor, CreateRun } from "./model";
 
-export async function reserve(store: AiStore, actor: Actor, input: { readonly request: CreateRun; readonly key: string }) {
+export async function reserve(store: AiStore, actor: Actor, input: {
+  readonly request: CreateRun; readonly key: string; readonly contextStep: AiRunStep;
+}) {
   const { request } = input;
   return store.context.uow.run(async tx => {
     await tx.lock("quire:accounts");
@@ -32,9 +35,9 @@ export async function reserve(store: AiStore, actor: Actor, input: { readonly re
       VALUES(?,?,?,?,?,'queued',?,?,?,?)`,
     [id, actor.id, request.scope.projectId, request.scope.branch, request.mode,
       JSON.stringify(persistent ? [{ role: "user", text: request.prompt }] : []), usageId, now, now]);
-    await tx.run(`INSERT INTO ai_run_metadata(run_id,session_id,config_version,conversation_id,request_json,request_digest,idempotency_key,lease_until)
-      VALUES(?,?,?,?,?,?,?,?)`, [id, actor.sessionId, authority.settings.version, request.conversationId ?? null, JSON.stringify(retained), hash, input.key,
-      new Date(Date.parse(now) + 120_000).toISOString()]);
+    await tx.run(`INSERT INTO ai_run_metadata(run_id,session_id,config_version,operator_policy_version,conversation_id,request_json,request_digest,idempotency_key,lease_until,steps_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`, [id, actor.sessionId, authority.settings.version, authority.operatorPolicy.version, request.conversationId ?? null, JSON.stringify(retained), hash, input.key,
+      new Date(Date.parse(now) + 120_000).toISOString(), JSON.stringify([input.contextStep])]);
     await store.audit(tx, { actorId: actor.id, targetId: id, event: "ai.run.queued" });
     const run = await store.record(id, tx);
     await store.changed(tx, run);

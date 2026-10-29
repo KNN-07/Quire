@@ -36,12 +36,13 @@ export function SourceDiagnostics({ props, editor, issues, copy, spelling }: {
     <label className="q-source-row"><input type="checkbox" checked={getCodeCheckEnabled()} onChange={event => setCodeCheckEnabled(event.target.checked)} />{copy.enableCheck}</label>
     <p>Heuristic checks do not compile TeX. Suppression never hides compiler diagnostics.</p>
     <div className="q-source-row">
-      <Button disabled={props.document.getSnapshot().readOnly} onClick={() => props.document.replace([{ from: 0, to: 0, insert: "% quire-check disable-file all\n" }])}>{copy.suppressFile}</Button>
-      <Button disabled={props.document.getSnapshot().readOnly || editor.view.state.selection.main.empty} onClick={() => {
-        const selection = sourceSelection(props.document.source.toJSON(), editor.view.state.selection.main);
+      <Button disabled={editor.view.state.readOnly} onClick={() => editor.view.dispatch({ changes: { from: 0, insert: "% quire-check disable-file all\n" }, userEvent: "input" })}>{copy.suppressFile}</Button>
+      <Button disabled={editor.view.state.readOnly || editor.view.state.selection.main.empty} onClick={() => {
+        const source = editor.view.state.doc.toString();
+        const selection = sourceSelection(source, editor.view.state.selection.main);
         const from = Math.min(selection.anchor, selection.head);
         const to = Math.max(selection.anchor, selection.head);
-        props.document.replace([{ from, to, insert: `\n% quire-check disable all\n${props.document.source.toJSON().slice(from, to)}\n% quire-check enable all\n` }]);
+        editor.view.dispatch({ changes: { from, to, insert: `\n% quire-check disable all\n${source.slice(from, to)}\n% quire-check enable all\n` }, userEvent: "input" });
       }}>{copy.suppressRegion}</Button>
     </div>
     {issues.length === 0 ? <p>{copy.noChecks}</p> : <ul className="q-source-list">{issues.map(issue =>

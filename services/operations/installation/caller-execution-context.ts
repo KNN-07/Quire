@@ -38,5 +38,5 @@ export async function installationExecutionContext(input: {
     value > profile.limits[z.enum(["wallSeconds", "memoryBytes", "processes", "workspaceBytes"]).parse(key)])) {
     throw new ControlError("CONTROL_EXECUTION_LIMITS");
   }
-  return { session, profile, profileId: input.image ?? profile.id };
+  return { session, profile, profileId: input.image !== undefined && profile.image !== input.image ? input.image : profile.id };
 }

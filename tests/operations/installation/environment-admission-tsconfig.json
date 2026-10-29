@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "./environment-admission.test.ts",
+    "./environment-admission-denials.test.ts",
+    "./environment-admission-targets.test.ts"
+  ],
+  "exclude": []
+}

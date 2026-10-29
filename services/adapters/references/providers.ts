@@ -13,6 +13,7 @@ import { DoiSchema } from "./publication";
 import { Crossref } from "./crossref";
 import { Arxiv } from "./arxiv";
 import { SemanticScholar } from "./semantic-scholar";
+import { providerUrl } from "./transport";
 
 export const readCubePrerequisites = [
   "ReadCube approved partner/developer API access agreement",
@@ -59,6 +60,19 @@ export function bibliographyDefinition(input: {
         "Revoke the dedicated key in Zotero account API-key settings, then disconnect again; Quire never deletes a user-created key");
     } } satisfies Partial<AdapterDefinition> : {}),
     actions: {
+      ...(kind === "mendeley" ? {
+        groups: defineAction(z.strictObject({}), { projectAccess: "read",
+          async prepare(_parameters, context) {
+            const groups = await new Mendeley(retrieval.transport).groups({
+              baseUrl: context.configuration.baseUrl, accessToken: context.tokens.accessToken, signal: context.signal });
+            return { cursor: null, result: {
+              personalUrl: providerUrl(context.configuration.baseUrl, "documents").href,
+              groups: groups.map(group => ({ ...group,
+                url: providerUrl(context.configuration.baseUrl, `groups/v2/${group.id}`).href })),
+            } };
+          },
+        }),
+      } : {}),
       bulkBib: defineAction(BulkSchema, { projectAccess: "owner", prepare: (parameters, context) => bibliography.bulk(parameters, context) }),
       refresh: defineAction(RefreshSchema, { projectAccess: "owner", prepare: (parameters, context) => bibliography.refresh(parameters, context) }),
       ...(kind === "zotero" ? { librarySync: defineAction(z.strictObject({ selection: ZoteroSelectionSchema }), {

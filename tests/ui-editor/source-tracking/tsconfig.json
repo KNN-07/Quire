@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"] },
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/source/**/*.ts",
+    "../../../apps/web/src/features/editor/source/**/*.tsx",
+    "../../../apps/web/src/features/editor/index.tsx",
+    "../../../apps/web/src/features/editor/chrome.tsx",
+    "./**/*.ts",
+    "./**/*.tsx",
+    "../../core/review/source-tracking/**/*.ts"
+  ]
+}

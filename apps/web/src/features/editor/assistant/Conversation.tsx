@@ -6,17 +6,29 @@ import type { AssistantState } from "./use-assistant";
 
 export function AssistantConversation({ state }: { readonly state: AssistantState }) {
   const [conversationId, setConversationId] = useState("");
-  return <details><summary>Conversation privacy</summary>
+  const [choiceOverride, setChoice] = useState<"private" | "shared" | null>(null);
+  const choice = choiceOverride ?? (state.preferences?.shareAiChat ? "shared" : "private");
+  return <details open><summary>Conversation privacy</summary>
     <p>{state.conversation ? `Shared project conversation ${state.conversation.id} · version ${state.conversation.version}`
       : "Private session · shared conversation not enabled"}</p>
+    <label>Future conversation choice<select value={choice}
+      onChange={event => setChoice(event.target.value === "shared" ? "shared" : "private")}>
+      <option value="private">Private session</option><option value="shared">New shared project conversation</option>
+    </select></label>
+    <p>This choice does not change the current conversation. Create starts an empty shared conversation;
+      Open selects an existing one. Earlier private messages are never copied. Send then shares future messages with project collaborators.</p>
     <div className="qa-assistant__row">
-      <Button disabled={state.busy || !state.online || state.conversation !== null}
+      <Button disabled={state.busy || !state.online || choice !== "shared"}
         onClick={() => void state.execute(async () => {
           state.setConversation(editorValue(await state.client.call(endpoints.aiConversationCreate, {
             params: state.params, query: {}, headers: state.headers, body: { shared: true },
           }, state.signal)));
-          state.setNotice("Shared project conversation created");
+          state.setNotice("Empty shared project conversation created. Earlier private messages were not copied.");
         })}>Create shared conversation</Button>
+      <Button disabled={state.busy || !state.online || choice !== "private"} onClick={() => {
+        state.setConversation(null);
+        state.setNotice("Private session selected. Existing shared messages remain shared.");
+      }}>Use private session</Button>
       <Button disabled={state.busy || !state.online} onClick={() => void state.execute(async () => {
         editorValue(await state.client.call(endpoints.aiSessionClear, {
           params: state.params, query: {}, headers: state.headers, body: { branch: state.workspace.scope.branch },

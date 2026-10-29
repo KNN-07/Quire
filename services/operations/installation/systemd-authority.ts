@@ -30,6 +30,7 @@ import type { ExecutionLaunch, ExecutionTask } from "./execution-model";
 import { resolveInstallationRoleMounts } from "./role-mounts";
 import { PreparedFailureReportSchema } from "./execution-ledger";
 import { PreparedFailureResponseSchema } from "./prepared-failure";
+import { stopExecutionProcess } from "./execution-stop";
 
 const now = () => InstantSchema.parse(new Date().toISOString());
 const id = () => IdSchema.parse(crypto.randomUUID());
@@ -398,13 +399,7 @@ export class SystemdInstallationAuthority implements InstallationAuthority {
     this.expectedStops.add(unit);
     this.cancelExecutionStart(unit);
     try {
-      const before = await inspectUnit(this.config, unit);
-      if (!["inactive", "failed"].includes(before.state)) await command(this.config, ["/usr/bin/systemctl", "--user", "stop", unit]);
-      await this.unitJobs.get(unit);
-      const after = await inspectUnit(this.config, unit);
-      if (!["inactive", "failed"].includes(after.state) || after.mainPid !== 0 ||
-          (before.cgroup && (await cgroupPids(before.cgroup)).length !== 0) ||
-          (after.cgroup && (await cgroupPids(after.cgroup)).length !== 0)) throw new ControlError("CONTROL_EXECUTION_STOP_UNPROVEN");
+      await stopExecutionProcess(this.config, unit, this.unitJobs.get(unit));
       this.sessions.delete(unit);
     } finally { this.expectedStops.delete(unit); }
   }
@@ -658,7 +653,7 @@ export class SystemdInstallationAuthority implements InstallationAuthority {
     }
   }
   async commit(input: InstallationCommit): Promise<Operation> {
-    return this.serialize(async () => {
+    const committed = await this.serialize(async () => {
       this.assertOwner();
       const prepared = input.prepared;
       if (!(prepared instanceof PreparedCohort) || !this.prepared.has(prepared) ||
@@ -676,9 +671,15 @@ export class SystemdInstallationAuthority implements InstallationAuthority {
         errorCode: input.operation.errorCode, resultBytes: input.resultBytes, successfulFloor: input.successfulFloor, at: now(),
       });
       this.prepared.delete(prepared);
-      for (const session of prepared.sessions) await session.channel.request("activate", this.sessionInput(session));
-      return result;
+      return { result, sessions: prepared.sessions };
     });
+    // Activation can start managed children whose launch handshake needs the
+    // admission queue. Keep the durable commit serialized, not those callbacks.
+    for (const session of committed.sessions) {
+      await this.attestSession(session);
+      await session.channel.request("activate", this.sessionInput(session));
+    }
+    return committed.result;
   }
   async recover(input: RecoveryRequest): Promise<Operation> {
     const state = this.status();

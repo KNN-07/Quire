@@ -41,6 +41,7 @@ export function AssistantPreferences({ state }: { readonly state: AssistantState
           aiModel: z.string().parse(form.get("model")).trim() || null,
           aiStyle: form.get("style"), aiMode: form.get("mode"),
           inlineCompletion: form.has("inline"), errorAssist: form.has("error"),
+          aiBranch: form.has("branch"), shareAiChat: form.has("shared"),
           citationWebSearch: form.has("retrieval"),
           citationProviders: z.string().parse(form.get("providers")).split(",").map(item => item.trim()).filter(Boolean),
           expectedVersion: prefs.version,
@@ -60,6 +61,9 @@ export function AssistantPreferences({ state }: { readonly state: AssistantState
       </select></label>
       <label className="qa-assistant__check"><input name="inline" type="checkbox" defaultChecked={prefs.inlineCompletion} />Enable inline completion</label>
       <label className="qa-assistant__check"><input name="error" type="checkbox" defaultChecked={prefs.errorAssist} />Enable error assistance</label>
+      <label className="qa-assistant__check"><input name="branch" type="checkbox" defaultChecked={prefs.aiBranch} />Default future Agent approvals to a new branch</label>
+      <label className="qa-assistant__check"><input name="shared" type="checkbox" defaultChecked={prefs.shareAiChat} />Default future conversation choice to shared</label>
+      <p>Saving does not create a branch or share any messages. Accept still authorizes edits; Create or Open selects a shared conversation, and Send shares only future messages.</p>
       <label className="qa-assistant__check"><input name="retrieval" type="checkbox" defaultChecked={prefs.citationWebSearch} />Consent to citation web retrieval</label>
       <label>Citation providers (comma-separated)<input name="providers" defaultValue={prefs.citationProviders.join(", ")} placeholder="crossref, arxiv" /></label>
       <Button type="submit" disabled={state.busy || !state.online}>Save AI preferences</Button>

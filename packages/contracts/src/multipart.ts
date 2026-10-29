@@ -4,6 +4,7 @@ import { EngineSchema } from "./projects";
 
 export const ImportSelectionSchema = z.strictObject({
   mainPath: ProjectPathSchema.optional(), engine: EngineSchema.optional(), environmentId: IdSchema.optional(),
+  preserveHistory: z.boolean().optional(), keepConnected: z.boolean().optional(),
 }).readonly();
 export const ImportUploadSchema = z.strictObject({
   id: IdSchema, filename: z.string().min(1).max(255), mime: z.string(),
@@ -61,14 +62,15 @@ export const SamlCallbackSchema = formWith(["SAMLResponse", "RelayState"]).trans
   const relayState = form.get("RelayState");
   return { SAMLResponse: form.get("SAMLResponse"), ...(relayState === null ? {} : { RelayState: relayState }) };
 }).pipe(z.strictObject({ SAMLResponse: z.string().min(1), RelayState: z.string().optional() })).readonly();
-export const ImportFormSchema = formWith(["kind", "name", "workspaceId", "source", "mainPath", "engine", "environmentId"]).transform((form): {
+export const ImportFormSchema = formWith(["kind", "name", "workspaceId", "source", "mainPath", "engine", "environmentId", "preserveHistory", "keepConnected"]).transform((form): {
   readonly kind: FormDataEntryValue | null; readonly name: FormDataEntryValue | null;
   readonly source: FormDataEntryValue | null; readonly workspaceId?: FormDataEntryValue | undefined;
   readonly mainPath?: FormDataEntryValue | undefined; readonly engine?: FormDataEntryValue | undefined;
   readonly environmentId?: FormDataEntryValue | undefined;
+  readonly preserveHistory?: FormDataEntryValue | undefined; readonly keepConnected?: FormDataEntryValue | undefined;
 } => {
   return { kind: form.get("kind"), name: form.get("name"), source: form.get("source"),
-    ...Object.fromEntries(["workspaceId", "mainPath", "engine", "environmentId"].flatMap(name => {
+    ...Object.fromEntries(["workspaceId", "mainPath", "engine", "environmentId", "preserveHistory", "keepConnected"].flatMap(name => {
       const value = form.get(name);
       return value === null ? [] : [[name, value]];
     })) };
@@ -77,4 +79,6 @@ export const ImportFormSchema = formWith(["kind", "name", "workspaceId", "source
   name: z.string().min(1), workspaceId: IdSchema.optional(),
   source: z.union([z.instanceof(File), jsonField.pipe(ImportSourceSchema)]),
   ...ImportSelectionSchema.unwrap().shape,
+  preserveHistory: z.enum(["true", "false"]).transform(value => value === "true").optional(),
+  keepConnected: z.enum(["true", "false"]).transform(value => value === "true").optional(),
 })).readonly();

@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../services/adapters/ai/**/*.ts",
+    "../../../../services/adapters/shared/provider*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../operations/environments/assets.d.ts"
+  ],
+  "exclude": []
+}

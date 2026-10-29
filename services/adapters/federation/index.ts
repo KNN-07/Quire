@@ -1,7 +1,8 @@
-import { endpoints } from "@quire/contracts";
+import { z } from "zod";
+import { endpoints, IdSchema } from "@quire/contracts";
 import type { RequestContext, ServiceModule } from "@quire/runtime";
 import { ServiceError } from "@quire/runtime";
-import { registerAuthProviderCapability, registerIdentityPolicy } from "../../accounts/identity";
+import { registerAuthProviderCapability, registerAuthDiscovery, registerIdentityPolicy } from "../../accounts/identity";
 import { requireOrigin } from "../../accounts/identity/authentication";
 import { store } from "../../accounts/identity/store";
 import { createExternalIdentityAdmission, registerIdentityProvider } from "../identity";
@@ -19,6 +20,7 @@ import { registerScim } from "./scim-routes";
 import { migrations } from "./migrations";
 import { returnPath } from "../identity/state";
 import { FederationHandshakeTests } from "./handshake-tests";
+import { registerManagedReleaseAuthority } from "../../accounts/identity/managed-release";
 
 export function createFederationModules(options: FederationDeployment & { readonly http?: SafeHttpClient } = {}) {
   let services: FederationServices | undefined;
@@ -28,7 +30,21 @@ export function createFederationModules(options: FederationDeployment & { readon
     register(context) {
       if (services) throw new ServiceError("DUPLICATE_FEDERATION", 500, "Create fresh federation modules for each runtime");
       const configurations = new FederationConfigurations(context, options);
+      registerAuthDiscovery(context, async domain => {
+        const settings = await configurations.get();
+        if (!options.organizationId || !settings.config.domains.some(value => value.toLowerCase() === domain))
+          return { organizations: [] };
+        const row = await context.db.get("SELECT id,name FROM organizations WHERE id=?", [options.organizationId]);
+        if (!row) return { organizations: [] };
+        const organization = z.object({ id: IdSchema, name: z.string() }).parse(row);
+        return { organizations: [{ ...organization, provider: settings.config.protocol,
+          capability: configurations.capability(settings) }] };
+      });
       const provisioning = new FederationProvisioning(context, options);
+      if (options.organizationId) registerManagedReleaseAuthority(context, {
+        organizationId: options.organizationId,
+        release: (tx, input) => provisioning.release(tx, input.userId),
+      });
       const http = options.http ?? new SafeHttpClient();
       services = { context, configurations, provisioning, http };
       tests = new FederationHandshakeTests(services);
@@ -76,7 +92,9 @@ export async function authenticateLdap(services: FederationServices, request: Re
     async verify(credentials: { readonly username: string; readonly password: string }) {
       const identity = await new FederationLdap(services.configurations.deployment).verify(settings, credentials);
       return { issuer: identity.issuer, subject: identity.subject, name: identity.name, verifiedEmail: identity.email,
-        allowCreate: settings.config.createOnLogin, async beforeCommit(tx, userId) {
+        allowCreate: settings.config.createOnLogin,
+        ...(services.configurations.deployment.organizationId ? { organizationId: services.configurations.deployment.organizationId } : {}),
+        async beforeCommit(tx, userId) {
           await services.configurations.fence(tx, settings.config);
           await services.provisioning.apply(tx, { userId, config: settings.config, groups: identity.groups });
         } };

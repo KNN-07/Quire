@@ -62,4 +62,30 @@ CREATE TABLE ai_run_provenance (
   provenance_json TEXT NOT NULL, PRIMARY KEY(run_id,provider,provider_id)
 );
 `,
+}, {
+  id: "069-x-ai-operator-enforcement",
+  sql: `
+ALTER TABLE ai_run_metadata ADD COLUMN operator_policy_version INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE ai_request_logs (
+  run_id TEXT PRIMARY KEY REFERENCES ai_runs(id), policy_version INTEGER NOT NULL,
+  tool TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL,
+  encrypted_content BLOB, error_code TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+) STRICT;
+`,
+  postgres: `
+ALTER TABLE ai_run_metadata ADD COLUMN operator_policy_version INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE ai_request_logs (
+  run_id TEXT PRIMARY KEY REFERENCES ai_runs(id), policy_version INTEGER NOT NULL,
+  tool TEXT NOT NULL, mode TEXT NOT NULL, status TEXT NOT NULL,
+  encrypted_content BYTEA, error_code TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+`,
+}, {
+  id: "069-x-ai-claim-findings",
+  sql: "ALTER TABLE ai_run_metadata ADD COLUMN findings_json TEXT NOT NULL DEFAULT '[]';",
+  postgres: "ALTER TABLE ai_run_metadata ADD COLUMN findings_json TEXT NOT NULL DEFAULT '[]';",
+}, {
+  id: "069-x-ai-run-steps",
+  sql: "ALTER TABLE ai_run_metadata ADD COLUMN steps_json TEXT NOT NULL DEFAULT '[]';",
+  postgres: "ALTER TABLE ai_run_metadata ADD COLUMN steps_json TEXT NOT NULL DEFAULT '[]';",
 }];

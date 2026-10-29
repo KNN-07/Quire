@@ -6,12 +6,13 @@ import { defineAction } from "../shared";
 import type { AdapterContribution, AdapterDefinition, GrantContext } from "../shared";
 import { DropboxApi, dropboxEndpoints } from "./api";
 import type { DropboxEndpoints } from "./api";
-import { parameters as syncParameters } from "./model";
+import { folderImport, folderSelection, parameters as syncParameters } from "./model";
 import { migrations } from "./migrations";
 import { DropboxSync } from "./sync";
 import { DropboxScheduler } from "./scheduler";
 import { recoverDropbox } from "./recovery";
 import { actor } from "../../core/base/http";
+import { DropboxFolders } from "./folders";
 
 export type DropboxOptions = {
   readonly appKey?: string;
@@ -29,6 +30,7 @@ export function createDropboxIntegration(options: DropboxOptions = {}) {
     if (sync) throw new ServiceError("DUPLICATE_DROPBOX_ASSEMBLY", 500, "Create fresh Dropbox integration per runtime");
     const endpoints = options.endpoints ?? dropboxEndpoints;
     const engine = new DropboxSync(services, endpoints);
+    const folders = new DropboxFolders(services, endpoints);
     sync = engine;
     const api = (context: GrantContext) => new DropboxApi(services.http, endpoints, context);
     const definition: AdapterDefinition = {
@@ -49,6 +51,16 @@ export function createDropboxIntegration(options: DropboxOptions = {}) {
           authorizationParameters: { token_access_type: "offline" } };
       },
       actions: {
+        discoverFolders: defineAction(z.strictObject({}), { projectAccess: "none",
+          prepare: (_parameters, context) => folders.discover(context) }),
+        inspectFolder: defineAction(folderSelection, { projectAccess: "none",
+          prepare: (parameters, context) => folders.inspect(context, parameters.folderId) }),
+        importFolder: defineAction(folderImport, { projectAccess: "none",
+          prepare: (parameters, context) => folders.import(context, parameters) }),
+        reauthorizeFolderImport: defineAction(folderImport.extend({ confirmation: z.literal(true) }), {
+          projectAccess: "none", prepare: (parameters, context) => folders.import(context, {
+            folderId: parameters.folderId, name: parameters.name, mainPath: parameters.mainPath,
+          }, true) }),
         initialSync: defineAction(syncParameters, { projectAccess: "owner",
           prepare: (parameters, context) => engine.prepare({ action: "initialSync", parameters, context }) }),
         sync: defineAction(syncParameters, { projectAccess: "owner",
@@ -71,7 +83,7 @@ export function createDropboxIntegration(options: DropboxOptions = {}) {
       close: async () => { await scheduler?.close(); },
     };
     scheduler = new DropboxScheduler(services, definition);
-    recover = () => recoverDropbox(services, definition);
+    recover = async () => [...await folders.recover(definition), ...await recoverDropbox(services, definition)];
     return definition;
   };
   const module: ServiceModule = { id: "064-x-dropbox", lane: "X", order: 64, migrations,

@@ -24,7 +24,7 @@ export function LinkedIdentities(props: SettingsProps) {
     });
     return () => controller.abort();
   }, [props.client]);
-  return <div className="account-stack">
+  return <div className="account-stack account-identities">
     <h3>Linked identities</h3>
     {error ? <><Notice error={error} message="" /><Button onClick={() => { void action.run(async () => { await load(); }); }}>Reload linked identities</Button></> : identities === null ? <p role="status">Loading linked identities…</p> : identities.length === 0 ? <p>No linked identities. You can link an enabled provider below.</p> : <ul className="account-list">{identities.map(identity => <li key={identity.id}>
       <div className="account-row"><span>{identity.issuer}<small>{identity.subject} · Linked {new Date(identity.createdAt).toLocaleDateString()}</small></span>

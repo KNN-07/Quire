@@ -40,4 +40,8 @@ CREATE TABLE adapter_grant_claims (
   grant_id TEXT PRIMARY KEY REFERENCES provider_grants(id), claim_id TEXT NOT NULL, expires_at TEXT NOT NULL
 );
 `,
+}, {
+  id: "060-x-ai-operator-policy",
+  sql: "CREATE TABLE adapter_ai_policy (id TEXT PRIMARY KEY CHECK(id='ai'), policy_json TEXT NOT NULL) STRICT;",
+  postgres: "CREATE TABLE adapter_ai_policy (id TEXT PRIMARY KEY CHECK(id='ai'), policy_json TEXT NOT NULL);",
 }];

@@ -8,7 +8,9 @@ export class EventWaitError extends Error {
   }
 }
 /** Register before the action. Dispose cancels the subscription and its bounded timeout. */
-export function nextApplicationEvent(app: EditorApplication, accepts: (event: Event) => boolean, timeoutMs = 30_000) {
+export function nextApplicationEvent(app: {
+  readonly application: { readonly runtime: { readonly events: Pick<EditorApplication["application"]["runtime"]["events"], "subscribe"> } };
+}, accepts: (event: Event) => boolean, timeoutMs = 30_000) {
   const result = Promise.withResolvers<Event>();
   let settled = false;
   const cleanup = () => { clearTimeout(timeout); unsubscribe(); };
@@ -25,6 +27,12 @@ export function nextApplicationEvent(app: EditorApplication, accepts: (event: Ev
   }, timeoutMs);
   return { promise: result.promise, [Symbol.dispose]() {
     cleanup();
-    if (!settled) { settled = true; result.reject(new EventWaitError("disposed")); }
+    if (!settled) {
+      settled = true;
+      // Cancellation must not become an unhandled rejection that masks a failed action.
+      // The original promise remains rejected for callers that explicitly await it.
+      void result.promise.catch(() => undefined);
+      result.reject(new EventWaitError("disposed"));
+    }
   } };
 }

@@ -6,7 +6,7 @@ import { ServiceError } from "@quire/runtime";
 import type { Transaction } from "@quire/runtime";
 import type { CompilerService } from "./service";
 import { admitWorkerClaim, assertManagedLease, workerWallSeconds } from "../operations/workers/admission";
-import { parseDiagnostics } from "./diagnostics";
+import { diagnosticsCachePrefix, parseDiagnostics } from "./diagnostics";
 
 const leaseRow = z.object({ job_id: IdSchema, worker_id: IdSchema, attempt: z.number(),
   fencing_token: z.number(), expires_at: z.string(), heartbeat_at: z.string() });
@@ -59,7 +59,7 @@ export class CompilerLeases {
       const environment = await service.resolveEnvironment(job.environmentId);
       const source = await service.context.services.get("projects").readSnapshot(job.snapshot.id);
       const settings = await service.store.settings(id);
-      const cacheKey = new Bun.CryptoHasher("sha256").update(JSON.stringify({
+      const cacheKey = diagnosticsCachePrefix + new Bun.CryptoHasher("sha256").update(JSON.stringify({
         scope: job.snapshot.scope,
         files: source.files.map((file) => [file.id, file.path, file.blob]),
         settings, environment: environment.rootOrImageDigest,
@@ -190,7 +190,7 @@ export class CompilerLeases {
           await tx.get("SELECT clean,preview,cache_key FROM compiler_requests WHERE job_id=?",[candidateId]));
         if (request.clean) await tx.run("DELETE FROM compiler_cache WHERE project_id=? AND branch=?",
           [job.snapshot.scope.projectId,job.snapshot.scope.branch]);
-        const cached = request.cache_key ? z.object({job_id:IdSchema}).nullable().parse(
+        const cached = request.cache_key?.startsWith(diagnosticsCachePrefix) ? z.object({job_id:IdSchema}).nullable().parse(
           await tx.get("SELECT job_id FROM compiler_cache WHERE cache_key=?",[request.cache_key])) : null;
         if (!cached) { id=candidateId; break; }
         const previous = await bound.get(cached.job_id);

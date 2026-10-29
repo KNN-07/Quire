@@ -62,7 +62,10 @@ export function createInterchangeModule(options: {
           | { readonly kind: "remote"; readonly input: RemoteImport };
         switch (body.kind) {
           case "git":
-          case "github": prepared = { kind: "remote", input: { ...common, kind: body.kind } }; break;
+          case "github": prepared = { kind: "remote", input: { ...common, kind: body.kind,
+            ...(body.preserveHistory !== undefined ? { preserveHistory: body.preserveHistory } : {}),
+            ...(body.keepConnected !== undefined ? { keepConnected: body.keepConnected } : {}),
+          } }; break;
           case "zip":
           case "docx":
           case "markdown":

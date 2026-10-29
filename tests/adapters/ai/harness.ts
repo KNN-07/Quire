@@ -17,9 +17,11 @@ import { seed } from "../../../scripts/seed";
 import { fixturePassword, fixtureOrigin, controlledClock } from "../shared/harness";
 import type { CreateRun } from "../../../services/adapters/ai/model";
 import { register as review, migrations as reviewMigrations, dispose as disposeReview } from "../../../services/core/review";
+import { register as compiler, migrations as compilerMigrations, startWorker, stopWorker } from "../../../services/compiler";
 
 export async function aiFixture(origin: string, options: {
   readonly visionModels?: readonly string[]; readonly termsVersion?: string; readonly review?: boolean;
+  readonly compiler?: boolean;
 } = {}) {
   const path = await mkdtemp(join(tmpdir(), "quire-p2x-ai-"));
   const clock = controlledClock();
@@ -39,10 +41,12 @@ export async function aiFixture(origin: string, options: {
     { id: "023-k-git", lane: "K", order: 23, register: git, migrations: gitMigrations },
     { id: "024-k-catalog", lane: "K", order: 24, register: catalog, migrations: catalogMigrations },
     ...(options.review ? [{ id: "025-k-review", lane: "K" as const, order: 25, register: review, migrations: reviewMigrations }] : []),
+    ...(options.compiler ? [{ id: "030-c-compiler", lane: "C" as const, order: 30, register: compiler, migrations: compilerMigrations }] : []),
     assembly.shared.connections, assembly.shared.providers, assembly.references.module, assembly.ai.module,
   ] });
   let runtime = await initialize();
   await seed(runtime, fixturePassword);
+  if (options.compiler) await startWorker(runtime);
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: incoming => runtime.routes.fetch(incoming) });
   async function request(route: string, input: RequestInit = {}) {
     const headers = new Headers(input.headers);
@@ -103,9 +107,11 @@ export async function aiFixture(origin: string, options: {
       return (await modules.ai.service.get(session.actor, created.id)).run;
     },
     async restart() {
+      if (options.compiler) await stopWorker(runtime);
       await disposeReview(runtime);
       await modules.ai.close(); await modules.references.close(); await modules.shared.close(); await runtime.close();
       modules = factories(); runtime = await initialize();
+      if (options.compiler) await startWorker(runtime);
     },
     async fork() {
       const assembly = factories();
@@ -116,6 +122,7 @@ export async function aiFixture(origin: string, options: {
       } };
     },
     async [Symbol.asyncDispose]() {
+      if (options.compiler) await stopWorker(runtime);
       await disposeReview(runtime);
       await server.stop(true); await modules.ai.close(); await modules.references.close(); await modules.shared.close();
       await runtime.close(); await rm(path, { recursive: true, force: true });

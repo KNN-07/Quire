@@ -6,6 +6,7 @@ import { Button } from "../../ui";
 import { mutationHeaders, Notice, Panel, readInput, unwrap, useAction } from "./shared";
 import type { SettingsProps } from "./settings";
 import { currentConnections } from "./connections";
+import { DropboxFolderProjects } from "./dropbox-folder-project";
 
 type ScopeChoice = {
   readonly id: Id; readonly kind: "project" | "organization"; readonly name: string;
@@ -64,6 +65,7 @@ export function DropboxSettings(props: SettingsProps) {
       <p className="account-muted">Project owners and organization administrators control Dropbox access. Organization denial always overrides project permission.</p>
       <Button disabled={action.busy} onClick={() => { void action.run(() => load()); }}>Reload Dropbox settings</Button>
       <Notice error={error} message="" />
+      <DropboxFolderProjects client={props.client} grants={grants} />
       {!scopes && !error && <p role="status">Loading accessible scopes...</p>}
       {scopes?.length === 0 && <p>No owned projects or accessible organizations. Create a project to manage its Dropbox policy.</p>}
       {scopes && scopes.length > 0 && <div className="q-field"><label className="q-field__label" htmlFor={scopeId}>Dropbox policy scope</label>

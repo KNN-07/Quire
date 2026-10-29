@@ -19,6 +19,7 @@ export const RemoteIntentPayloadSchema = z.strictObject({
   source: sourceIntent,
   project: ProjectSchema.optional(),
   binding: RemoteBindingSchema,
+  connected: z.boolean().optional(),
   heads: z.record(z.string(), z.string().regex(/^[0-9a-f]{40}$/)),
   operation: OperationSchema,
   cursor: z.string().nullable(),
@@ -134,7 +135,7 @@ export class RemoteGitStore {
     readonly events: readonly PendingEvent[];
   }): Promise<void> {
     const { binding } = input.payload;
-    await tx.run(`INSERT INTO remote_bindings(id,project_id,provider,grant_id,remote_url,branch,cursor,version)
+    if (input.payload.connected !== false) await tx.run(`INSERT INTO remote_bindings(id,project_id,provider,grant_id,remote_url,branch,cursor,version)
       VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET
       provider=excluded.provider,grant_id=excluded.grant_id,remote_url=excluded.remote_url,
       branch=excluded.branch,cursor=excluded.cursor,version=remote_bindings.version+1`, [

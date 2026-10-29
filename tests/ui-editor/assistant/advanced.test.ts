@@ -81,7 +81,6 @@ test("creates an actual AI branch and commit only on acceptance", async () => {
   await browser.open(); await consent(browser.page); await generate(browser.page, app);
   const scope = { projectId: app.project.id, branch: app.project.defaultBranch };
   const original = await app.core.readDocument(scope, app.project.settings.mainFileId);
-  await browser.page.getByText("Git options", { exact: true }).click();
   await browser.page.getByLabel("Commit accepted changes", { exact: true }).check();
   await browser.page.getByLabel("New branch (optional, ai/ prefix)").fill("ai/browser-review");
   // When the user accepts with real Git options selected.

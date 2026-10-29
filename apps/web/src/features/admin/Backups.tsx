@@ -101,9 +101,8 @@ function BackupPolicy({ client, policy, etag, onSaved }: {
   readonly client: AdminClient; readonly policy: ResponseOf<typeof endpoints.backupPolicyGet>;
   readonly etag: string | null; readonly onSaved: () => void;
 }) {
-  const [schedule, setSchedule] = useState(policy.schedule);
+  const [schedule, setSchedule] = useState(policy.schedule === "disabled" ? "" : policy.schedule);
   const [retention, setRetention] = useState(String(policy.retentionDays));
-  const [destination, setDestination] = useState(policy.destination);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function save() {
@@ -111,7 +110,8 @@ function BackupPolicy({ client, policy, etag, onSaved }: {
     setBusy(true); setError("");
     try {
       const result = await client.call(endpoints.backupPolicyPut, {
-        params: {}, query: {}, body: { schedule, retentionDays: Number(retention), destination, expectedVersion: policy.version },
+        params: {}, query: {}, body: { schedule: schedule.trim() || "disabled",
+          retentionDays: Number(retention), destination: policy.destination, expectedVersion: policy.version },
         headers: { "if-match": etag },
       });
       if ("error" in result) setError(result.error.message);
@@ -121,11 +121,18 @@ function BackupPolicy({ client, policy, etag, onSaved }: {
   }
   return <section className="admin-policy"><h2>Backup policy</h2>
     <form className="admin-form" onSubmit={event => { event.preventDefault(); void save(); }}>
-      <Field label="Destination" required value={destination} onChange={event => setDestination(event.currentTarget.value)} />
+      <Field label="Destination" readOnly value={policy.destination}
+        hint="Fixed private backup root provisioned by the operator. Change deployment configuration to relocate it." />
       <div className="admin-settings-grid">
-        <Field label="Schedule (cron)" value={schedule} hint="Leave empty for manual backups only." onChange={event => setSchedule(event.currentTarget.value)} />
-        <Field label="Retention (days)" type="number" min={0} required value={retention} onChange={event => setRetention(event.currentTarget.value)} />
+        <Field label="Schedule (cron)" value={schedule}
+          hint="Daily UTC only: minute hour * * * (for example, 0 3 * * *). Leave empty for manual-only."
+          onChange={event => setSchedule(event.currentTarget.value)} />
+        <Field label="Retention (days)" type="number" min={1} max={36500} step={1} required value={retention} onChange={event => setRetention(event.currentTarget.value)} />
       </div>
+      <p className="admin-muted">Saving a schedule does not install or start a timer. The deployment operator must
+        configure a private timer to run the scheduled backup command once per minute under an enrolled operator's authority.
+        It evaluates UTC and catches up only the latest due daily slot; duplicate invocations are deduplicated.</p>
+      <p><code>bun scripts/ops/backup.ts --action scheduled --operator &lt;enrolled-operator-UUID&gt;</code></p>
       <Button type="submit" busy={busy} disabled={!etag}>Save policy</Button>
       {error && <p role="alert">{error}</p>}
     </form>

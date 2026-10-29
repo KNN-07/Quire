@@ -10,13 +10,14 @@ import { Security } from "./security";
 import { GitSettings } from "./git";
 import { Notifications } from "./notifications";
 import { Billing } from "./billing";
+import { Organizations } from "./organizations";
 
 export type SettingsProps = AccountPageProps & {
   readonly account: ResponseOf<typeof endpoints.me>;
   readonly userVersion: number | null;
   readonly refresh: () => Promise<void>;
 };
-const tabs = [["profile", "Profile"], ["security", "Sign-in & SSO"], ["editor", "Editor"], ["ai", "AI assistant"], ["git", "Git & integrations"], ["notifications", "Notifications"], ["billing", "Billing"]] as const;
+const tabs = [["profile", "Profile"], ["security", "Sign-in & SSO"], ["editor", "Editor"], ["ai", "AI assistant"], ["git", "Git & integrations"], ["notifications", "Notifications"], ["billing", "Billing"], ["organizations", "Organizations"]] as const;
 export function Settings(props: AccountPageProps) {
   const [account, setAccount] = useState<ResponseOf<typeof endpoints.me> | null>(null);
   const [version, setVersion] = useState<number | null>(null);
@@ -48,7 +49,7 @@ export function Settings(props: AccountPageProps) {
           setError(""); setLoading(true);
           void refresh().catch((cause: unknown) => { if (cause instanceof Error) setError(cause.message); else throw cause; }).finally(() => setLoading(false));
         }}>Retry loading account</Button><a href="/sign-in">Sign in</a></>}
-        {settingsProps && (tab === "profile" ? <Profile {...settingsProps} /> : tab === "editor" || tab === "ai" ? <PreferenceForm {...settingsProps} tab={tab} /> : tab === "security" ? <Security {...settingsProps} /> : tab === "git" ? <GitSettings {...settingsProps} /> : tab === "notifications" ? <Notifications {...settingsProps} /> : tab === "billing" ? <Billing {...settingsProps} /> : <><h2>Settings section not found</h2><a href="/settings/profile">Open profile settings</a></>)}
+        {settingsProps && (tab === "profile" ? <Profile {...settingsProps} /> : tab === "editor" || tab === "ai" ? <PreferenceForm {...settingsProps} tab={tab} /> : tab === "security" ? <Security {...settingsProps} /> : tab === "git" ? <GitSettings {...settingsProps} /> : tab === "notifications" ? <Notifications {...settingsProps} /> : tab === "billing" ? <Billing {...settingsProps} /> : tab === "organizations" ? <Organizations {...settingsProps} /> : <><h2>Settings section not found</h2><a href="/settings/profile">Open profile settings</a></>)}
       </main>
     </div>
   </>;

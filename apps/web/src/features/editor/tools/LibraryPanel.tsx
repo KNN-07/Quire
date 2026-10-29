@@ -32,10 +32,14 @@ export function LibraryPanel(props: Props) {
   useEffect(() => {
     const abort = new AbortController();
     void state.run(async () => {
-      const page = editorValue(await client.call(endpoints.libraryList, {
-        params: {}, query: {}, body: undefined,
-      }, abort.signal));
-      if (!abort.signal.aborted) { setEntries(page.items); setCursor(page.nextCursor); }
+      try {
+        const page = editorValue(await client.call(endpoints.libraryList, {
+          params: {}, query: {}, body: undefined,
+        }, abort.signal));
+        if (!abort.signal.aborted) { setEntries(page.items); setCursor(page.nextCursor); }
+      } catch (failure) {
+        if (!abort.signal.aborted) throw failure;
+      }
     });
     return () => abort.abort();
   }, [client, state.run]);

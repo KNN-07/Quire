@@ -13,7 +13,7 @@ export function sharedRemoteImporter(context: ModuleContext): RemoteImporter {
       case "git": {
         const source = input.source;
         if (!source.grantId) throw new ServiceError("GIT_GRANT_REQUIRED", 503,
-          "Save a GitHub/Git connection first; generic non-OAuth Git enrollment requires the shared credential enrollment contract");
+          "Save a GitHub or repository-bound Git connection in Settings before importing.");
         if (!context.services.has("adapters")) throw new ServiceError("REMOTE_IMPORT_REQUIRED", 503,
           "Register shared adapters with the actual remote Git contributions before interchange");
         const routes = { github: { provider: "github", action: "import" }, git: { provider: "git", action: "clone" } } as const;
@@ -26,7 +26,12 @@ export function sharedRemoteImporter(context: ModuleContext): RemoteImporter {
           actorId, grantId: grant.id, action,
           expectedCursor: null, expectedVersion: grant.version, key: receipt.key,
           parameters: { name: input.name, url: source.url, branch: source.branch,
-            ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}) },
+            ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+            ...(input.mainPath ? { mainPath: input.mainPath } : {}),
+            ...(input.engine ? { engine: input.engine } : {}),
+            ...(input.environmentId ? { environmentId: input.environmentId } : {}),
+            ...(input.preserveHistory !== undefined ? { preserveHistory: input.preserveHistory } : {}),
+            ...(input.keepConnected !== undefined ? { keepConnected: input.keepConnected } : {}) },
         });
       }
       case "upload":

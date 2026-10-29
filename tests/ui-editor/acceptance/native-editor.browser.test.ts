@@ -70,7 +70,7 @@ describe("independent native editor acceptance", () => {
     await page.goto("/projects", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Blank project", exact: true }).click();
     await page.getByRole("textbox", { name: "Project name", exact: true }).fill("Acceptance blank");
-    await page.getByRole("checkbox", { name: "Start with an example main.tex and refs.bib", exact: true }).uncheck();
+    await page.getByRole("checkbox", { name: "Start with an example document and introduction", exact: true }).uncheck();
     await Promise.all([
       page.waitForURL(/\/projects\/[^/]+\/edit$/u, { timeout: 30_000 }),
       page.getByRole("button", { name: "Create project", exact: true }).click(),

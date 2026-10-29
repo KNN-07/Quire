@@ -6,6 +6,7 @@ import type { ModuleContext, RequestContext } from "@quire/runtime";
 import { authentication } from "../../accounts/identity/authentication";
 import { defaultPreferences, newId, store } from "../../accounts/identity/store";
 import { identityPolicy } from "../../accounts/identity/reads";
+import { requireOrganizationIdentityAuthority } from "../../accounts/identity/managed-release";
 
 export type ExternalIdentityVerification = {
   readonly issuer: string;
@@ -13,6 +14,8 @@ export type ExternalIdentityVerification = {
   readonly name: string;
   readonly verifiedEmail: string | null;
   readonly allowCreate: boolean;
+  /** Trusted assembly ownership for a newly linked federation identity; never inferred from issuer. */
+  readonly organizationId?: Id;
   readonly link?: { readonly userId: Id; readonly sessionId: Id; readonly expectedVersion: number };
   /** SQL only: recheck the provider configuration and apply authorized provisioning. */
   readonly beforeCommit?: (tx: Transaction, userId: Id) => Promise<void>;
@@ -37,8 +40,16 @@ export function createExternalIdentityAdmission<Proof>(
       if (verifier.kind === "oauth" && (await identityPolicy(context, tx)).requireSso) {
         throw new ServiceError("SSO_REQUIRED", 403, "Use the configured institutional identity provider");
       }
-      const existing = await tx.get("SELECT user_id FROM identities WHERE issuer=? AND subject=?", [identity.issuer, identity.subject]);
+      if (verifier.kind === "federation" && !identity.organizationId)
+        throw new ServiceError("FEDERATION_UNCONFIGURED", 503, "Federation identity requires an assembly organization");
+      const existing = await tx.get("SELECT user_id,authority_kind,organization_id FROM identities WHERE issuer=? AND subject=?", [identity.issuer, identity.subject]);
       const linkedUser = existing ? z.object({ user_id: IdSchema }).parse(existing).user_id : null;
+      if (existing) {
+        const authority = z.object({ authority_kind: z.enum(["legacy", "personal", "organization"]), organization_id: IdSchema.nullable() }).parse(existing);
+        if (authority.authority_kind !== "legacy" && (authority.authority_kind !== (verifier.kind === "oauth" ? "personal" : "organization") ||
+          authority.organization_id !== (identity.organizationId ?? null)))
+          throw new ServiceError("IDENTITY_AUTHORITY_CONFLICT", 409, "Identity belongs to a different authentication authority");
+      }
       let userId: Id;
       if (identity.link) {
         const link = identity.link;
@@ -71,8 +82,9 @@ export function createExternalIdentityAdmission<Proof>(
         await tx.run("INSERT INTO preferences(user_id,value_json,updated_at) VALUES(?,?,?)", [userId, JSON.stringify(defaultPreferences), now]);
         await tx.run("INSERT INTO verified_emails(id,user_id,email,verified_at) VALUES(?,?,?,?)", [newId(), userId, email, now]);
       }
-      if (!linkedUser) await tx.run("INSERT INTO identities(id,user_id,issuer,subject,created_at) VALUES(?,?,?,?,?)",
-        [newId(), userId, identity.issuer, identity.subject, context.clock.now()]);
+      if (identity.organizationId) await requireOrganizationIdentityAuthority(tx, { userId, organizationId: identity.organizationId });
+      if (!linkedUser) await tx.run("INSERT INTO identities(id,user_id,issuer,subject,created_at,authority_kind,organization_id) VALUES(?,?,?,?,?,?,?)",
+        [newId(), userId, identity.issuer, identity.subject, context.clock.now(), verifier.kind === "oauth" ? "personal" : "organization", identity.organizationId ?? null]);
       await identity.beforeCommit?.(tx, userId);
       await prepared.publish(tx, userId);
       await tx.run("INSERT INTO audit_entries(id,at,actor_id,event,target_id,details_json) VALUES(?,?,?,?,?,?)",

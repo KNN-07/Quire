@@ -1,0 +1,12 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../tests/operations/environments/assets.d.ts",
+    "../../../../apps/web/src/features/account/auth.tsx",
+    "../../../../apps/web/src/features/account/auth-options.tsx",
+    "../../../../apps/web/src/features/account/ldap-sign-in.tsx"
+  ],
+  "exclude": []
+}

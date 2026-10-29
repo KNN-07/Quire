@@ -19,7 +19,8 @@ export function returnPath(value: string, publicUrl: string): string {
   }
   const destination = new URL(value, publicUrl);
   if (destination.origin !== new URL(publicUrl).origin || destination.hash ||
-    !["/projects", "/settings"].some((path) => destination.pathname === path || destination.pathname.startsWith(`${path}/`))) {
+    (!["/projects", "/settings"].some((path) => destination.pathname === path || destination.pathname.startsWith(`${path}/`))
+      && value !== "/sign-up?step=start")) {
     throw new ServiceError("OAUTH_RETURN_DENIED", 400, "Return path must be a local projects or settings page");
   }
   return destination.pathname + destination.search;

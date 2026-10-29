@@ -3,6 +3,8 @@ import { build } from "../../workers/compiler/build";
 import { sourceFixture, settings } from "./fixtures";
 import { pdfText } from "./pdf-text";
 import { retain } from "./evidence";
+import { parseDiagnostics } from "../../services/compiler/diagnostics";
+import { fixtureIds } from "../fixtures/foundation";
 
 for (const engine of ["pdflatex", "latex", "xelatex", "lualatex", "plain"] as const) {
   test(`T07 compiles actual ${engine} into a readable PDF`, async () => {
@@ -36,5 +38,9 @@ for (const bibliography of ["bibtex", "biber"] as const) {
     const pdf = result.files.get("output.pdf");
     if (!pdf) throw new TypeError("PDF missing");
     expect(await pdfText(pdf)).toContain("Actual Bibliography Title");
+    expect(result.log).toMatch(/Warning:.*(?:Citation|undefined|rerun|Biber)/i);
+    expect(parseDiagnostics({ jobId: fixtureIds.snapshot, log: result.log, files: fixture.files })).toEqual([]);
+    await retain(`${bibliography}-multipass.log`, new TextEncoder().encode(result.log));
+    await retain(`${bibliography}-multipass.pdf`, pdf);
   }, 60000);
 }

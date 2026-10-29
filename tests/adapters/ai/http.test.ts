@@ -22,7 +22,7 @@ test("exposes governed images, conversation, usage and required run metadata ove
   // Then
   const response = await fixture.request(`/api/ai/runs/${run.id}`, { headers: session.headers });
   const read = runSchema.parse(await response.json()).data;
-  expect(read).toMatchObject({ tool: "table-image", status: "succeeded", version: 2, errorCode: null, conversationId: conversation.id });
+  expect(read).toMatchObject({ tool: "table-image", status: "succeeded", version: 4, errorCode: null, conversationId: conversation.id });
   const shared = await fixture.request(`${root}/conversations/${conversation.id}`, { headers: session.headers });
   expect(z.object({ data: endpoints.aiConversationGet.output }).parse(await shared.json()).data.messages).toHaveLength(2);
   const usage = await fixture.request("/api/me/ai/usage?month=2026-10", { headers: session.headers });

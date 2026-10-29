@@ -18,6 +18,8 @@ export function Identity({ client }: { readonly client: AdminClient }) {
   const [certificates, setCertificates] = useState("");
   const [oidcSecret, setOidcSecret] = useState<string | undefined>();
   const [ldapSecret, setLdapSecret] = useState<string | undefined>();
+  const [ldapTestUsername, setLdapTestUsername] = useState("");
+  const [ldapTestPassword, setLdapTestPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -36,6 +38,7 @@ export function Identity({ client }: { readonly client: AdminClient }) {
         setConfig(response.result.data);
         setCertificates(response.result.data.saml?.certificates.join("\n\n") ?? "");
         setOidcSecret(undefined); setLdapSecret(undefined);
+        setLdapTestUsername(""); setLdapTestPassword("");
         setEtag(response.metadata.etag);
         setMessage("");
       }
@@ -51,17 +54,19 @@ export function Identity({ client }: { readonly client: AdminClient }) {
     return IdentityConfigSchema.parse({ ...config, saml });
   }
   async function testConnection() {
-    setBusy(true);
+    setBusy(true); setMessage(""); setResult(undefined);
     try {
+      const draftConfig = draft();
       const response = await client.call(endpoints.identityTest, {
-        params: {}, query: {}, body: { draftConfig: draft(), nonce: crypto.randomUUID(),
+        params: {}, query: {}, body: { draftConfig, nonce: crypto.randomUUID(),
+          ...(draftConfig.protocol === "ldap" ? { ldapUsername: ldapTestUsername, ldapPassword: ldapTestPassword } : {}),
           ...(oidcSecret === undefined ? {} : { oidcSecret }), ...(ldapSecret === undefined ? {} : { ldapSecret }) },
         headers: { "idempotency-key": crypto.randomUUID() },
       });
       if ("error" in response) setMessage(`${response.error.code}: ${response.error.message}`);
       else { setResult(response.data); setMessage("Handshake operation submitted. Its returned status is not proof of a successful login."); }
     } catch (error) { setMessage(errorMessage(error)); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setLdapTestPassword(""); }
   }
   async function save() {
     if (!pending || !etag) return;
@@ -77,6 +82,7 @@ export function Identity({ client }: { readonly client: AdminClient }) {
       else {
         setConfig(response.result.data);
         setOidcSecret(undefined); setLdapSecret(undefined);
+        setLdapTestUsername(""); setLdapTestPassword("");
         setCertificates(response.result.data.saml?.certificates.join("\n\n") ?? "");
         setEtag(response.metadata.etag);
         setMessage("Identity configuration saved by the server.");
@@ -103,9 +109,10 @@ export function Identity({ client }: { readonly client: AdminClient }) {
       event.preventDefault();
       try { setPending(draft()); setConfirm(true); } catch (error) { setMessage(errorMessage(error)); }
     }}>
-      <label className="admin-label">Protocol<select name="protocol" value={config.protocol} onChange={event => {
+      <label className="admin-label">Protocol<select name="protocol" value={config.protocol} disabled={busy} onChange={event => {
         const protocol = IdentityConfigSchema.unwrap().shape.protocol.parse(event.currentTarget.value);
         setConfig({ ...config, protocol });
+        setLdapTestUsername(""); setLdapTestPassword(""); setResult(undefined);
       }}><option value="saml">SAML</option><option value="oidc">OIDC</option><option value="ldap">LDAP</option></select></label>
       <fieldset><legend>{config.protocol.toUpperCase()} provider</legend>
         {config.protocol === "saml" && <>
@@ -133,6 +140,11 @@ export function Identity({ client }: { readonly client: AdminClient }) {
             onChange={event => setLdapSecret(event.currentTarget.value || undefined)} />
           {config.ldap?.secretPresent && <label className="admin-check"><input type="checkbox" checked={ldapSecret === ""}
             onChange={event => setLdapSecret(event.currentTarget.checked ? "" : undefined)} />Remove stored bind secret</label>}
+          <Field label="Test username" autoComplete="off" value={ldapTestUsername} disabled={busy}
+            onChange={event => setLdapTestUsername(event.currentTarget.value)} />
+          <Field label="Test user password" type="password" autoComplete="off" value={ldapTestPassword} disabled={busy}
+            hint="Used only for the user-bind test, never saved as provider configuration."
+            onChange={event => setLdapTestPassword(event.currentTarget.value)} />
         </>}
       </fieldset>
       <fieldset><legend>Attributes & access policy</legend>
@@ -144,7 +156,8 @@ export function Identity({ client }: { readonly client: AdminClient }) {
           {{ enabled: "Enable identity provider", requireSso: "Require SSO", createOnLogin: "Create accounts on login" }[key]}</label>)}
       </fieldset>
       <IdentityAccess client={client} config={config} onChange={setConfig} />
-      <div className="admin-row"><Button busy={busy} onClick={() => void testConnection()}>Test connection</Button>
+      <div className="admin-row"><Button busy={busy} disabled={config.protocol === "ldap" && (!ldapTestUsername.trim() || !ldapTestPassword)}
+        onClick={() => void testConnection()}>Test connection</Button>
         <Button disabled={busy} onClick={() => void metadata()}>Download SP metadata</Button>
         <Button variant="primary" type="submit" disabled={busy || !etag}>Save identity</Button></div>
       {!etag && <p role="alert">Server did not return a resource ETag. Saving is disabled to avoid an unchecked overwrite.</p>}

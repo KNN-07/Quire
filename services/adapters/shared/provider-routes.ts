@@ -3,9 +3,29 @@ import { ServiceError } from "@quire/runtime";
 import type { ModuleContext } from "@quire/runtime";
 import type { AdapterServices } from "./contracts";
 import type { ConfiguredAdapter } from "./configured-adapter";
+import { AiOperatorPolicies } from "./provider-policy";
 
 export function registerProviders(context: ModuleContext, services: AdapterServices, adapters: ReadonlyMap<string, ConfiguredAdapter>): void {
   const identity = context.services.get("identity");
+  const policies = new AiOperatorPolicies(context);
+  context.routes.register(endpoints.providerAiPolicyGet, async (_input, request) => {
+    const principal = await identity.require(request.request);
+    if (!principal.operator) throw new ServiceError("FORBIDDEN", 403, "Operator required");
+    const policy = await policies.get();
+    request.responseHeaders.set("etag", `"${policy.version}"`);
+    return policy;
+  });
+  context.routes.register(endpoints.providerAiPolicyPut, async (input, request) => {
+    const principal = await identity.require(request.request);
+    await identity.verifyMutation(request.request, principal);
+    if (!principal.operator) throw new ServiceError("FORBIDDEN", 403, "Operator required");
+    if (request.request.headers.get("if-match") !== `"${input.body.expectedVersion}"`) {
+      throw new ServiceError("VERSION_CONFLICT", 409, "If-Match must match expectedVersion");
+    }
+    const policy = await policies.put(principal.user.id, input.body);
+    request.responseHeaders.set("etag", `"${policy.version}"`);
+    return policy;
+  });
   const find = (kind: string) => {
     const adapter = adapters.get(kind);
     if (!adapter) throw new ServiceError("PROVIDER_UNKNOWN", 404, "Provider is not installed");

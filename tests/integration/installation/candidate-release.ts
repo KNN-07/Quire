@@ -6,6 +6,7 @@ import { controlledRoleBinding } from "../../../services/operations/installation
 import { connectControl } from "../../../services/operations/installation/controller-server";
 import type { ControlChannel } from "../../../services/operations/installation/controller-server";
 import { prepareInstallationRole as prepareActualRole } from "../../../apps/server/src/installation-role";
+export { prepareInstallationWorker } from "../../../apps/server/src/installation-role";
 
 /** Real signed candidate factory with an IPC barrier after actual prepared health. */
 export async function prepareInstallationRole(binding: InstallationBinding, role: string) {

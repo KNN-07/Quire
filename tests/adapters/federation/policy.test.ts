@@ -37,6 +37,14 @@ test("applies a tighter AI mapping immediately while retaining the independent u
   await app.runtime.db.run("UPDATE organizations SET policy_json=?", [independent]);
   await app.runtime.db.run("INSERT INTO identity_ai_consent(user_id,terms_version,accepted,updated_at) VALUES(?,'v1',1,?)", [user.id, app.runtime.clock.now()]);
   const operator = await app.login();
+  // The independent policy is a ceiling, not a grant of project-owner benefits.
+  expect((await app.request(`/api/admin/project-benefits/user/${fixtureIds.kien}`, {
+    method: "PUT", headers: operator.headers,
+    body: JSON.stringify({ benefits: { compileSeconds: 600, writableMembers: null, historyDays: null, trackChanges: true }, expectedVersion: 0 }),
+  })).status).toBe(200);
+  const before = await app.runtime.services.get("policy").forProject(user.id, fixtureIds.project);
+  expect(before.ai).toBe("agent");
+  expect(before.compileSeconds).toBe(420);
   const current = await app.configurations.get();
   const { version, ...draft } = current.config;
   // When

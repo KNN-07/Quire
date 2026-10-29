@@ -5,6 +5,7 @@ import { Button, Field, Modal } from "../../ui";
 import { listInput, mutationHeaders, Notice, Panel, unwrap, useAction, value } from "./shared";
 import type { SettingsProps } from "./settings";
 import { LinkedIdentities } from "./identities";
+import { AccountManagement } from "./management";
 
 export function Security(props: SettingsProps) {
   const [sessions, setSessions] = useState<readonly Session[]>([]);
@@ -27,6 +28,7 @@ export function Security(props: SettingsProps) {
   }, [props.client]);
   return <Panel title="Sign-in & SSO">
     <LinkedIdentities {...props} />
+    <AccountManagement {...props} />
     <h3>Active sessions</h3>
     {loading && <p role="status">Loading sessions…</p>}
     {sessionError && <><Notice error={sessionError} message="" /><Button onClick={() => { void action.run(async () => { await loadSessions(); setSessionError(""); }); }}>Reload sessions</Button></>}
@@ -60,8 +62,13 @@ export function Security(props: SettingsProps) {
         setExportJob(unwrap(await props.client.call(endpoints.operationGet, { params: { id: exportJob.id }, query: {}, body: undefined })));
       }); }}>Refresh export status</Button>}
     </div>}
-    <h3>Delete account</h3><p className="account-muted">Deletion may require project reassignment. The server checks ownership before deleting anything.</p>
-    <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete account…</Button>
+    <h3>Delete account</h3>
+    <p className="account-muted">Transfer or delete your remaining owned projects first, including archived or trashed projects.
+      Already-deleted projects do not need reassignment. Each organization must retain another active administrator.</p>
+    <p className="account-muted">Account deletion does not cancel organization subscriptions. Manage billing separately before leaving.
+      Retained project history and operator backups are not securely erased by this action.</p>
+    {props.account.user.managedBy !== null && <p>Your organization controls deletion while your account is managed.</p>}
+    <Button variant="danger" disabled={props.account.user.managedBy !== null} onClick={() => setConfirmDelete(true)}>Delete account…</Button>
     <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your account">
       <form className="account-form" onKeyDown={event => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }} onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
@@ -72,7 +79,8 @@ export function Security(props: SettingsProps) {
           await props.onSessionChange(); props.navigate("/sign-in");
         });
       }}>
-        <p>This permanently deletes your account. Enter {props.account.user.primaryEmail} to confirm.</p>
+        <p>This removes account access and credentials. Existing owned projects must be transferred or deleted first.
+          Organization billing is not canceled. Enter {props.account.user.primaryEmail} to confirm.</p>
         <Field label="Confirmation email" name="confirmation" required autoComplete="off" />
         <Field label="Current password" name="password" type="password" autoComplete="current-password" />
         <Notice {...action} /><div className="account-actions"><Button onClick={() => setConfirmDelete(false)}>Cancel</Button><Button type="submit" variant="danger" busy={action.busy} onKeyDown={event => { if (event.key === "Enter") event.stopPropagation(); }}>Permanently delete account</Button></div>

@@ -12,15 +12,15 @@ export type SyncTransport = {
 };
 type MergeWorkspace = {
   readonly projectId: Id; readonly mainId: Id; readonly files: readonly FileEntry[];
-  readonly archived: boolean;
+  readonly archived: boolean; readonly root?: string;
 };
 export async function mergeSources(input: {
   readonly workspace: MergeWorkspace;
   readonly state: SyncState; readonly remote: readonly RemoteFile[];
 }, services: { readonly blobs: BlobStore; readonly transport: SyncTransport }) {
   const { workspace } = input;
-  const root = `/${workspace.projectId}/`;
-  const remote = new Map(input.remote.filter(file => file.path_lower.startsWith(root)).map(file => [file.path_lower, file]));
+  const root = `${workspace.root ?? `/${workspace.projectId}`}/`;
+  const remote = new Map(input.remote.filter(file => file.path_lower.startsWith(root.toLowerCase())).map(file => [file.path_lower, file]));
   const inputs = new Map<Id, SourceInput>(workspace.files.map(file => [file.id, { file }]));
   const baselines: SyncState["files"] = [];
   const conflicts: Conflict[] = [...input.state.conflicts];

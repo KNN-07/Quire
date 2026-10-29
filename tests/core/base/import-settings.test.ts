@@ -4,7 +4,9 @@ import { EnvironmentSchema } from "@quire/contracts";
 import { baseFixture } from "./harness";
 import { fixtureIds as ids } from "../../fixtures/foundation";
 
-test.each([false, true])("standalone Rnw main requires a knitr manifest: %s", async knitr => {
+test.each([
+  [false, "main.Rnw"], [true, "main.Rnw"], [false, "main.Rtex"], [true, "main.Rtex"],
+] as const)("standalone knitr main requires a matching manifest: %s %s", async (knitr, mainPath) => {
   // Given: a real persisted environment manifest, with or without knitr capability.
   await using fixture = await baseFixture();
   const row = z.object({ manifest_json: z.string() }).parse(
@@ -17,8 +19,8 @@ test.each([false, true])("standalone Rnw main requires a knitr manifest: %s", as
   }
   // When: publication selects an Rnw document, without an extra main.tex.
   const result = await fixture.service.createFromFiles(ids.kien, {
-    name: "Standalone Rnw", mainPath: "main.Rnw", environmentId: ids.environment,
-    entries: [{ path: "main.Rnw", bytes: new TextEncoder().encode(
+    name: "Standalone knitr", mainPath, environmentId: ids.environment,
+    entries: [{ path: mainPath, bytes: new TextEncoder().encode(
       "\\documentclass{article}\n\\begin{document}\n<<>>=\n1+1\n@\n\\end{document}\n") }],
   }).then(project => ({ project }), (error: unknown) => ({ error }));
   // Then: only the knitr-capable environment admits the standalone main.
@@ -30,7 +32,7 @@ test.each([false, true])("standalone Rnw main requires a knitr manifest: %s", as
   await fixture.restart();
   const file = await fixture.service.getFile({ projectId: result.project.id, branch: "main" },
     result.project.settings.mainFileId);
-  expect(file.path).toBe("main.Rnw");
+  expect(file.path).toBe(mainPath);
   expect(file.editable).toBe(true);
   const patched = await fixture.service.patch(ids.kien, {
     projectId: result.project.id, expectedVersion: result.project.version, settings: result.project.settings,

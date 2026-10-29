@@ -13,6 +13,7 @@ import type { ProcessIdentity } from "./systemd-process";
 import type { SystemdInstallationAuthority } from "./systemd-authority";
 import { ExecutionTaskSchema } from "./execution-model";
 import { reportPreparedFailure } from "./prepared-failure";
+import { UpdateError } from "../updates/model";
 
 const frameSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("request"), id: IdSchema, method: z.string().max(32), input: z.json() }),
@@ -67,7 +68,7 @@ export class ControlChannel {
           void this.handler(frame.method, frame.input).then(
             result => this.send({ type: "response", id: frame.id, result: result ?? null, error: null }),
             error => this.send({ type: "response", id: frame.id, result: null,
-              error: error instanceof ControlError ? error.code : "CONTROL_REQUEST_FAILED" }),
+              error: error instanceof ControlError || error instanceof UpdateError ? error.code : "CONTROL_REQUEST_FAILED" }),
           ).catch(() => this.close()).finally(() => { this.handling = false; });
         }
         }

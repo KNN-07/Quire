@@ -55,9 +55,14 @@ export class DropboxSync {
         throw new ServiceError("DROPBOX_RECOVERY_AUTHORITY_CHANGED", 409, "Pending recovery belongs to another actor");
       }
       if (pending?.state) return await this.publication({ context, projectId, lease, journal: pending });
-      const api = new DropboxApi(this.services.http, this.endpoints, context);
+      const binding = await this.services.context.db.get<{ folder_id: string; path: string }>(
+        "SELECT folder_id,path FROM dropbox_folder_bindings WHERE grant_id=? AND project_id=?", [context.grant.id, projectId]);
+      const api = new DropboxApi(this.services.http, this.endpoints, context, binding ?? undefined);
+      if (binding && (await api.folder(binding.folder_id)).path_lower !== binding.path.toLowerCase()) {
+        throw new ServiceError("DROPBOX_FOLDER_MOVED", 409, "The bound Dropbox folder moved; synchronization is paused without changing remote paths");
+      }
       const state: SyncState = saved?.state ?? { branch, cursor: null, generated: false, files: [], remote: [], conflicts: [] };
-      const listed = await api.list({ root: "", cursor: state.cursor, remote: state.remote });
+      const listed = await api.list({ root: binding?.folder_id ?? "", cursor: state.cursor, remote: state.remote });
       const files = await projects.listFiles(scope);
       const current = await projects.getBranch(scope);
       const userState = await this.services.context.db.get<{ state: string }>(
@@ -92,11 +97,13 @@ export class DropboxSync {
           },
         };
       const merged = await mergeSources({
-        workspace: { projectId, mainId: project.settings.mainFileId, files, archived: userState?.state === "archived" },
+        workspace: { projectId, mainId: project.settings.mainFileId, files, archived: userState?.state === "archived",
+          ...(binding ? { root: binding.path } : {}) },
         state, remote: listed.files,
       }, { blobs: this.services.context.blobs, transport });
       const remote = input.parameters.generatedOutput ? await exportGenerated({
         context: this.services.context, projectId, branch, remote: merged.remote, transport,
+        ...(binding ? { root: binding.path } : {}),
       }) : merged.remote;
       const next: SyncState = { branch, cursor: listed.cursor, generated: input.parameters.generatedOutput,
         files: merged.files, remote: [...remote], conflicts: merged.conflicts };

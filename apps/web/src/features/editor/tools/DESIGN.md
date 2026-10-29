@@ -20,8 +20,8 @@ file rename/download/delete/link-refresh actions. Escape closes only the menu
 and returns focus to its summary, not the enclosing mobile drawer. Starting a
 form or upload closes the menu so the tree stays reachable afterward.
 The settings view uses ordinary labelled fields, not schema-generated forms.
-Main-file choices remain editable and unlinked. Exact root `main.Rnw` is offered
-only for the selected Docker environment advertising `knitr`; other Rnw paths
+Main-file choices remain editable and unlinked. Exact roots `main.Rnw` and
+`main.Rtex` are offered only for the selected Docker environment advertising `knitr`; other R source paths
 are excluded. Changing to an incompatible environment requires a compatible
 main before Save. Settings flush source, fetch the current project version and
 reject a changed settings baseline before applying the user's edit.

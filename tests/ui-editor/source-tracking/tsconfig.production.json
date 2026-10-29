@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../apps/web/src/features/editor/source/**/*.ts",
+    "../../../apps/web/src/features/editor/source/**/*.tsx",
+    "../../../apps/web/src/features/editor/index.tsx",
+    "../../../apps/web/src/features/editor/chrome.tsx",
+    "../../../apps/web/src/features/editor/shared/contracts.ts",
+    "./draft.test.ts"
+  ]
+}

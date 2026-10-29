@@ -6,8 +6,10 @@ import { editorValue } from "../shared";
 import type { ReviewPanelProps } from "../shared";
 import { errorMessage, localTime, PanelMessage } from "./common";
 import { subscribeProjectEvents } from "./events";
+import { actorColor, ChangePreview, replacementSpan } from "./change-preview";
 
 type Comparison = ResponseOf<typeof endpoints.historyCompare>;
+type Changes = ResponseOf<typeof endpoints.historyChanges>;
 type RestoreTarget = { readonly version: HistoryVersion; readonly fileIds?: readonly Id[] };
 const historyReasonLabels = {
   checkpoint: "Checkpoint",
@@ -17,13 +19,15 @@ const historyReasonLabels = {
   import: "Import",
 } as const satisfies Readonly<Record<HistoryVersion["snapshot"]["reason"], string>>;
 
-export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPanelProps) {
+export function HistoryPanel({ client, workspace, document, navigation, refreshWorkspace }: ReviewPanelProps) {
   const [versions, setVersions] = useState<readonly HistoryVersion[] | null>(null);
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   const [labelsOnly, setLabelsOnly] = useState(false);
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [selectedFile, setSelectedFile] = useState<Id | null>(null);
-  const [authorNames, setAuthorNames] = useState<ReadonlyMap<Id, string>>(new Map());
+  const [changes, setChanges] = useState<Changes | null>(null);
+  const [changesError, setChangesError] = useState<string | null>(null);
+  const [actor, setActor] = useState("");
   const [label, setLabel] = useState("");
   const [restoreTarget, setRestoreTarget] = useState<RestoreTarget | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -34,20 +38,13 @@ export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPane
   const load = useCallback(async () => {
     const history = editorValue(await client.call(endpoints.historyList, {
       params: { p: workspace.scope.projectId },
-      query: { branch: workspace.scope.branch, labelsOnly: labelsOnly ? "true" : "false" },
+      query: { branch: workspace.scope.branch, labelsOnly: "false" },
       body: undefined, headers: workspace.requestHeaders,
     }));
     setVersions(history.items);
     setSelectedId(current => history.items.some(version => version.id === current)
       ? current : history.items[0]?.id ?? null);
-    if (workspace.access.capabilities.manageAccess) {
-      const access = editorValue(await client.call(endpoints.accessGet, {
-        params: { p: workspace.scope.projectId }, query: { branch: workspace.scope.branch },
-        body: undefined, headers: workspace.requestHeaders,
-      }));
-      setAuthorNames(new Map(access.members.map(member => [member.user.id, member.user.name])));
-    }
-  }, [client, labelsOnly, workspace]);
+  }, [client, workspace]);
 
   const receiveEvent = useEffectEvent((event: Event) => {
     const action = event.topic === "policy.changed" || event.topic === "access.changed"
@@ -83,24 +80,32 @@ export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPane
 
   useEffect(() => {
     const controller = new AbortController();
-    if (!selected?.accessible || !latest?.accessible || !compareFrom) {
-      setComparison(null);
+    setComparison(null); setChanges(null); setChangesError(null); setActor("");
+    if (!selected?.accessible || !latest?.accessible || !compareFrom?.accessible) {
       return () => controller.abort();
     }
     void client.call(endpoints.historyCompare, {
       params: { p: workspace.scope.projectId },
       query: {
         branch: workspace.scope.branch, from: compareFrom.id, to: latest.id,
-        ...(selectedFile ? { fileId: selectedFile } : {}),
       },
       body: undefined, headers: workspace.requestHeaders,
     }, controller.signal).then(result => {
-      setComparison(editorValue(result));
+      if (!controller.signal.aborted) setComparison(editorValue(result));
     }).catch(failure => {
       if (!controller.signal.aborted) setError(errorMessage(failure));
     });
+    void client.call(endpoints.historyChanges, {
+      params: { p: workspace.scope.projectId },
+      query: { branch: workspace.scope.branch, from: compareFrom.id, to: latest.id },
+      body: undefined, headers: workspace.requestHeaders,
+    }, controller.signal).then(result => {
+      if (!controller.signal.aborted) setChanges(editorValue(result));
+    }).catch(failure => {
+      if (!controller.signal.aborted) setChangesError(errorMessage(failure));
+    });
     return () => controller.abort();
-  }, [client, compareFrom, latest, selected, selectedFile, workspace]);
+  }, [client, compareFrom, latest, selected, workspace]);
 
   const run = async (key: string, action: () => Promise<void>) => {
     setBusy(key); setError(null); setSuccess(null);
@@ -109,40 +114,50 @@ export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPane
     finally { setBusy(null); }
   };
 
-  const comparisonText = useMemo(() => comparison?.hunks.map(hunk =>
-    `--- ${hunk.path}\n${hunk.before}\n+++ ${hunk.path}\n${hunk.after}`).join("\n\n") ?? "", [comparison]);
+  const comparisonText = useMemo(() => comparison?.hunks.filter(hunk => !selectedFile || hunk.fileId === selectedFile).map(hunk =>
+    `--- ${hunk.path}\n${hunk.before}\n+++ ${hunk.path}\n${hunk.after}`).join("\n\n") ?? "", [comparison, selectedFile]);
+  const authorNames = new Map(changes?.participants.map((participant, index) =>
+    [participant.id, participant.displayName ?? `Unknown actor ${index + 1}`]));
+  const visibleChanges = changes?.changes.filter(change =>
+    (!selectedFile || change.fileId === selectedFile) && (!actor || change.actorId === actor)) ?? [];
 
   if (versions === null) return <div className="quire-review__loading"><Spinner label="Loading history" />
     {error && <PanelMessage tone="error">{error}</PanelMessage>}</div>;
   if (versions.length === 0) return <EmptyState title="No history yet"
     description="A saved checkpoint, compile, commit, restore, import, or disconnect will create the first immutable version." />;
 
-  return <section className="quire-history" aria-labelledby="history-title"
-    data-review-live={live ? "true" : "false"}>
-    <aside className="quire-history__timeline">
+  const timeline = <aside className="quire-history__timeline">
       <header><div><h2 id="history-title">Versions</h2>
         <p>Every checkpoint is immutable; restoring creates a new version.</p></div>
         <div role="group" aria-label="History filter">
           <Button size="small" variant={labelsOnly ? "neutral" : "dark"} onClick={() => setLabelsOnly(false)}>All history</Button>
-          <Button size="small" variant={labelsOnly ? "dark" : "neutral"} onClick={() => setLabelsOnly(true)}>Labels only</Button>
+          <Button size="small" variant={labelsOnly ? "dark" : "neutral"} onClick={() => {
+            setLabelsOnly(true);
+            const first = versions.find(version => version.labels.length > 0);
+            if (first) { setSelectedId(first.id); setSelectedFile(null); }
+          }}>Labels only</Button>
         </div>
       </header>
-      <ol>{versions.map(version => <li key={version.id}>
+      {labelsOnly && !versions.some(version => version.labels.length > 0) && <p>No labeled versions.</p>}
+      <ol>{versions.filter(version => !labelsOnly || version.labels.length > 0).map(version => <li key={version.id}>
         <button type="button" data-history-id={version.id} aria-pressed={version.id === selectedId}
           onClick={() => { setSelectedId(version.id); setSelectedFile(null); }}>
           <time dateTime={version.snapshot.createdAt}>{localTime(version.snapshot.createdAt)}</time>
           <strong>{version.labels.map(item => item.name).join(", ")
             || historyReasonLabels[version.snapshot.reason]}</strong>
-          <span>{version.authors.map(author => authorNames.get(author) ?? "Former collaborator").join(", ")}</span>
+          <span>Recorded by {version.authors.map(author => authorNames.get(author)
+            ?? (author === workspace.access.actorId ? "you" : "an actor whose name is unavailable")).join(", ")}</span>
           {!version.accessible && <span>Source outside your history window</span>}
         </button>
       </li>)}</ol>
-    </aside>
+    </aside>;
 
+  return <section className="quire-history" aria-labelledby="history-title"
+    data-review-live={live ? "true" : "false"}>
     <main className="quire-history__detail">
       {selected && <><header className="quire-history__toolbar">
         <div><h2>{selected.labels[0]?.name ?? historyReasonLabels[selected.snapshot.reason]}</h2>
-          <p>Revision {selected.snapshot.revision} · {localTime(selected.snapshot.createdAt)} · {selected.authors.length} author{selected.authors.length === 1 ? "" : "s"}</p></div>
+          <p>Revision {selected.snapshot.revision} · {localTime(selected.snapshot.createdAt)} · checkpoint actor, not original text ownership</p></div>
         <div><Button onClick={() => void run("download", async () => {
           const bytes = editorValue(await client.call(endpoints.historySource, {
             params: { p: workspace.scope.projectId, id: selected.id },
@@ -150,7 +165,7 @@ export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPane
           }));
           const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
           try {
-            const anchor = document.createElement("a");
+            const anchor = window.document.createElement("a");
             anchor.href = url; anchor.download = `${workspace.project.name}-${selected.snapshot.revision}.zip`;
             anchor.click();
           } finally { URL.revokeObjectURL(url); }
@@ -190,33 +205,75 @@ export function HistoryPanel({ client, workspace, refreshWorkspace }: ReviewPane
         Its metadata remains visible, but download, comparison and restore are denied.</PanelMessage>
         : !compareFrom ? <EmptyState title="No earlier checkpoint to compare"
           description="This is the only accessible version in the current timeline." />
+        : !compareFrom.accessible ? <PanelMessage>The previous version is outside your history window.
+          Select an accessible version to compare.</PanelMessage>
         : comparison === null ? <div className="quire-review__loading"><Spinner label="Comparing versions" /></div>
-        : comparison.files.length === 0 ? <EmptyState title="No file differences"
-          description="The selected checkpoints contain the same file paths and bytes." />
         : <div className="quire-history__comparison">
           <header><div><h3>Changed files</h3><p>Comparing revision {compareFrom.snapshot.revision} with {latest?.snapshot.revision}.</p></div>
             <Button size="small" onClick={() => void run("copy-comparison", async () => {
               await navigator.clipboard.writeText(comparisonText); setSuccess("Comparison copied.");
             })}>Copy comparison</Button></header>
-          <nav aria-label="Changed files">{comparison.files.map(file => {
+          <nav aria-label="Changed files"><button type="button" aria-pressed={selectedFile === null}
+            onClick={() => setSelectedFile(null)}>All files</button>{[...new Map([
+              ...comparison.files.map(file => [file.id, { id: file.id, path: file.path }] as const),
+              ...(changes?.changes.map(change => [change.fileId, { id: change.fileId, path: change.path }] as const) ?? []),
+            ]).values()].map(file => {
             const deleted = !workspace.files.some(current => current.id === file.id);
             return <button key={file.id} type="button" aria-pressed={selectedFile === file.id}
               onClick={() => setSelectedFile(file.id)}><span>{file.path}</span>
               {deleted && <strong>Deleted now</strong>}</button>;
           })}</nav>
-          {comparison.hunks.map(hunk => <article key={hunk.id}>
+          <h3>Recorded file changes</h3>
+          <p>Colors identify who applied each immutable file transition, not who originally wrote its text.
+            Each preview shows one exact replacement span; retained text inside that span is not separately attributed.</p>
+          {changesError ? <PanelMessage tone="error">{changesError} Recorded transitions are unavailable.
+            No inaccessible intermediate source is shown.</PanelMessage>
+            : changes === null ? <Spinner label="Loading recorded changes" />
+            : <><label className="quire-review__compact-label">Recorded actor<select aria-label="Recorded actor" value={actor}
+              onChange={event => setActor(event.currentTarget.value)}><option value="">All recorded actors</option>
+              {changes.participants.map(participant => <option key={participant.id} value={participant.id}>
+                {authorNames.get(participant.id)}</option>)}</select></label>
+              <ul className="quire-change__legend" aria-label="Recorded actor legend">
+                {changes.participants.map(participant => <li key={participant.id} data-actor-color={actorColor(participant.id)}>
+                  <span aria-hidden="true" />{authorNames.get(participant.id)}</li>)}</ul>
+              {visibleChanges.length === 0 && <PanelMessage>No recorded changes match this filter.</PanelMessage>}
+              {visibleChanges.map(change => <article className="quire-change" key={change.id}
+                data-change-id={change.id} data-actor-id={change.actorId} data-actor-color={actorColor(change.actorId)}>
+                <header><strong>{change.path}</strong><span>Revision {change.fromRevision} to {change.toRevision}</span></header>
+                <p>Applied by {authorNames.get(change.actorId)} · {historyReasonLabels[change.reason]} · {localTime(change.createdAt)}</p>
+                {change.beforePath !== change.afterPath && <p>{change.beforePath ?? "File absent"} → {change.afterPath ?? "File absent"}</p>}
+                {(change.beforePath !== null && change.before === null) || (change.afterPath !== null && change.after === null)
+                  ? <PanelMessage>File metadata or binary content changed; no text attribution is available.</PanelMessage>
+                  : <ChangePreview before={change.before ?? ""} after={change.after ?? ""} />}
+                {workspace.files.some(file => file.id === change.fileId) && <Button size="small"
+                  onClick={() => void run("navigate", async () => {
+                    if (document?.file.id === change.fileId && change.after !== null
+                      && document.source.toJSON() === change.after) {
+                      const preceding = replacementSpan(change.before ?? "", change.after).prefix.split("\n");
+                      await navigation.revealSource({ fileId: change.fileId, line: preceding.length,
+                        column: (preceding.at(-1)?.length ?? 0) + 1 });
+                    } else await navigation.openFile(change.fileId);
+                  })}>Open current source</Button>}
+                {!workspace.files.some(file => file.id === change.fileId) && <PanelMessage>Deleted now; historical coordinates are not live anchors.</PanelMessage>}
+              </article>)}</>}
+          {comparison.files.length === 0 && <EmptyState title="No file differences"
+            description="The selected endpoints contain the same file paths and bytes; intermediate recorded changes may still exist." />}
+          <details><summary>Endpoint before/after comparison</summary>
+          {comparison.hunks.filter(hunk => !selectedFile || hunk.fileId === selectedFile).map(hunk => <article key={hunk.id}>
             <header><strong>{hunk.path}</strong><span>−{hunk.oldLines} +{hunk.newLines}</span></header>
             <div><section><h4>Before</h4><pre>{hunk.before || "File absent"}</pre></section>
               <section><h4>After</h4><pre>{hunk.after || "File absent"}</pre></section></div>
-            {workspace.access.capabilities.edit && !workspace.files.some(file => file.id === hunk.fileId) &&
-              <Button size="small" variant="primary"
-                onClick={() => setRestoreTarget({ version: selected, fileIds: [hunk.fileId] })}>Recover deleted file</Button>}
-          </article>)}
+          </article>)}</details>
+          {workspace.access.capabilities.edit && comparison.files.filter(file =>
+            (!selectedFile || file.id === selectedFile) && !workspace.files.some(current => current.id === file.id))
+            .map(file => <Button key={file.id} size="small" variant="primary"
+              onClick={() => setRestoreTarget({ version: selected, fileIds: [file.id] })}>Recover deleted file</Button>)}
         </div>}
       <PanelMessage>Permanent comment tombstones remain deleted after source restore.</PanelMessage>
       {error && <PanelMessage tone="error">{error}</PanelMessage>}
       {success && <PanelMessage tone="success">{success}</PanelMessage>}</>}
     </main>
+    {timeline}
 
     <Modal open={restoreTarget !== null} onClose={() => setRestoreTarget(null)}
       title={restoreTarget?.fileIds ? "Recover deleted file" : "Restore project version"}

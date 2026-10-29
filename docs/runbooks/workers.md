@@ -131,5 +131,6 @@ Systemd reference consulted:
 <https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html>
 (`--service-type=exec`, `--wait`, `--pipe`, `--collect`, environment forwarding
 and propagation of child exit status). The actual installed systemd and native
-Bun 1.3.14 behavior is verified by the owned process tests, not inferred from
-the current manual alone.
+Bun behavior is verified by the owned process tests, not inferred from
+the current manual alone. Use the repository-pinned Bun 1.4.4 for current
+commands; retained 1.3.14 receipts describe historical runs only.

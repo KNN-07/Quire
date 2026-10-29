@@ -11,7 +11,13 @@ export function Notifications(props: SettingsProps) {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [preferencesError, setPreferencesError] = useState("");
   const action = useAction();
-  const eventNames = [["mention", "Someone mentions me"], ["share", "A project is shared with me"], ["compile.failed", "A pushed commit fails to compile"], ["suggestion", "Suggested changes"], ["digest", "Weekly project digest"]] as const;
+  const eventNames = [
+    ["mention", "Someone mentions me"], ["share", "A project is shared with me"],
+    ["project.access.requested", "Someone requests access to my project"],
+    ["organization.ai.changed", "My organization changes its AI policy"],
+    ["compile.failed", "A pushed commit fails to compile"], ["suggestion", "Suggested changes"],
+    ["digest", "Weekly project digest"],
+  ] as const;
   async function load(signal?: AbortSignal) { setItems(unwrap(await props.client.call(endpoints.notificationsList, listInput, signal))); }
   async function loadPreferences(signal?: AbortSignal) {
     setPreferences(unwrap(await props.client.call(endpoints.notificationPreferencesGet, readInput, signal))); setPreferencesError("");
@@ -37,7 +43,7 @@ export function Notifications(props: SettingsProps) {
       });
     }}>
       <fieldset disabled={action.busy}>
-        {[...new Set([...eventNames.map(([name]) => name), ...Object.keys(preferences.events)])].map(name => <Check key={name} name={`event:${name}`} label={eventNames.find(([id]) => id === name)?.[1] ?? name} checked={preferences.events[name] ?? false} />)}
+        {[...new Set([...eventNames.map(([name]) => name), ...Object.keys(preferences.events)])].map(name => <Check key={name} name={`event:${name}`} label={eventNames.find(([id]) => id === name)?.[1] ?? name} checked={preferences.events[name] ?? true} />)}
         <h3>Delivery channels</h3><Check name="in-app" label="In app" checked={preferences.channels.includes("in-app")} /><Check name="email" label="Email" checked={preferences.channels.includes("email")} />
         {Object.entries(preferences.projectOverrides).map(([id, events]) => <fieldset key={id}><legend>Project {id} overrides</legend>{Object.entries(events).map(([name, enabled]) => <Check key={name} name={`project:${id}:${name}`} label={name} checked={enabled} />)}</fieldset>)}
         <Button type="submit" variant="primary" busy={action.busy}>Save changes</Button>

@@ -6,6 +6,7 @@ import type { AdminPageProps } from "./api";
 import { errorMessage } from "./api";
 import { Architecture } from "./Architecture";
 import { Overview } from "./Overview";
+import { CompileQueue } from "./CompileQueue";
 import { Identity } from "./Identity";
 import { Users } from "./Users";
 import { Workers } from "./Workers";
@@ -80,7 +81,7 @@ export function AdminPage({ path, client, navigate }: AdminPageProps) {
             <p role="alert">{message}</p><p>No privileged controls are available until the server authorizes this session.</p>
             <Button onClick={() => setRefresh(previous => previous + 1)}>Retry access check</Button></section>
           : <div className="admin-content">
-            {section === "overview" ? <><Overview data={overview} refresh={() => setRefresh(previous => previous + 1)} navigate={navigate} /><EditorMaintenance client={client} /></>
+            {section === "overview" ? <><Overview data={overview} refresh={() => setRefresh(previous => previous + 1)} navigate={navigate} /><CompileQueue client={client} navigate={navigate} /><EditorMaintenance client={client} /></>
               : section === "users" ? <Users client={client} />
               : section === "benefits" ? <ProjectBenefits client={client} />
               : section === "workers" ? <Workers client={client} />

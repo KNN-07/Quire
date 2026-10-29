@@ -22,6 +22,7 @@ import { publisherContribution, publisherModule } from "./publisher";
 import { createDeliveryModule, smtpContribution, localMailContribution } from "./delivery";
 import { defaultPolicy } from "../accounts/identity/policy";
 import { flushNotificationDigests } from "../accounts/governance/notifications";
+import { reconcileInstitutionEligibility, reconcileManagedLifecycle } from "../accounts/governance/lifecycle";
 import type { InquiryOutbox } from "../operations/support";
 
 export type AdapterDeployment = {
@@ -149,6 +150,8 @@ export function createApplicationAdapters(options: AdapterDeployment = loadAdapt
       for (const task of [
         () => references.scheduler.runDue(),
         () => dropbox.scheduler.pump(),
+        () => reconcileInstitutionEligibility(runtime),
+        () => reconcileManagedLifecycle(runtime),
         async () => {
           await flushNotificationDigests(runtime);
           return delivery.drain();

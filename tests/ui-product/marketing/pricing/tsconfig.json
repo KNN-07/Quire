@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../../../../packages/runtime/src/assets.d.ts",
+    "../../../../apps/web/src/features/marketing/pricing*.ts*",
+    "../../../../apps/web/src/features/account/billing.tsx"
+  ],
+  "exclude": ["../../../../node_modules"]
+}

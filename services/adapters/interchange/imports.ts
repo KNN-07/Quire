@@ -20,6 +20,8 @@ export type NativeImport = {
 export type RemoteImport = {
   readonly kind: "git" | "github"; readonly name: string; readonly workspaceId?: Id;
   readonly source: ImportSource;
+  readonly mainPath?: string; readonly engine?: CompileSettings["engine"]; readonly environmentId?: Id;
+  readonly preserveHistory?: boolean; readonly keepConnected?: boolean;
 };
 export type RemoteImporter = (actorId: Id, input: RemoteImport, receipt: HttpReceipt) => Promise<Operation>;
 export async function readImportReceipt<T>(service: CoreProjects, receipt: HttpReceipt, schema: z.ZodType<T>): Promise<T | null> {

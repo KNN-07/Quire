@@ -12,6 +12,8 @@ export const webRoutes = [
   "/", "/projects", "/sign-in", "/sign-up", "/verify-email", "/reset-password", "/pricing", "/self-hosting",
   "/institutions", "/institutions/:slug", "/terms", "/privacy", "/security",
   "/settings/:tab", "/admin", "/admin/identity", "/admin/architecture", "/admin/:section",
+  "/invitations/:id",
+  "/organization-invitations/:id",
   "/projects/:p/edit", "/projects/:p/git", "/projects/:p/agent", "/projects/:p/history",
   "/projects/:p/review", "/projects/:p/logs", "/projects/:p/pdf-diff",
 ] as const;
@@ -61,7 +63,7 @@ export function AppRouter() {
     path: pathname === "/settings/connections" ? path.replace("/settings/connections", "/settings/git") : path,
     client: session.client, navigate, onSessionChange,
   };
-  const account = ["/sign-in", "/sign-up", "/verify-email", "/reset-password"].includes(pathname) || pathname === "/settings" || pathname.startsWith("/settings/");
+  const account = ["/sign-in", "/sign-up", "/verify-email", "/reset-password"].includes(pathname) || pathname === "/settings" || pathname.startsWith("/settings/") || pathname.startsWith("/invitations/") || pathname.startsWith("/organization-invitations/");
   const marketing = ["/", "/pricing", "/self-hosting", "/institutions", "/terms", "/privacy", "/security"].includes(pathname) || pathname.startsWith("/institutions/");
   if (marketing) return <MarketingPage {...props} />;
   if (!ready) return <main><Spinner label="Loading session" /></main>;

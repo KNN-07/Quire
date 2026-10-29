@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FileEntrySchema, ProjectSchema, ProposedEditSchema, AnchorSchema, IdSchema, assertNever } from "@quire/contracts";
+import { FileEntrySchema, ProjectSchema, ProposedEditSchema, AnchorSchema, IdSchema, PreferencesSchema, EnvironmentSchema, assertNever } from "@quire/contracts";
 import type { Id, Project, CompileSettings, Transaction } from "@quire/contracts";
 import { SourceService } from "./source";
 import { compare, fail, newId } from "./store";
@@ -10,6 +10,10 @@ import type { HttpReceipt } from "./receipts";
 import { mainPathAllowed } from "./main-file";
 
 export type NativeFile = { readonly path: string; readonly bytes: Uint8Array; readonly folder?: boolean };
+type CreationInput = {
+  readonly name: string; readonly entries: readonly NativeFile[]; readonly workspaceId?: Id;
+  readonly mainPath?: string; readonly engine?: CompileSettings["engine"]; readonly environmentId?: Id;
+};
 export class CoreProjects extends SourceService {
   override withTransaction(tx: Transaction): CoreProjects {
     return new CoreProjects({ ...this.context, db: tx });
@@ -17,8 +21,16 @@ export class CoreProjects extends SourceService {
   async create(actorId: Id, input: {
     readonly name: string; readonly workspaceId?: Id | undefined;
     readonly origin: { readonly kind: "blank" | "example" } | { readonly kind: "template"; readonly templateVersionId: Id };
+    readonly engine?: CompileSettings["engine"] | undefined; readonly environmentId?: Id | undefined;
+    readonly mainPath?: string | undefined;
     readonly http?: HttpReceipt;
   }): Promise<Project> {
+    const engine = input.engine ?? (input.origin.kind === "template" ? "pdflatex" : PreferencesSchema.parse(JSON.parse(
+      (await this.one("SELECT value_json FROM preferences WHERE user_id=?", [actorId], z.object({ value_json: z.string() }))).value_json,
+    )).defaultEngine);
+    if (input.origin.kind !== "template" && engine === "plain") {
+      fail("INVALID_MAIN", 422, "Blank and example projects use LaTeX source. Choose a LaTeX compiler or import a plain TeX main explicitly.");
+    }
     let entries: readonly NativeFile[];
     switch (input.origin.kind) {
       case "blank":
@@ -53,22 +65,35 @@ export class CoreProjects extends SourceService {
       default: return assertNever(input.origin);
     }
     return this.createFromFiles(actorId, {
-      name: input.name, entries,
+      name: input.name, entries, engine,
+      ...(input.mainPath ? { mainPath: input.mainPath } : {}),
+      ...(input.environmentId ? { environmentId: input.environmentId } : {}),
       ...(input.http ? { http: input.http } : {}), ...(input.workspaceId ? { workspaceId: input.workspaceId } : {})
     });
   }
-  async createFromFiles(actorId: Id, input: {
-    readonly name: string; readonly entries: readonly NativeFile[]; readonly workspaceId?: Id;
-    readonly mainPath?: string; readonly engine?: CompileSettings["engine"]; readonly environmentId?: Id;
-    readonly http?: HttpReceipt;
-  }): Promise<Project> {
+  async createFromFiles(actorId: Id, input: CreationInput & { readonly http?: HttpReceipt }): Promise<Project> {
+    const creation = await this.prepareCreation(actorId, input);
+    const projectId = creation.project.id;
+    await initializeRepository(this.context, projectId);
+    await this.serialized({ projectId, branch: "main" }, (lease) => this.commitSource({
+      actorId, scope: { projectId, branch: "main" }, lease, expectedRevision: 0, inputs: creation.inputs, reason: "import",
+      creation, ...(input.http ? { http: { ...input.http, result: { kind: "project" } } } : {}),
+    }));
+    return (await this.getProject(projectId));
+  }
+  /** Validated creation metadata only; callers own journal admission and atomic publication. */
+  async prepareCreation(actorId: Id, input: CreationInput & { readonly projectId?: Id }) {
     (await this.readUser(actorId));
     if (input.workspaceId && !(await this.context.db.get("SELECT 1 FROM members WHERE organization_id=? AND user_id=?", [input.workspaceId, actorId]))) fail("FORBIDDEN", 403, "Workspace membership required");
     const environment = input.environmentId
-      ? await this.one("SELECT id FROM environments WHERE id=? AND retired_at IS NULL", [input.environmentId], z.object({ id: IdSchema }))
-      : await this.one(`SELECT id FROM environments WHERE retired_at IS NULL
-        ORDER BY available DESC,is_default DESC,created_at DESC,id LIMIT 1`, [], z.object({ id: IdSchema }));
-    const projectId = newId();
+      ? await this.one("SELECT id,manifest_json FROM environments WHERE id=? AND retired_at IS NULL", [input.environmentId], z.object({ id: IdSchema, manifest_json: z.string() }))
+      : await this.one(`SELECT id,manifest_json FROM environments WHERE retired_at IS NULL
+        ORDER BY available DESC,is_default DESC,created_at DESC,id LIMIT 1`, [], z.object({ id: IdSchema, manifest_json: z.string() }));
+    const engine = input.engine ?? "pdflatex";
+    if (!EnvironmentSchema.parse(JSON.parse(environment.manifest_json)).engines.includes(engine)) {
+      fail("ENGINE_UNAVAILABLE", 422, "Requested engine is unavailable in this environment");
+    }
+    const projectId = input.projectId ?? newId();
     const branchId = newId();
     const inputs: SourceInput[] = input.entries.map((entry) => ({
       file: FileEntrySchema.parse({
@@ -85,23 +110,18 @@ export class CoreProjects extends SourceService {
     })));
     const main = candidates.find(({ item, allowed }) => allowed && (!input.mainPath || item.file.path === input.mainPath)
       && item.bytes && item.file.editable
-      && (input.engine === "plain" || decodeText(item.bytes)?.includes("\\documentclass")));
+      && (engine === "plain" || decodeText(item.bytes)?.includes("\\documentclass")));
     if (!main) fail("INVALID_MAIN", 422, "Import needs an editable TeX main containing documentclass");
     const now = this.context.clock.now();
     const project = ProjectSchema.parse({
       id: projectId, name: input.name, ownerId: actorId,
       workspaceId: input.workspaceId ?? null, defaultBranch: "main", version: 0, createdAt: now, updatedAt: now,
       settings: {
-        engine: input.engine ?? "pdflatex", mainFileId: main.item.file.id, environmentId: environment.id,
+        engine, mainFileId: main.item.file.id, environmentId: environment.id,
         draft: false, stopOnFirstError: false
       }
     });
-    await initializeRepository(this.context, projectId);
-    await this.serialized({ projectId, branch: "main" }, (lease) => this.commitSource({
-      actorId, scope: { projectId, branch: "main" }, lease, expectedRevision: 0, inputs, reason: "import",
-      creation: { project, branchId }, ...(input.http ? { http: { ...input.http, result: { kind: "project" } } } : {}),
-    }));
-    return (await this.getProject(projectId));
+    return { project, branchId, inputs };
   }
   async copy(actorId: Id, input: { readonly projectId: Id; readonly name: string; readonly expectedVersion: number; readonly request?: Request; readonly http?: HttpReceipt }) {
     const source = (await this.getProject(input.projectId));

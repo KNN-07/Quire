@@ -33,15 +33,17 @@ export function Audit({ client, navigate }: { readonly client: AdminClient; read
         headers: { "idempotency-key": crypto.randomUUID() } });
       if ("error" in response) { setMessage(response.error.message); return; }
       const operation = response.data;
-      if (operation.status === "succeeded" && typeof operation.result?.["csv"] === "string") {
-        downloadBytes(new TextEncoder().encode(operation.result["csv"]), "audit.csv"); setMessage("Audit export downloaded.");
+      if (operation.status === "succeeded" && operation.result?.["format"] === "zip") {
+        const download = await client.call(endpoints.operationDownload, { params: { id: operation.id }, query: {}, body: undefined });
+        if ("error" in download) { setMessage(download.error.message); return; }
+        downloadBytes(download.data, "audit.zip"); setMessage("Audit export downloaded.");
       } else navigate(`/admin/support?operation=${operation.id}`);
     } catch (failure) { setMessage(errorMessage(failure)); }
     finally { setBusy(false); }
   }
   return <section aria-labelledby="admin-audit-title">
     <div className="admin-row admin-page-heading"><h1 id="admin-audit-title">Audit log</h1>
-      <Button onClick={rows.refresh}>Refresh</Button><Button busy={busy} onClick={() => void exportRows()}>Export CSV</Button></div>
+      <Button onClick={rows.refresh}>Refresh</Button><Button busy={busy} onClick={() => void exportRows()}>Export ZIP</Button></div>
     <form className="admin-form" onSubmit={e => { e.preventDefault(); apply(); }}>
       <div className="admin-settings-grid">
         <Field label="Event" value={event} placeholder="All events" onChange={e => setEvent(e.currentTarget.value)} />

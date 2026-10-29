@@ -56,6 +56,22 @@ export const HistoryVersionSchema = z.strictObject({
   labels: z.array(z.strictObject({ id: IdSchema, name: z.string() }).readonly()).readonly(),
   authors: z.array(IdSchema).readonly(), reviewSnapshotId: IdSchema, accessible: z.boolean(),
 }).readonly();
+/** Applying actors of immutable file transitions, not original text authors. */
+export const HistoryChangesSchema = z.strictObject({
+  scope: ScopeSchema, fromVersionId: IdSchema, toVersionId: IdSchema,
+  participants: z.array(z.strictObject({
+    id: IdSchema, displayName: z.string().nullable(),
+  }).readonly()).readonly(),
+  changes: z.array(z.strictObject({
+    id: z.string(), fromVersionId: IdSchema, toVersionId: IdSchema,
+    fromRevision: CountSchema, toRevision: CountSchema,
+    fileId: IdSchema, path: ProjectPathSchema,
+    beforePath: ProjectPathSchema.nullable(), afterPath: ProjectPathSchema.nullable(),
+    actorId: IdSchema, granularity: z.literal("recorded-file-transition"),
+    reason: SnapshotSchema.unwrap().shape.reason, createdAt: InstantSchema,
+    before: z.string().nullable(), after: z.string().nullable(),
+  }).readonly()).readonly(),
+}).readonly();
 export const GitHunkSchema = z.strictObject({
   id: IdSchema, fileId: IdSchema, path: ProjectPathSchema, baseHead: GitOidSchema,
   baseRevision: CountSchema, oldStart: CountSchema, oldLines: CountSchema,
@@ -108,6 +124,7 @@ export type ProposedEdit = z.infer<typeof ProposedEditSchema>;
 export type Suggestion = z.infer<typeof SuggestionSchema>;
 export type Thread = z.infer<typeof ThreadSchema>;
 export type HistoryVersion = z.infer<typeof HistoryVersionSchema>;
+export type HistoryChanges = z.infer<typeof HistoryChangesSchema>;
 export type GitHunk = z.infer<typeof GitHunkSchema>;
 export type GitStatus = z.infer<typeof GitStatusSchema>;
 export type GitBranch = z.infer<typeof GitBranchSchema>;

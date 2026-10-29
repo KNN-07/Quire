@@ -1,12 +1,11 @@
 import { z } from "zod";
 import {
-  FileEntrySchema,
   GitOidSchema,
   IdSchema,
+  ImportSelectionSchema,
   OperationSchema,
   ProjectSchema,
 } from "@quire/contracts";
-import type { FileEntry, Project } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { CoreProjects } from "../../core/base";
 import type { AdapterServices, ActionContext, PreparedAction } from "../shared";
@@ -20,84 +19,9 @@ export const ImportRemoteSchema = z.strictObject({
   url: z.url(),
   branch: z.string().min(1),
   workspaceId: IdSchema.optional(),
+  ...ImportSelectionSchema.unwrap().shape,
 }).readonly();
 export type ImportRemote = z.infer<typeof ImportRemoteSchema>;
-
-function text(bytes: Uint8Array): string | null {
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes).includes("\0")
-      ? null
-      : new TextDecoder().decode(bytes);
-  } catch (error) {
-    if (error instanceof TypeError) return null;
-    throw error;
-  }
-}
-
-function entries(files: readonly {
-  readonly path: string;
-  readonly bytes: Uint8Array;
-}[]): readonly {
-  readonly file: FileEntry;
-  readonly bytes: Uint8Array;
-}[] {
-  return files.map((entry) => ({
-    file: FileEntrySchema.parse({
-      id: IdSchema.parse(crypto.randomUUID()),
-      path: entry.path,
-      kind: "file",
-      mime: text(entry.bytes) === null ? "application/octet-stream" : "text/plain",
-      blob: null,
-      bytes: entry.bytes.byteLength,
-      editable: text(entry.bytes) !== null,
-      version: { revision: 0, epoch: 0 },
-      link: null,
-    }),
-    bytes: entry.bytes,
-  }));
-}
-
-async function projectValue(
-  services: AdapterServices,
-  context: ActionContext,
-  input: ImportRemote,
-  files: readonly { readonly file: FileEntry; readonly bytes: Uint8Array }[],
-): Promise<Project> {
-  if (input.workspaceId && !await services.context.db.get(
-    "SELECT 1 FROM members WHERE organization_id=? AND user_id=?",
-    [input.workspaceId, context.actorId],
-  )) {
-    throw new ServiceError("FORBIDDEN", 403, "Workspace membership required");
-  }
-  const main = files.find((entry) =>
-    entry.file.path.endsWith(".tex") && text(entry.bytes)?.includes("\\documentclass"));
-  if (!main) {
-    throw new ServiceError("INVALID_MAIN", 422,
-      "Remote repository needs an editable TeX main containing documentclass");
-  }
-  const environment = z.object({ id: IdSchema }).parse(await services.context.db.get(
-    `SELECT id FROM environments WHERE retired_at IS NULL
-     ORDER BY available DESC,is_default DESC,created_at DESC,id LIMIT 1`,
-  ));
-  const now = services.context.clock.now();
-  return ProjectSchema.parse({
-    id: IdSchema.parse(crypto.randomUUID()),
-    name: input.name,
-    ownerId: context.actorId,
-    workspaceId: input.workspaceId ?? null,
-    defaultBranch: input.branch,
-    settings: {
-      engine: "pdflatex",
-      mainFileId: main.file.id,
-      environmentId: environment.id,
-      draft: false,
-      stopOnFirstError: false,
-    },
-    version: 0,
-    createdAt: now,
-    updatedAt: now,
-  });
-}
 
 export async function prepareRemoteImport(input: {
   readonly services: AdapterServices;
@@ -108,6 +32,10 @@ export async function prepareRemoteImport(input: {
   readonly credentials?: { readonly username: string; readonly password: string };
   readonly options?: RemoteGitOptions;
 }): Promise<PreparedAction> {
+  const preserveHistory = input.parameters.preserveHistory ?? true;
+  const keepConnected = input.parameters.keepConnected ?? true;
+  if (!preserveHistory && keepConnected) throw new ServiceError("REMOTE_HISTORY_REQUIRED", 422,
+    "Keep full history to retain a pull/push connection, or import an independent snapshot.");
   const remote = await RemoteRepository.open({
     url: input.parameters.url,
     ...(input.credentials ? { credentials: input.credentials } : {}),
@@ -116,39 +44,47 @@ export async function prepareRemoteImport(input: {
   let lease: Awaited<ReturnType<typeof input.services.context.branches.acquire>> | null = null;
   try {
     const head = await remote.head(input.parameters.branch);
-    const sourceFiles = entries(await remote.files(head));
-    const project = await projectValue(input.services, input.context, input.parameters, sourceFiles);
+    const projects = new CoreProjects(input.services.context);
+    const creation = await projects.prepareCreation(input.context.actorId, {
+      name: input.parameters.name, entries: await remote.files(head),
+      ...(input.parameters.workspaceId ? { workspaceId: input.parameters.workspaceId } : {}),
+      ...(input.parameters.mainPath ? { mainPath: input.parameters.mainPath } : {}),
+      ...(input.parameters.engine ? { engine: input.parameters.engine } : {}),
+      ...(input.parameters.environmentId ? { environmentId: input.parameters.environmentId } : {}),
+    });
+    const project = ProjectSchema.parse({ ...creation.project, defaultBranch: input.parameters.branch });
     const scope = { projectId: project.id, branch: input.parameters.branch };
     await input.services.context.repositories.initialize(project.id);
-    await input.services.context.repositories.importPack(project.id, Buffer.from(await remote.pack()));
+    if (preserveHistory) await input.services.context.repositories.importPack(project.id, Buffer.from(await remote.pack()));
     lease = await input.services.context.branches.acquire(scope, crypto.randomUUID(), 60_000);
     if (!lease) throw new ServiceError("BRANCH_BUSY", 409, "Another writer owns the imported branch");
-    const branchId = IdSchema.parse(crypto.randomUUID());
-    const projects = new CoreProjects(input.services.context);
+    const branchId = creation.branchId;
     const source = await projects.prepareSource({
       actorId: input.context.actorId,
       scope,
       lease,
       expectedRevision: 0,
-      inputs: sourceFiles,
+      inputs: creation.inputs,
       reason: "import",
       creation: { project, branchId },
     });
-    const branches = await remote.branches();
-    const tags = await remote.tags();
+    const branches = preserveHistory ? await remote.branches() : new Map([[input.parameters.branch, source.commit]]);
+    const tags = preserveHistory ? await remote.tags() : new Map<string, string>();
+    const localHead = preserveHistory ? head : source.commit;
     const binding = input.store.bindingValue({
       projectId: project.id,
       provider: input.provider,
       grantId: input.context.grant.id,
       remoteUrl: input.parameters.url,
       branch: input.parameters.branch,
-      cursor: { localHead: remote.oid(head), remoteHead: remote.oid(head) },
+      cursor: { localHead: remote.oid(localHead), remoteHead: remote.oid(head) },
     });
     const result = {
       projectId: project.id,
-      bindingId: binding.id,
+      bindingId: keepConnected ? binding.id : null,
       branch: input.parameters.branch,
-      head: remote.oid(head),
+      head: remote.oid(localHead),
+      preserveHistory, keepConnected,
       branches: [...branches.keys()],
       tags: [...tags.keys()],
     };
@@ -165,9 +101,10 @@ export async function prepareRemoteImport(input: {
       source,
       project,
       binding,
+      connected: keepConnected,
       heads,
       operation,
-      cursor: JSON.stringify(binding.cursor),
+      cursor: null,
     };
     await input.store.journal({
       id: intentId,
@@ -201,7 +138,7 @@ export async function prepareRemoteImport(input: {
     const acquired = lease;
     return {
       result,
-      cursor: JSON.stringify(binding.cursor),
+      cursor: null,
       async publish(tx) {
         await tx.run(`INSERT INTO projects
           (id,name,owner_id,workspace_id,default_branch,settings_json,version,created_at,updated_at)

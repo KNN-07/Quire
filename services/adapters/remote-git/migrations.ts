@@ -20,4 +20,12 @@ CREATE TABLE remote_git_intents (
   state TEXT NOT NULL DEFAULT 'prepared', created_at TEXT NOT NULL
 );
 `,
+}, {
+  id: "062-x-remote-independent-import-cursors",
+  sql: `UPDATE adapter_cursors SET cursor=NULL,version=version+1
+    WHERE project_id='' AND action IN ('import','clone') AND cursor IS NOT NULL
+    AND grant_id IN (SELECT id FROM provider_grants WHERE provider IN ('github','gitlab','git'));`,
+  postgres: `UPDATE adapter_cursors SET cursor=NULL,version=version+1
+    WHERE project_id='' AND action IN ('import','clone') AND cursor IS NOT NULL
+    AND grant_id IN (SELECT id FROM provider_grants WHERE provider IN ('github','gitlab','git'));`,
 }];

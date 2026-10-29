@@ -9,7 +9,7 @@ import { isolatedData } from "./fixture";
 
 test("preserves the accepted SQLite migration digests while providing distinct PostgreSQL variants", () => {
   const migrations = [...identityMigrations, ...governanceMigrations];
-  expect(migrations.filter(migration => migration.id !== "012-a-project-benefits")
+  expect(migrations.filter(migration => migration.id === "010-a-identity-local" || migration.id === "011-a-governance-local")
     .map((migration) => new Bun.CryptoHasher("sha256").update(migration.sql).digest("hex"))).toEqual([
     "36537de09a04c6bf116c8ff538539d9fbc57be443752d41443ba9d7adf4a18c2",
     "b9698169246a92f3886390c335c4d653ebffcfac905cc5698198ba28dcba3038",

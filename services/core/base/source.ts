@@ -122,7 +122,7 @@ export class SourceService extends AccessStore implements ProjectPort {
     checkFiles(files);
     const main = files.find((file) => file.id === project.settings.mainFileId);
     if (!main || !main.editable || main.link || !await mainPathAllowed(this.context, project.settings.environmentId, main.path)) {
-      fail("INVALID_MAIN", 422, "Main must be editable unlinked TeX or main.Rnw in a knitr environment");
+      fail("INVALID_MAIN", 422, "Main must be editable unlinked TeX, or main.Rnw/main.Rtex in a knitr environment");
     }
     if (input.creation && project.settings.engine !== "plain"
       && !documents.find(document => document.fileId === main.id)?.text.includes("\\documentclass")) {

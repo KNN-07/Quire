@@ -87,13 +87,29 @@ test("keeps project ownership when deactivation has no explicit transfer target"
 });
 test("transfers projects before disabling an accepted managed owner with an explicit verified target", async () => {
   // Given
-  await using app = await fixture({ transferTo: fixtureIds.kien });
+  await using app = await fixture({ organizationId: fixtureIds.team, transferTo: fixtureIds.kien });
   const headers = await app.token();
   const created = resource.parse(await (await app.request("/scim/v2/Users", { method: "POST", headers, body: JSON.stringify(user) })).json());
-  await acceptManagement(app, created.id);
+  const managed = await acceptManagement(app, created.id);
   await app.runtime.db.run("INSERT INTO members(id,organization_id,user_id,role,licensed,created_at) VALUES(?,?,?,'member',0,?) ON CONFLICT DO NOTHING",
-    [crypto.randomUUID(), fixtureIds.institution, fixtureIds.kien, app.runtime.clock.now()]);
+    [crypto.randomUUID(), fixtureIds.team, fixtureIds.kien, app.runtime.clock.now()]);
   await app.runtime.db.run("UPDATE projects SET owner_id=(SELECT user_id FROM federation_resources WHERE id=?) WHERE id=?", [created.id, fixtureIds.project]);
+  const denied = await app.request(`/scim/v2/Users/${created.id}`, { method: "DELETE", headers: { ...headers, "if-match": created.meta.version } });
+  expect(denied.status).toBe(409);
+  expect(await app.runtime.db.get("SELECT id FROM projects WHERE id=? AND owner_id=?", [fixtureIds.project, managed.account.id])).not.toBeNull();
+  const organization = z.object({ version: z.number() }).parse(await app.runtime.db.get("SELECT version FROM organizations WHERE id=?", [fixtureIds.team]));
+  const invitation = await app.request(`/api/organizations/${fixtureIds.team}/managed/invite`, {
+    method: "POST", headers: { ...managed.operator.headers, "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ userId: fixtureIds.kien, expectedVersion: organization.version }),
+  });
+  expect(invitation.status).toBe(200);
+  expect((await app.request(`/scim/v2/Users/${created.id}`, { method: "DELETE", headers: { ...headers, "if-match": created.meta.version } })).status).toBe(409);
+  const acceptance = z.object({ id: z.string(), version: z.number() }).parse(await app.runtime.db.get(
+    "SELECT id,version FROM managed_acceptances WHERE organization_id=? AND user_id=?", [fixtureIds.team, fixtureIds.kien]));
+  const recipient = await app.login("kien@quire.local");
+  expect((await app.request(`/api/managed/${acceptance.id}/accept`, {
+    method: "POST", headers: { ...recipient.headers, "idempotency-key": crypto.randomUUID() }, body: JSON.stringify({ expectedVersion: acceptance.version }),
+  })).status).toBe(200);
   // When
   const response = await app.request(`/scim/v2/Users/${created.id}`, { method: "DELETE", headers: { ...headers, "if-match": created.meta.version } });
   // Then
@@ -117,14 +133,14 @@ test("denies project transfer when the user has never accepted institutional man
 });
 test("preserves independent recovery after the managed owner is explicitly released", async () => {
   // Given
-  await using app = await fixture({ transferTo: fixtureIds.kien });
+  await using app = await fixture({ organizationId: fixtureIds.team, transferTo: fixtureIds.kien });
   const headers = await app.token();
   const created = resource.parse(await (await app.request("/scim/v2/Users", { method: "POST", headers, body: JSON.stringify(user) })).json());
   const managed = await acceptManagement(app, created.id);
   const passwordHash = await Bun.password.hash(password, { algorithm: "argon2id", memoryCost: 65536, timeCost: 3 });
   await app.runtime.db.run("UPDATE users SET password_hash=? WHERE id=?", [passwordHash, managed.account.id]);
   const version = z.object({ version: z.number() }).parse(await app.runtime.db.get("SELECT version FROM users WHERE id=?", [managed.account.id]));
-  const released = await app.request(`/api/organizations/${fixtureIds.institution}/managed/${managed.account.id}/release`, {
+  const released = await app.request(`/api/organizations/${fixtureIds.team}/managed/${managed.account.id}/release`, {
     method: "POST", headers: managed.operator.headers, body: JSON.stringify({ expectedVersion: version.version }) });
   expect(released.status).toBe(200);
   // When
