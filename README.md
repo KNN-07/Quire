@@ -1,30 +1,48 @@
 # Quire
 
-A LaTeX writing workspace, being built from the supplied Quire editor design and a comprehensive functionality research inventory.
+A self-hosted LaTeX workspace for writing, collaboration, and real PDF
+compilation. Edit source or use the visual editor, review changes with your
+team, and keep files, references, and project history together.
 
-## Status
+![Quire editor with the project file tree, LaTeX source, compiled PDF, and Assistant sidebar](docs/images/editor.png)
 
-The native Bun/React/Vite application includes local authentication, persistent
-projects/files, a shared Source/Visual editor, real isolated LaTeX compilation,
-PDF navigation/diagnostics, collaboration, review/history, Git, bibliography,
-templates and project/account/administration pages. Library forms/import/DOI,
-image insertion/paste and bounded current-file offline recovery have scoped
-browser acceptance evidence.
+*The running application with a seeded example project and its actual compiled PDF.*
 
-This is an implementation checkpoint, **not whole-product acceptance**.
-Portable PostgreSQL/Redis/S3 storage and a real two-API/remote-worker profile
-have passed independent acceptance. The tested `systemd-local-v1` profiles
-also have native/same-host scale rollback, restored-inventory, signed promotion,
-replacement-worker PDF, restart-authority and custom-environment admission
-receipts. This is not arbitrary multi-host or Compose/Helm signed-update
-acceptance. Exact evidence and remaining capability-specific gaps are tracked
-in `docs/feature-matrix.md`. External adapters require their documented
-configuration; controlled-provider tests do not claim live vendor success.
+## Features
 
-With Bun 1.4.4 and Node.js compatible with Vite's
-`^20.19.0 || >=22.12.0` requirement installed:
+- **Write and preview:** Source, Visual, split, and PDF layouts; syntax
+  highlighting, project search, symbols, tables, figures, and source-linked
+  compile diagnostics.
+- **Keep your work:** Persistent projects and files, blank/template creation,
+  ZIP import and source export, labeled history, restore, and native Git tools.
+- **Collaborate:** Shared editing, role-based permissions, comments, review
+  suggestions, and tracked changes.
+- **Manage references:** Bibliography editing, DOI/library imports, configured
+  reference search, and opt-in inline citation completion.
+- **Use AI with review:** Ask/Agent and language tools, explicit context
+  selection, opt-in authorized project search, and proposals that require
+  acceptance before changing source.
+- **Run your own workspace:** Account and organization controls, provider
+  configuration, backups, compiler workers, and operational administration.
+
+Your workspace runs on your own infrastructure. AI and connected services use
+providers you configure; they are optional, not required for ordinary writing
+and compilation.
+
+## Run locally
+
+### Requirements
+
+- **Bun 1.4.4**, the repository's pinned runtime.
+- **Node.js** compatible with Vite 7: `^20.19.0 || >=22.12.0`.
+- **Git** for project repositories.
+- For native compilation: **Linux**, TeX tools, BibTeX/Biber, SyncTeX,
+  Poppler, Bubblewrap, and a working systemd user service/cgroup environment.
+  See the [toolchain guide](docs/runbooks/toolchains.md) for setup and probes.
 
 ```sh
+git clone https://github.com/KNN-07/Quire.git
+cd Quire
 bun install
 bun run db:migrate
 bun run seed
@@ -32,83 +50,79 @@ bun run doctor
 bun run dev
 ```
 
-The repository also installs Bun 1.4.4 as a local development tool. After
-installation, use `bun run …` package scripts or `./node_modules/.bin/bun …`;
-these use the pinned runtime without replacing the workstation's global Bun.
-A bare `bun test` can still select an older global runtime.
+Open **`http://localhost:5173`**. The development server proxies the API at
+`http://127.0.0.1:3001`; project data is stored in `.data` by default.
 
-The default development URL is `http://localhost:5173`, proxying the API at
-`http://127.0.0.1:3001`. Local seed persists development users, a real example Git
-repository, and the published **Starter Article** template in `.data`. Sign in
-as `kien@quire.local` using the password printed once by `bun run seed`, then
-on Projects choose Use template Starter Article -> Create from template.
-The mobile New project dialog also offers From template -> Starter Article.
-The original `main.tex` is CC0-1.0 and includes a title, abstract, and introduction.
-The seed also retains its snapshot and a stored source ZIP export.
+Sign in as **`kien@quire.local`** with the password printed by `bun run seed`.
+Create a blank project or choose the published **Starter Article** template.
+The development operator is `operator@quire.local`, using the same initial
+seed password.
 
-For a known development password, run
-`QUIRE_SEED_PASSWORD='your-local-password-at-least-12-characters' bun run seed`
-instead. All newly created seed users share that password, including
-`operator@quire.local`, the development operator used to submit, approve, and
-publish the bundled template through the normal services. Repeated seed leaves
-existing passwords, user projects, template versions, and archive blobs intact;
-it does not reset credentials or republish templates an operator has unpublished.
-Keep the same `QUIRE_DATA_DIR` for migrate, seed, doctor, and dev when overriding
-the default. `seed` runs only on a loopback, non-production configuration; these
-accounts/passwords are development fixtures, not production provisioning.
-Configure production identity and secrets separately using `.env.example`.
-The template becomes selectable after seed, but opening a newly created project
-directly from the dialog still requires real passed environment probes. If the
-toolchain is unavailable, the dialog retains the created project and explains
-how to open it and choose an admitted environment; seed does not fake readiness.
-Vite runs on Node.js so its HTTP/WebSocket proxy uses the supported Node
-network stack; the API and compiler workers run on Bun.
+To choose the initial development password:
 
-Native compilation requires the actual TeX tools, BibTeX/Biber, SyncTeX,
-Poppler PDF tools, Bubblewrap and a working systemd user service/cgroup
-environment. A cold compiler readiness probe takes about 45 seconds on the
-development workstation; startup does not substitute assumed readiness.
+```sh
+QUIRE_SEED_PASSWORD='your-local-password-at-least-12-characters' bun run seed
+```
 
-Verification commands:
+Seeding preserves existing passwords and projects. These accounts are for local
+development; configure production identity separately. The first compiler
+readiness check can take roughly 45 seconds.
+
+The install includes a repository-local Bun binary. Use package scripts or
+`./node_modules/.bin/bun` after installation to avoid accidentally testing with
+an older global runtime.
+
+## Configuration and deployment
+
+Start with [`.env.example`](.env.example). When overriding `QUIRE_DATA_DIR`,
+use the same directory for migration, seeding, startup, and diagnostics.
+
+The local profile uses SQLite, local blobs, and Git repositories. A portable
+PostgreSQL/Redis/S3 profile and separately managed compiler workers are also
+available. Read the profile-specific instructions rather than treating the
+development command as a production installation:
+
+| Guide | Purpose |
+| --- | --- |
+| [Deployment](docs/runbooks/deployment.md) | Configuration, startup, and deployment boundaries |
+| [Compiler toolchains](docs/runbooks/toolchains.md) | Native tools, isolation, and environment readiness |
+| [Portable profile](deploy/portable/README.md) | PostgreSQL, Redis, S3-compatible storage, and worker setup |
+| [Managed installation](docs/runbooks/installation.md) | Provisioning, signed releases, status, rollback, and recovery |
+
+The production build writes application and worker artifacts to `dist`.
+External AI, reference, identity, mail, storage, and billing services require
+their own configuration and credentials. ReadCube and Dimensions are not
+currently available.
+
+## Development and checks
 
 ```sh
 bun run typecheck
 bun run lint
-bun run test tests/contract tests/core tests/accounts tests/compiler tests/integration
-bun run test tests/operations/overview
 bun run build
 bun run verify:matrix
-bun run ops:restore-drill
 ```
 
-`verify:matrix` checks that every capability ID in the three discovery inventories
-has exactly one matrix entry and a declared disposition. It reports partial,
-external and unsupported coverage without certifying runtime behavior.
-`ops:restore-drill` runs the existing local SQLite/blob/Git recovery case in
-owned temporary fixtures; it does not restore or mutate a live installation.
-Configured scale and controller-owned recovery retain their separate runbooks
-and acceptance receipts.
+Run the relevant tests for a change. For example:
 
-The full build includes controller-owned installation artifacts in
-`dist/installation`. Use `bun run build:installation` to build just those
-entrypoints. Provisioning, signed release metadata, controller/status/recovery
-commands and current acceptance limits are documented in
-`docs/runbooks/installation.md`.
+```sh
+./node_modules/.bin/bun test tests/adapters/ai
+./node_modules/.bin/bun test tests/ui-editor/acceptance/native-editor.browser.test.ts
+```
 
-See `docs/handoffs/p11-editor-acceptance.md` for the native editor workflow
-and desktop/mobile evidence, `docs/handoffs/p10-native-verification.md` for
-Library/media/offline acceptance, and `docs/feature-matrix.md` for the complete
-requirement inventory and explicit limits. `docs/handoffs/p1s-verification.md`
-and `deploy/portable/README.md` document the accepted PostgreSQL/Redis/S3
-boundary and configuration.
+Browser checks use Playwright; compilation scenarios also need the native
+toolchain above. `bun run ops:restore-drill` checks local recovery in temporary
+fixtures without restoring a live installation.
 
-## Product inputs
+### Built with
 
-- `Quire — LaTeX Editor.html`: the supplied visual reference.
-- `research.zip`: the supplied functionality research.
-- `docs/discovery/`: implementation-oriented design and requirements reports.
+React, TypeScript, CodeMirror, Yjs, PDF.js, Vite, and Bun. The interface lives in
+`apps/web`, the server in `apps/server`, domain services in `services`, and
+isolated compilation in `workers/compiler`.
 
-The product targets persistent projects, LaTeX editing and real PDF compilation,
-file organization, references, collaboration, review, and version recovery.
-External services will require explicit configuration rather than simulated
-results.
+## Project status
+
+Quire is actively developed. Core writing and collaboration workflows are
+implemented; some advanced administration, accessibility, and integration
+work remains. See the [feature matrix](docs/feature-matrix.md) for detailed
+availability and known limitations.
