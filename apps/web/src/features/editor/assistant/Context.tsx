@@ -24,7 +24,8 @@ export function AssistantContext({ state, choice, change }: {
   const fileCount = choice.files.length + (choice.range && state.document && !choice.files.includes(state.document.file.id) ? 1 : 0);
   return <details className="qa-assistant__context" open={state.diagnosticFix ? true : undefined}>
     <summary>Context · {fileCount} files{choice.range ? ` · UTF-16 ${from}–${to}` : ""}</summary>
-    <p>Only checked files are sent. An enabled selection sends just that range for the active file.</p>
+    <p>Checked files are sent as explicit context. An enabled selection sends just that range for the active file.
+      Project search, when separately enabled, may send excerpts from other readable files.</p>
     <fieldset><legend>Selected files</legend>
       {state.workspace.files.filter(file => file.kind === "file" && file.editable).map(file =>
         <label className="qa-assistant__check" key={file.id}><input type="checkbox" checked={choice.files.includes(file.id)}

@@ -11,6 +11,7 @@ import { checkContextSize } from "./context";
 import { proposals } from "./proposals";
 import { logDispatch, logResult } from "./request-log";
 import { claimFindings, currentClaimContext } from "./findings";
+import { ProjectSearch } from "./project-search";
 
 export type Execution = {
   readonly run: RunRecord; readonly request: CreateRun; readonly selected: RunContext; readonly signal: AbortSignal;
@@ -69,7 +70,9 @@ export class AiExecution {
     await this.store.context.events.dispatch();
     const model = current.preferences.aiModel ?? current.settings.model;
     if (!model) throw new ServiceError("AI_UNCONFIGURED", 503, "Missing configured model");
+    const search = request.projectSearch ? new ProjectSearch(this.store, run, signal) : undefined;
     const result = await this.provider.complete(current.settings, { request, context: selected, history, model,
+      ...(search ? { search } : {}),
       style: current.preferences.aiStyle, publications: retrieved.map(item => item.publication), signal });
     signal.throwIfAborted();
     await this.store.progress(run.id, "succeeded", "validation");
@@ -91,6 +94,7 @@ export class AiExecution {
     await this.store.context.uow.run(async tx => {
       await tx.lock("quire:accounts");
       const checked = await this.store.recheck(run, tx);
+      if (search) await search.current(tx);
       if (request.tool === "citation-reviewer" && retrieved.some(item => !checked.preferences.citationProviders.includes(item.publication.provider))) {
         throw new ServiceError("AI_RETRIEVAL_CONSENT", 403, "A retrieved provider is no longer consented");
       }
@@ -105,7 +109,9 @@ export class AiExecution {
         JSON.stringify(edits.length ? [{ id: newId(), scope: scopeOf(run), authorId: actor.id, origin: "ai", edits, createdAt: this.store.context.clock.now() }] : []),
         JSON.stringify(sources.map(item => item.publication)), result.providerRequestId, this.store.context.clock.now(), run.id]);
       await tx.run("UPDATE ai_run_metadata SET manifest_json=?,findings_json=? WHERE run_id=?",
-        [JSON.stringify(selected.files.map(file => ({ id: file.id, path: file.path }))),
+        [JSON.stringify([...selected.files.map(file => ({ id: file.id, path: file.path })),
+          ...search?.excerpts.map(file => ({ id: file.fileId, path: file.path })) ?? []].filter((file, index, files) =>
+          files.findIndex(other => other.id === file.id) === index)),
           JSON.stringify(request.mode === "agent" || request.conversationId ? findings : []), run.id]);
       for (const item of sources) await tx.run("INSERT INTO ai_run_provenance(run_id,provider,provider_id,provenance_json) VALUES(?,?,?,?) ON CONFLICT DO NOTHING",
         [run.id, item.publication.provider, item.publication.providerId, JSON.stringify(item.provenance)]);
@@ -124,9 +130,10 @@ export class AiExecution {
       const run = await this.store.record(id, tx);
       if (run.status !== "queued" && run.status !== "running") return;
       await tx.run("UPDATE ai_usage SET state='refunded',refunded_at=? WHERE id=? AND state='reserved'", [this.store.context.clock.now(), run.usage_id]);
-      const status = ["AI_CANCELED", "AI_POLICY_DENIED", "AI_CONFIDENTIAL", "AI_CONSENT_REQUIRED", "AI_DISABLED", "UNAUTHENTICATED",
+      const canceled = ["AI_CANCELED", "AI_POLICY_DENIED", "AI_CONFIDENTIAL", "AI_CONSENT_REQUIRED", "AI_DISABLED", "UNAUTHENTICATED",
         "AI_CONFIGURATION_CHANGED", "AI_CITATION_POLICY_DENIED", "AI_CONVERSATION_NOT_FOUND", "AI_INLINE_DISABLED",
-        "AI_CONTEXT_STALE", "AI_RETRIEVAL_CONSENT"].includes(code) ? "canceled" : "failed";
+        "AI_CONTEXT_STALE"].includes(code) || (code === "AI_RETRIEVAL_CONSENT" && run.status === "running");
+      const status = canceled ? "canceled" : "failed";
       await tx.run("UPDATE ai_runs SET status=?,version=version+1,updated_at=? WHERE id=?", [status, this.store.context.clock.now(), id]);
       await this.store.steps(tx, run, status);
       await tx.run("UPDATE ai_run_metadata SET error_code=? WHERE run_id=?", [code, id]);

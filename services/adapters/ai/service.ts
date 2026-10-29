@@ -72,6 +72,9 @@ export class AiService {
     if (this.closed) throw new ServiceError("AI_CLOSED", 503, "AI service is closing");
     await this.conversations.expire();
     const request = CreateRunSchema.parse(input.request);
+    if (request.projectSearch && request.tool !== "chat" && request.tool !== "texgpt") {
+      throw new ServiceError("AI_PROJECT_SEARCH_UNSUPPORTED", 400, "Project search requires chat or texgpt");
+    }
     const authority = await this.store.authorize(actor, request);
     const prior = await this.store.context.db.get<{ run_id: string; request_digest: string }>(
       "SELECT run_id,request_digest FROM ai_run_metadata WHERE session_id=? AND idempotency_key=?", [actor.sessionId, input.key]);
@@ -118,7 +121,7 @@ export class AiService {
     const request = CreateRunSchema.parse(JSON.parse(run.request_json));
     const dto = this.store.dto(run, this.conversations.messages(run), this.conversations.findings(run));
     let findingsCurrent = dto.findings.length > 0;
-    if (request.tool === "citation-reviewer") {
+    if (request.tool === "citation-reviewer" && run.status === "succeeded") {
       const authority = await this.store.authorize(actor, request);
       await this.store.recheck(run);
       const sources = this.store.dto(run).sources;
