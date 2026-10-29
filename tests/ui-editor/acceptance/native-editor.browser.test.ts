@@ -12,11 +12,13 @@ import {
   projectDocument,
   startEditorApplication,
   startEditorBrowser,
+  waitForRenderedText,
 } from "../shared";
 import type { EditorApplication, EditorBrowser } from "../shared";
 import { openSurface, surfaceSignal } from "../assembly/actual-browser";
 
-const evidence = fileURLToPath(new URL("../../../docs/evidence/p2u/runtime/", import.meta.url));
+const evidence = process.env["QUIRE_NATIVE_ACCEPTANCE_EVIDENCE"]
+  ?? fileURLToPath(new URL("../../../docs/evidence/p2u/runtime/", import.meta.url));
 const projectPath = `/projects/${fixtureIds.project}`;
 const sourceSelector = '.qe-main .cm-content[contenteditable="true"]';
 
@@ -267,7 +269,23 @@ describe("independent native editor acceptance", () => {
     expect(await viewerPage.getByRole("textbox", { name: "Source: main.tex", exact: true }).getAttribute("contenteditable")).toBe("false");
     await viewerPage.goto(`${projectPath}/git`, { waitUntil: "domcontentloaded" });
     await settle(viewerPage, ".git-workspace");
-    expect(await viewerPage.getByText("Viewer access: Git writes are disabled.", { exact: true }).count()).toBe(1);
+    await waitForRenderedText(viewerPage, "Viewer access: Git writes are disabled.");
+    expect(await viewerPage.getByRole("button", { name: "New branch", exact: true }).isDisabled()).toBe(true);
+    await viewerPage.screenshot({ path: `${evidence}/viewer-git.png` });
+    await Bun.write(`${evidence}/viewer-git.aria.yml`, await viewerPage.locator("body").ariaSnapshot());
+    await Bun.write(`${evidence}/viewer-access.json`, JSON.stringify({
+      identity: viewer.identity.user,
+      access: await (await viewer.context.request.get(`${projectPath.replace("/projects/", "/api/projects/")}/effective-access?branch=main`)).json(),
+    }, null, 2));
+    const deniedBranch = await viewer.context.request.post(`${projectPath.replace("/projects/", "/api/projects/")}/git/branches`, {
+      headers: {
+        origin: app.url.origin,
+        "x-csrf-token": viewer.identity.session.csrfToken,
+        "idempotency-key": crypto.randomUUID(),
+      },
+      data: { name: "viewer-forbidden", from: "main", expectedVersion: 0 },
+    });
+    expect(deniedBranch.status()).toBe(403);
 
     const persisted = await projectDocument(ownerActor.context, scope);
     await Bun.write(`${evidence}/functional-observations.json`, JSON.stringify({
