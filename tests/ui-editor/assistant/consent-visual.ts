@@ -1,10 +1,12 @@
 import { assistantApplication } from "./application";
+import { assistantSettings } from "../shared/browser";
 import { assistantBrowser, assistantIdle, evidenceDir } from "./browser";
 
 async function captureConsent() {
   await using app = await assistantApplication({ termsVersion: "fixture-visual-terms-v7" });
   await using browser = await assistantBrowser(app);
   await browser.open();
+  await assistantSettings(browser.page, true);
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   await assistantIdle(browser.page);
   const name = "consent-after";

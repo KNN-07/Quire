@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { BranchSchema, endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
-import { authenticateApi, nextApplicationEvent, projectDocument, waitForRenderedText } from "../../ui-editor/shared";
+import { assistantSettings, authenticateApi, nextApplicationEvent, projectDocument, waitForRenderedText } from "../../ui-editor/shared";
 import { openSurface, surfaceSignal } from "../../ui-editor/assembly/actual-browser";
 import { consent } from "../../ui-editor/diagnostic-ai/fixture";
 import { editorPath, hash, matrix, openAssistant, preferencesFixture, savePreferences, scope, sourceSelector } from "./fixture";
@@ -11,6 +11,7 @@ test("saved future sharing choice isolates private history and branch default re
   const { app, owner, context, page, provider, evidence } = setup;
   await openAssistant(page);
   await consent(page);
+  await assistantSettings(page, true);
   expect(await page.getByRole("combobox", { name: "Future conversation choice", exact: true }).inputValue()).toBe("private");
   expect(await page.getByRole("button", { name: "Create shared conversation", exact: true }).isDisabled()).toBe(true);
   const original = await projectDocument(context, scope);
@@ -30,11 +31,13 @@ test("saved future sharing choice isolates private history and branch default re
   expect(privateRun.conversationId).toBeNull();
   const saved = await savePreferences(page, { shared: true, branch: true });
   await openAssistant(page);
+  await assistantSettings(page, true);
   expect(await page.getByRole("combobox", { name: "Future conversation choice", exact: true }).inputValue()).toBe("shared");
   expect(await page.getByRole("status", { name: "Message visibility" }).innerText()).toContain("private");
   expect(provider.received).toHaveLength(1);
   expect(await app.application.runtime.db.all("SELECT id FROM ai_conversations")).toHaveLength(0);
   await matrix(setup, "future-shared-private-current", ".qa-assistant select");
+  await assistantSettings(page, true);
   const created = page.waitForResponse(response => response.url().endsWith(`/projects/${scope.projectId}/ai/conversations`)
     && response.request().method() === "POST");
   await page.getByRole("button", { name: "Create shared conversation", exact: true }).click();
@@ -43,6 +46,7 @@ test("saved future sharing choice isolates private history and branch default re
   const conversation = editorValue(resultSchema(endpoints.aiConversationCreate.output).parse(await createResponse.json()));
   expect(conversation.messages).toEqual([]);
   await waitForRenderedText(page, conversation.id);
+  await assistantSettings(page, false);
   expect(await page.getByRole("region", { name: "Assistant messages", exact: true }).innerText()).not.toContain(privatePrompt);
   const sharedPrompt = `shared-${crypto.randomUUID()}`;
   const sharedRun = await send(sharedPrompt);
@@ -57,6 +61,7 @@ test("saved future sharing choice isolates private history and branch default re
     await otherContext.addCookies([other.cookie]);
     const otherPage = await otherContext.newPage();
     await openAssistant(otherPage);
+    await assistantSettings(otherPage, true);
     expect(await otherPage.getByRole("combobox", { name: "Future conversation choice", exact: true }).inputValue()).toBe("private");
     const denied = await other.http.get(`api/ai/runs/${privateRun.id}`);
     expect(denied.status).toBe(404);
@@ -67,9 +72,11 @@ test("saved future sharing choice isolates private history and branch default re
   } finally { await otherContext.close(); }
   await savePreferences(page, { shared: false, branch: false });
   expect(await page.getByRole("status", { name: "Message visibility" }).innerText()).toContain(conversation.id);
+  await assistantSettings(page, true);
   await page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("private");
   await page.getByRole("button", { name: "Use private session", exact: true }).click();
   await openAssistant(page);
+  await assistantSettings(page, true);
   expect(await page.getByRole("combobox", { name: "Future conversation choice", exact: true }).inputValue()).toBe("private");
   // Agent approval is independent of the sharing choice and does not mutate before Accept.
   provider.respond(request => {
@@ -198,6 +205,7 @@ test("error assistance persists per actor and hides offers without bypassing dia
   expect(provider.received).toHaveLength(0);
   await consent(page);
   await page.getByLabel("Send the selected diagnostic and its recorded log excerpt").check();
+  await assistantSettings(page, true);
   await page.locator(".qa-assistant__settings summary").click();
   await page.getByLabel("Confidential project").check();
   const securitySaved = page.waitForResponse(response => response.request().method() === "PUT"
@@ -205,6 +213,7 @@ test("error assistance persists per actor and hides offers without bypassing dia
   await page.getByRole("button", { name: "Save security label", exact: true }).click();
   expect(editorValue(resultSchema(endpoints.aiSecurityPut.output).parse(await (await securitySaved).json())).confidential).toBe(true);
   await page.locator(".qa-assistant__settings summary").click();
+  await assistantSettings(page, false);
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await waitForRenderedText(page, "AI_CONFIDENTIAL");
   expect(provider.received).toHaveLength(0);

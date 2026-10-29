@@ -13,11 +13,18 @@ tokens, not invented provider branding. No global or shell changes belong here.
 
 Layout: assistant - bounded conversation and review in an assembly-owned slot ->
 scroll-body-shell (local layout-skill contract); scroll owner:
-`.qa-assistant__body`; fixed header; anti-patterns: unbounded nested vertical
-scrolling, fixed-width children, source mutation in a display component.
-The body owns review, messages, disclosures, and composer so a mobile keyboard
-or expanded consent form never hides controls in an oversized fixed footer.
-Source previews wrap; textareas may scroll their own editable text.
+`.qa-assistant__body`; fixed header and pinned composer card, matching the
+`01-editor` Assistant aside and `03-ai-agent` panel; anti-patterns: unbounded
+nested vertical scrolling, fixed-width children, source mutation in a display component.
+Header: title, Ask/Agent switch, Refresh and an Assistant settings toggle. The
+body shows either the conversation (user bubbles, the run card between the
+newest request and its reply, review diff cards, sources, Try next chips) or
+the settings view (availability, usage, privacy, preferences and consent);
+starting a new run returns to the conversation. The composer card holds context
+chips, a borderless textarea (Enter sends, Shift+Enter breaks), tool, project
+search and an icon Send; its expandable context panel is height-bounded so it
+never pushes the textarea off a mobile screen. Source previews wrap;
+textareas may scroll their own editable text.
 Layout: run progress - recorded stages in execution order -> stack
 (https://github.com/changeroa/StyleGallery/blob/main/patterns/stacking/stack.md);
 scroll owner: `.qa-assistant__body`;
@@ -30,6 +37,7 @@ exist (Send becomes neutral). Priorities: (1) current recorded progress, then re
 (2) explicit selected context and prompt, (3) governance/settings.
 Left out on purpose: fabricated run steps/timings, sample citations, static
 usage numbers, marketing chips, placeholder model output, global app chrome.
+Suggestion chips name real tools and only prefill the composer; nothing is sent until Send.
 
 Required content: Assistant title; recorded stage kind/status and actual start/finish times;
 honest missing-history state for legacy receipts; result-ready distinct from acceptance;

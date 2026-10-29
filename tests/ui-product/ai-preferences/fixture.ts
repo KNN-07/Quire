@@ -8,7 +8,7 @@ import { SafeHttpClient } from "../../../services/adapters/shared";
 import { defaultPolicy } from "../../../services/accounts/identity/policy";
 import { providerServer } from "../../adapters/ai/provider";
 import { fixtureIds } from "../../fixtures/foundation";
-import { authenticateApi, startEditorBrowser, waitForRenderedText } from "../../ui-editor/shared";
+import { assistantSettings, authenticateApi, startEditorBrowser, waitForRenderedText } from "../../ui-editor/shared";
 import { startAssemblyApplication } from "../../ui-editor/assembly/application";
 import { openSurface } from "../../ui-editor/assembly/actual-browser";
 
@@ -87,6 +87,7 @@ export async function openAssistant(page: Page, path = editorPath) {
   await openSurface(page, { path, selector: '.qa-assistant__composer' });
 }
 export async function savePreferences(page: Page, values: { branch?: boolean; shared?: boolean; error?: boolean }) {
+  await assistantSettings(page, true);
   const settings = page.locator(".qa-assistant__settings");
   if (!await settings.evaluate(node => node.hasAttribute("open"))) await settings.locator("summary").click();
   for (const [name, checked] of Object.entries(values)) {
@@ -100,6 +101,7 @@ export async function savePreferences(page: Page, values: { branch?: boolean; sh
   const preferences = editorValue(resultSchema(endpoints.preferencesPatch.output).parse(await response.json()));
   await waitForRenderedText(page, "AI preferences saved");
   await settings.locator("summary").click();
+  await assistantSettings(page, false);
   return preferences;
 }
 export async function matrix(setup: PreferencesFixture, name: string, selector: string) {

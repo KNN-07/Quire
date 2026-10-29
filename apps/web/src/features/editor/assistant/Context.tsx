@@ -1,5 +1,6 @@
 import { IdSchema, endpoints } from "@quire/contracts";
 import type { Id } from "@quire/contracts";
+import { Icon } from "../../../ui";
 import { editorValue } from "../shared";
 import type { AssistantState } from "./use-assistant";
 
@@ -14,17 +15,32 @@ export type ContextChoice = {
 export const emptyContext: ContextChoice = {
   files: [], range: false, diagnostic: "", diagnosticConsent: false, imageConsent: false, images: [],
 };
-export function AssistantContext({ state, choice, change }: {
+function lineOf(text: string, offset: number) {
+  let line = 1;
+  for (let index = text.indexOf("\n"); index !== -1 && index < offset; index = text.indexOf("\n", index + 1)) line++;
+  return line;
+}
+export function AssistantContext({ state, choice, change, projectSearch = false }: {
   readonly state: AssistantState;
   readonly choice: ContextChoice;
   readonly change: (next: ContextChoice) => void;
+  readonly projectSearch?: boolean;
 }) {
   const from = Math.min(state.selection.anchor, state.selection.head);
   const to = Math.max(state.selection.anchor, state.selection.head);
   const fileCount = choice.files.length + (choice.range && state.document && !choice.files.includes(state.document.file.id) ? 1 : 0);
+  const paths = choice.files.map(id => state.workspace.files.find(file => file.id === id)?.path ?? id);
+  const diagnostic = state.diagnostics.find(item => item.id === choice.diagnostic);
   return <details className="qa-assistant__context" open={state.diagnosticFix ? true : undefined}>
-    <summary>Context · {fileCount} files{choice.range ? ` · UTF-16 ${from}–${to}` : ""}</summary>
-    <p>Checked files are sent as explicit context. An enabled selection sends just that range for the active file.
+    <summary><span className="qa-assistant__context-toggle"><Icon name="plus" />Context · {fileCount} files{choice.range ? ` · UTF-16 ${from}–${to}` : ""}</span>
+      {choice.range && state.document && <span className="qa-assistant__chip">@{state.document.file.path} · L{lineOf(state.document.source.toJSON(), from)}</span>}
+      {paths.map(path => <span className="qa-assistant__chip" key={path}>@{path}</span>)}
+      {diagnostic && choice.diagnosticConsent && <span className="qa-assistant__chip">compile log</span>}
+      {choice.imageConsent && choice.images.length > 0 && <span className="qa-assistant__chip">{choice.images.length} images</span>}
+      {projectSearch && <span className="qa-assistant__chip">project search</span>}
+    </summary>
+    <div className="qa-assistant__context-panel">
+    <p className="qa-assistant__fine">Checked files are sent as explicit context. An enabled selection sends just that range for the active file.
       Project search, when separately enabled, may send excerpts from other readable files.</p>
     <fieldset><legend>Selected files</legend>
       {state.workspace.files.filter(file => file.kind === "file" && file.editable).map(file =>
@@ -73,6 +89,7 @@ export function AssistantContext({ state, choice, change }: {
           state.setNotice(`Attached ${file.name} · ${image.bytes} bytes`);
         });
       }} /></label>
-    <p>{choice.images.length} images attached. Uncheck image consent to remove them from the next request.</p>
+    <p className="qa-assistant__fine">{choice.images.length} images attached. Uncheck image consent to remove them from the next request.</p>
+    </div>
   </details>;
 }

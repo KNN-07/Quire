@@ -3,7 +3,7 @@ import { AiToolSchema, endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { assistantApplication } from "./application";
 import { assistantBrowser, assistantIdle, capture, consent, evidenceDir, sendAndRefresh } from "./browser";
-import { waitForRenderedText } from "../shared/browser";
+import { assistantSettings, waitForRenderedText } from "../shared/browser";
 
 test("sends the explicit UTF-16 range and exposes all governed tool values", async () => {
   // Given an active real document and explicit range consent.
@@ -57,6 +57,7 @@ test("persists explicitly opted-in shared chat and clears it through the actual 
   await app.configure();
   await using browser = await assistantBrowser(app);
   await browser.open(); await consent(browser.page);
+  await assistantSettings(browser.page, true);
   await browser.page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("shared");
   const created = browser.page.waitForResponse(response => response.request().method() === "POST"
     && response.url().endsWith(`/projects/${app.project.id}/ai/conversations`));
@@ -69,9 +70,11 @@ test("persists explicitly opted-in shared chat and clears it through the actual 
   await sendAndRefresh(browser.page, app);
   await waitForRenderedText(browser.page, "Ask run · succeeded");
   // When the user explicitly clears the shared chat.
+  await assistantSettings(browser.page, true);
   await browser.page.getByRole("button", { name: "Clear shared chat", exact: true }).click();
   await waitForRenderedText(browser.page, "Shared chat cleared");
   // Then retained chat text is absent from the displayed conversation.
+  await assistantSettings(browser.page, false);
   expect(await browser.page.getByRole("region", { name: "Assistant messages", exact: true }).textContent())
     .not.toContain("Remember in shared chat");
   expect(browser.errors).toEqual([]);

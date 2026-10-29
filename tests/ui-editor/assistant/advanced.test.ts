@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { assistantApplication } from "./application";
 import { assistantBrowser, capture, consent, generate, sendAndRefresh } from "./browser";
-import { waitForRenderedText } from "../shared/browser";
+import { assistantSettings, waitForRenderedText } from "../shared/browser";
 
 test("blocks context transmission after an owner marks a project confidential", async () => {
   // Given a configured, consented project.
@@ -9,6 +9,7 @@ test("blocks context transmission after an owner marks a project confidential", 
   await app.configure();
   await using browser = await assistantBrowser(app);
   await browser.open(); await consent(browser.page);
+  await assistantSettings(browser.page, true);
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   await browser.page.getByLabel("Confidential project · owner controlled").check();
   // When the owner saves the actual security label and attempts generation.

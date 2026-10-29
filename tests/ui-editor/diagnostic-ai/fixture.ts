@@ -8,7 +8,7 @@ import { SafeHttpClient } from "../../../services/adapters/shared";
 import { defaultPolicy } from "../../../services/accounts/identity/policy";
 import { providerServer } from "../../adapters/ai/provider";
 import { fixtureIds } from "../../fixtures/foundation";
-import { authenticateApi, nextApplicationEvent, projectDocument, startEditorBrowser, waitForRenderedText } from "../shared";
+import { assistantSettings, authenticateApi, nextApplicationEvent, projectDocument, startEditorBrowser, waitForRenderedText } from "../shared";
 import { startAssemblyApplication } from "../assembly/application";
 import { openSurface, surfaceSignal } from "../assembly/actual-browser";
 
@@ -105,11 +105,13 @@ export async function brokenDiagnostic(setup: DiagnosticFixture) {
 }
 
 export async function consent(page: Page) {
+  await assistantSettings(page, true);
   await page.locator(".qa-assistant__settings summary").click();
   await page.getByLabel("I consent to these provider terms").check();
   await page.getByRole("button", { name: "Save consent decision" }).click();
   await waitForRenderedText(page, "Consent accepted");
   await page.locator(".qa-assistant__settings summary").click();
+  await assistantSettings(page, false);
 }
 
 export async function captureMatrix(setup: DiagnosticFixture, name: string) {

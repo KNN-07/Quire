@@ -3,7 +3,7 @@ import { endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { assistantApplication } from "./application";
 import { assistantBrowser } from "./browser";
-import { waitForRenderedText } from "../shared/browser";
+import { assistantSettings, waitForRenderedText } from "../shared/browser";
 
 test("accepts server-required opaque terms using the actual user version", async () => {
   // Given legacy accepted terms and a user version distinct from preference version.
@@ -19,6 +19,7 @@ test("accepts server-required opaque terms using the actual user version", async
   } });
   await using browser = await assistantBrowser(app);
   await browser.open();
+  await assistantSettings(browser.page, true);
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   expect(await browser.page.getByLabel("I consent to these provider terms").isChecked()).toBe(false);
   expect(await browser.page.locator(".qa-assistant__settings form").first().locator("input:not([type=checkbox])").count()).toBe(0);
@@ -36,6 +37,7 @@ test("accepts server-required opaque terms using the actual user version", async
   expect(stored).toEqual({ requiredTermsVersion, acceptedTermsVersion: requiredTermsVersion,
     accepted: true, current: true, userVersion: initial.userVersion + 3 });
   await browser.page.reload({ waitUntil: "domcontentloaded" });
+  await assistantSettings(browser.page, true);
   await waitForRenderedText(browser.page, "usage ·");
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   expect(await browser.page.getByLabel("I consent to these provider terms").isChecked()).toBe(true);
@@ -53,6 +55,7 @@ test("revokes current server consent with its returned user version", async () =
   } });
   await using browser = await assistantBrowser(app);
   await browser.open();
+  await assistantSettings(browser.page, true);
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   expect(await browser.page.getByLabel("I consent to these provider terms").isChecked()).toBe(true);
   // When the user revokes the current terms.

@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { resolve as resolvePath } from "node:path";
 import type { Page } from "@playwright/test";
-import { startEditorBrowser, waitForRenderedText } from "../shared/browser";
+import { assistantSettings, startEditorBrowser, waitForRenderedText } from "../shared/browser";
 import type { assistantApplication } from "./application";
 
 export const evidenceDir = resolvePath("tests/ui-editor/assistant/evidence");
@@ -35,7 +35,7 @@ export async function assistantBrowser(app: Awaited<ReturnType<typeof assistantA
   return { page, context, errors,
     async open() {
       await page.goto(`/?project=${app.project.id}`, { waitUntil: "domcontentloaded" });
-      try { await waitForRenderedText(page, "usage ·"); }
+      try { await page.locator(".qa-assistant__composer").waitFor({ state: "visible", timeout: 30_000 }); }
       catch (failure) {
         await page.screenshot({ path: `${evidenceDir}/open-failed-${app.project.id}.png` });
         throw failure;
@@ -48,11 +48,13 @@ export async function assistantBrowser(app: Awaited<ReturnType<typeof assistantA
   };
 }
 export async function consent(page: Page) {
+  await assistantSettings(page, true);
   await page.getByText("AI preferences and consent", { exact: true }).click();
   await page.getByLabel("I consent to these provider terms").check();
   await page.getByRole("button", { name: "Save consent decision" }).click();
   await waitForRenderedText(page, "Consent accepted");
   await page.getByText("AI preferences and consent", { exact: true }).click();
+  await assistantSettings(page, false);
 }
 export async function generate(page: Page, app: Awaited<ReturnType<typeof assistantApplication>>) {
   await page.getByRole("button", { name: "Agent", exact: true }).click();

@@ -65,3 +65,9 @@ export async function projectDocument(context: BrowserContext, scope: Scope & { 
   );
   return editorValue(resultSchema(endpoints.fileDocument.output).parse(await response.json()));
 }
+
+/** Show or hide the assistant settings view (privacy, preferences, consent) behind the header toggle. */
+export async function assistantSettings(page: Page, open: boolean): Promise<void> {
+  const toggle = page.locator(".qa-assistant__header").getByRole("button", { name: "Assistant settings", exact: true });
+  if ((await toggle.getAttribute("aria-pressed") === "true") !== open) await toggle.click();
+}

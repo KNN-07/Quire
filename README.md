@@ -4,7 +4,7 @@ A self-hosted LaTeX workspace for writing, collaboration, and real PDF
 compilation. Edit source or use the visual editor, review changes with your
 team, and keep files, references, and project history together.
 
-![Quire editor with the project file tree, LaTeX source, compiled PDF, and Assistant sidebar](docs/images/editor.png)
+![Quire editor with the project file tree, LaTeX source, compiled PDF, and the Assistant reviewing an Agent edit](docs/images/editor.png)
 
 *The running application with a seeded example project and its actual compiled PDF.*
 

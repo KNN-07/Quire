@@ -3,7 +3,7 @@ import { endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { assistantApplication } from "./application";
 import { aiCompletion, assistantBrowser, consent, generate, sendAndRefresh } from "./browser";
-import { waitForRenderedText } from "../shared/browser";
+import { assistantSettings, waitForRenderedText } from "../shared/browser";
 
 test("shows the actual missing configuration denial after explicit consent", async () => {
   // Given valid consent but no operator provider configuration.
@@ -26,6 +26,7 @@ test("persists model preferences and reports an unconfigured model without inven
   await app.configure();
   await using browser = await assistantBrowser(app);
   await browser.open(); await consent(browser.page);
+  await assistantSettings(browser.page, true);
   await browser.page.getByText("AI preferences and consent", { exact: true }).click();
   await browser.page.getByLabel("Model (empty uses configured default)").fill("unconfigured-fixture-model");
   // When the user persists a different model and sends a prompt.
@@ -63,6 +64,7 @@ test("regenerates through a new governed invocation and consumes another actual 
   await browser.page.getByRole("button", { name: "Refresh", exact: true }).click();
   await waitForRenderedText(browser.page, next.id);
   await waitForRenderedText(browser.page, "Ask run · succeeded");
+  await assistantSettings(browser.page, true);
   await waitForRenderedText(browser.page, "usage · 2 used");
   // Then both requests crossed the provider boundary and actual usage increased.
   expect(app.provider.received).toHaveLength(2);
@@ -80,6 +82,7 @@ test("clears private session memory through the actual session endpoint", async 
   await sendAndRefresh(browser.page, app);
   await waitForRenderedText(browser.page, "Ask run · succeeded");
   // When the user explicitly clears the private session.
+  await assistantSettings(browser.page, true);
   await browser.page.getByRole("button", { name: "Clear private session", exact: true }).click();
   await waitForRenderedText(browser.page, "Private session chat cleared");
   // Then private messages no longer render.
@@ -100,7 +103,8 @@ test.each(["private", "shared"] as const)("accepts retained Agent review after %
   const scope = { projectId: app.project.id, branch: app.project.defaultBranch };
   const original = await app.core.readDocument(scope, app.project.settings.mainFileId);
   if (privacy === "shared") {
-    await browser.page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("shared");
+    await assistantSettings(browser.page, true);
+  await browser.page.getByRole("combobox", { name: "Future conversation choice", exact: true }).selectOption("shared");
     const created = browser.page.waitForResponse(response => response.request().method() === "POST"
       && response.url().endsWith(`/projects/${app.project.id}/ai/conversations`));
     await browser.page.getByRole("button", { name: "Create shared conversation", exact: true }).click();
@@ -110,6 +114,7 @@ test.each(["private", "shared"] as const)("accepts retained Agent review after %
     await waitForRenderedText(browser.page, conversation.id);
   }
   await generate(browser.page, app);
+  await assistantSettings(browser.page, true);
   await browser.page.getByRole("button", { name: privacy === "shared" ? "Clear shared chat" : "Clear private session", exact: true }).click();
   await waitForRenderedText(browser.page, privacy === "shared" ? "Shared chat cleared" : "Private session chat cleared");
   // When the user accepts that separately retained Agent review.

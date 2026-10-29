@@ -3,7 +3,7 @@ import { DigestSchema, endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { bibliographyKeys } from "../../../apps/web/src/features/editor/tools/insertion";
 import { openSurface, surfaceSignal } from "../../ui-editor/assembly/actual-browser";
-import { nextApplicationEvent, projectDocument, waitForRenderedText } from "../../ui-editor/shared";
+import { assistantSettings, nextApplicationEvent, projectDocument, waitForRenderedText } from "../../ui-editor/shared";
 import { consent } from "../../ui-editor/diagnostic-ai/fixture";
 import { citationFixture, scope, source, unsupported } from "./fixture";
 
@@ -32,12 +32,14 @@ test("native consented review highlights exact source then explicitly copies and
   await saved.promise;
   const baseline = await projectDocument(context, scope);
   await consent(page);
+  await assistantSettings(page, true);
   await page.locator(".qa-assistant__settings summary").click();
   await page.getByLabel("Consent to citation web retrieval").check();
   await page.getByLabel("Citation providers (comma-separated)").fill("crossref");
   await page.getByRole("button", { name: "Save AI preferences", exact: true }).click();
   await waitForRenderedText(page, "AI preferences saved");
   await page.locator(".qa-assistant__settings summary").click();
+  await assistantSettings(page, false);
   await page.getByLabel("Tool", { exact: true }).selectOption("citation-reviewer");
   await page.locator(".qa-assistant__context summary").click();
   await page.getByRole("checkbox", { name: "main.tex", exact: true }).check();

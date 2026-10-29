@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BranchSchema, endpoints } from "@quire/contracts";
 import type { Id } from "@quire/contracts";
-import { Button } from "../../../ui";
+import { Button, Icon } from "../../../ui";
 import { editorValue } from "../shared";
 import type { AssistantState } from "./use-assistant";
 
@@ -41,40 +41,46 @@ export function AssistantReview({ state }: { readonly state: AssistantState }) {
   }
   if (!edits.length) return null;
   return <section aria-label="Proposed changes" className="qa-assistant__review">
-    <div className="qa-assistant__row"><h3>Review changes</h3><span>{pending.length} pending</span></div>
-    <p>Accept into {branch.trim() ? <>new branch <code>{branch.trim()}</code></> : <>current branch <code>{state.run?.scope.branch}</code></>}.
+    <header className="qa-assistant__review-header">
+      <Icon name="sparkle" /><h3>Review changes</h3><span>{pending.length} pending</span>
+      <div className="qa-assistant__actions">
+        <Button size="small" disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("reject", pending.map(edit => edit.id)))}>Reject all</Button>
+        <Button size="small" variant="ai" disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("accept", pending.map(edit => edit.id)))}>Accept all</Button>
+        {accepted.length > 0 && <Button size="small" disabled={disabled} onClick={() => void state.execute(() => decide("undo", accepted.map(edit => edit.id)))}>Undo all</Button>}
+      </div>
+    </header>
+    <p className="qa-assistant__fine">Accept into {branch.trim() ? <>new branch <code>{branch.trim()}</code></> : <>current branch <code>{state.run?.scope.branch}</code></>}.
       {" "}Nothing is created or changed until you accept.</p>
-    {state.tracking && <p>Turn off Track changes before deciding Agent edits. Your proposal draft is retained.</p>}
-    <div className="qa-assistant__row">
-      <Button disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("reject", pending.map(edit => edit.id)))}>Reject all</Button>
-      <Button variant="ai" disabled={disabled || !pending.length} onClick={() => void state.execute(() => decide("accept", pending.map(edit => edit.id)))}>Accept all</Button>
-      <Button disabled={disabled || !accepted.length} onClick={() => void state.execute(() => decide("undo", accepted.map(edit => edit.id)))}>Undo all</Button>
-    </div>
+    {state.tracking && <p className="qa-assistant__fine">Turn off Track changes before deciding Agent edits. Your proposal draft is retained.</p>}
     {edits.map(edit => {
       const file = state.workspace.files.find(item => item.id === edit.fileId);
-      return <article className="qa-assistant__edit" key={edit.id} aria-label={`${file?.path ?? edit.fileId} proposal`}>
-        <header className="qa-assistant__row"><code>{file?.path ?? edit.fileId}</code><strong>{edit.status}</strong></header>
-        <div className="qa-assistant__before"><span>Before</span><pre>{edit.before || "(empty)"}</pre></div>
-        <div className="qa-assistant__after"><span>After</span><pre>{edit.after || "(empty)"}</pre></div>
-        <div className="qa-assistant__row qa-assistant__edit-actions">
-          <Button disabled={disabled || edit.status !== "pending"} onClick={() => void state.execute(() => decide("reject", [edit.id]))}>Reject</Button>
-          <Button disabled={disabled || edit.status !== "pending"} onClick={() => void state.execute(() => decide("accept", [edit.id]))}>Accept</Button>
-          <Button disabled={disabled || edit.status !== "accepted"} onClick={() => void state.execute(() => decide("undo", [edit.id]))}>Undo</Button>
-          <Button disabled={!file || !state.online || state.busy} onClick={() => void state.execute(() => state.navigation.openFile(edit.fileId))}>Open source</Button>
+      return <article className="qa-assistant__edit" key={edit.id} data-edit-status={edit.status} aria-label={`${file?.path ?? edit.fileId} proposal`}>
+        <header><code>{file?.path ?? edit.fileId}</code>
+          {edit.status !== "pending" && <strong className="qa-assistant__edit-status">{edit.status}</strong>}
+        <div className="qa-assistant__actions qa-assistant__edit-actions">
+          {edit.status === "pending" && <>
+            <Button size="small" disabled={disabled} onClick={() => void state.execute(() => decide("reject", [edit.id]))}>Reject</Button>
+            <Button size="small" variant="success" disabled={disabled} onClick={() => void state.execute(() => decide("accept", [edit.id]))}>Accept</Button>
+          </>}
+          {edit.status === "accepted" && <Button size="small" disabled={disabled} onClick={() => void state.execute(() => decide("undo", [edit.id]))}>Undo</Button>}
+          <Button size="small" variant="ghost" disabled={!file || !state.online || state.busy} onClick={() => void state.execute(() => state.navigation.openFile(edit.fileId))}>Open source</Button>
+        </div></header>
+        <div className="qa-assistant__diff">
+          {(edit.before || !edit.after) && <div className="qa-assistant__before"><span className="q-sr-only">Before</span><span aria-hidden="true">−</span><pre>{edit.before || "(empty)"}</pre></div>}
+          {(edit.after || !edit.before) && <div className="qa-assistant__after"><span className="q-sr-only">After</span><span aria-hidden="true">+</span><pre>{edit.after || "(empty)"}</pre></div>}
         </div>
-        {edit.status === "conflict" && <p role="alert">This edit conflicts with current source. Regenerate; source remains unchanged.</p>}
+        {edit.status === "conflict" && <p role="alert" className="qa-assistant__fine qa-assistant__error">This edit conflicts with current source. Regenerate; source remains unchanged.</p>}
       </article>;
     })}
-    <details open><summary>Git options</summary>
+    <details open className="qa-assistant__git"><summary>Git options</summary>
       <label className="qa-assistant__check"><input type="checkbox" checked={commit}
         onChange={event => setCommit(event.target.checked)} />Commit accepted changes</label>
       <label>New branch (optional, ai/ prefix)<input value={branch} placeholder="ai/revise-abstract"
         onChange={event => setBranch(event.target.value)} /></label>
-      <Button disabled={disabled || !pending.length} onClick={() => setBranch("")}>Use current branch for this run</Button>
-      <p>The saved branch preference defaults future runs. You can override it here for this run.</p>
-      <p>Existing dirty source must be committed first. Branches and commits are created only on acceptance.</p>
+      <p className="qa-assistant__fine">Branches and commits are created only on acceptance; dirty source must be committed first.{" "}
+        <Button size="small" variant="ghost" className="qa-assistant__link" disabled={disabled || !pending.length} onClick={() => setBranch("")}>Use current branch for this run</Button></p>
     </details>
-    {state.run?.tool === "error-fix" && accepted.length > 0 && <Button disabled={disabled || !state.compile}
+    {state.run?.tool === "error-fix" && accepted.length > 0 && <Button variant="ai" disabled={disabled || !state.compile}
       onClick={() => void state.execute(async () => {
         if (!state.compile) return;
         await state.document?.flush(state.signal);

@@ -3,7 +3,7 @@ import { endpoints, resultSchema } from "@quire/contracts";
 import { editorValue } from "../../../apps/web/src/features/editor/shared";
 import { defaultPolicy } from "../../../services/accounts/identity/policy";
 import { fixtureIds } from "../../fixtures/foundation";
-import { authenticateApi, nextApplicationEvent, projectDocument, waitForRenderedText } from "../shared";
+import { assistantSettings, authenticateApi, nextApplicationEvent, projectDocument, waitForRenderedText } from "../shared";
 import { openSurface, surfaceSignal } from "./actual-browser";
 import { assemblyAssistant } from "./assistant-fixture";
 
@@ -35,6 +35,7 @@ test("consents to an actual compiler diagnostic and applies an ErrorFix before r
   if (!diagnostic || !log) throw new TypeError("Actual failed job must publish its diagnostic and log");
   const logResponse = await context.request.get(`/api/artifacts/${log.id}/content`);
   const bytes = await logResponse.body();
+  await assistantSettings(page, true);
   await page.locator(".qa-assistant__settings summary").click();
   await page.getByLabel("I consent to these provider terms").check();
   const consented = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === endpoints.aiConsent.path);
@@ -42,6 +43,7 @@ test("consents to an actual compiler diagnostic and applies an ErrorFix before r
   expect((await consented).ok()).toBe(true);
   await waitForRenderedText(page, "Consent accepted");
   await page.locator(".qa-assistant__settings summary").click();
+  await assistantSettings(page, false);
   await page.getByRole("button", { name: "Agent", exact: true }).click();
   await page.getByLabel("Tool", { exact: true }).selectOption("error-fix");
   await page.getByRole("group", { name: "Selected files" }).getByLabel("main.tex", { exact: true }).check();
@@ -102,11 +104,13 @@ test("displays retrieved publication provenance and opens a different proposed s
   } });
   expect(patched.status).toBe(200);
   await openSurface(page, { path: `${projectPath}/agent`, selector: ".qe-route .qa-assistant textarea" });
+  await assistantSettings(page, true);
   await page.locator(".qa-assistant__settings summary").click();
   await page.getByLabel("I consent to these provider terms").check();
   await page.getByRole("button", { name: "Save consent decision" }).click();
   await waitForRenderedText(page, "Consent accepted");
   await page.locator(".qa-assistant__settings summary").click();
+  await assistantSettings(page, false);
   provider.respond({ text: "Retrieved and verified", patches: [], citations: [{ provider: "crossref", providerId: "10.1234/verified" }] });
   await page.getByLabel("Tool", { exact: true }).selectOption("citation-reviewer");
   await page.getByLabel("Message the assistant").fill("Find sources about latent dynamics");
