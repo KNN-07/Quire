@@ -6,7 +6,8 @@ import { bracketMatching, HighlightStyle, StreamLanguage, syntaxHighlighting } f
 import { stex } from "@codemirror/legacy-modes/mode/stex";
 import { tags } from "@lezer/highlight";
 import { defaultKeymap, indentWithTab, toggleLineComment } from "@codemirror/commands";
-import { completionKeymap, startCompletion } from "@codemirror/autocomplete";
+import { closeCompletion, completionKeymap, startCompletion } from "@codemirror/autocomplete";
+import type { CompletionSource } from "@codemirror/autocomplete";
 import { gotoLine, search, highlightSelectionMatches } from "@codemirror/search";
 import { setDiagnostics } from "@codemirror/lint";
 import type { Diagnostic } from "@codemirror/lint";
@@ -17,6 +18,7 @@ import { lineOffset, sourceSelection } from "./tex";
 import type { TexIndex } from "./tex";
 import { texCompletion } from "./completion";
 import { preferenceExtensions } from "./preferences";
+import { referenceLayout } from "./reference-layout";
 import { searchScope } from "./search";
 import { collaborativeHistory } from "./bindings";
 
@@ -51,6 +53,8 @@ export type SourceEditorOptions = {
   readonly document: EditorDocument;
   readonly preferences: Preferences;
   readonly index: () => TexIndex;
+  readonly remoteCompletion?: CompletionSource;
+  readonly onCompletionContextChange?: () => void;
   readonly selection: SourceSelection;
   readonly onSelection: (selection: SourceSelection) => void;
   readonly onChange: (source: string) => void;
@@ -83,7 +87,7 @@ export function createSourceEditor(options: SourceEditorOptions) {
     if (!target.state.readOnly) undo.redo();
     return true;
   };
-  const completion = texCompletion(options.index);
+  const completion = [texCompletion(options.index), ...(options.remoteCompletion ? [options.remoteCompletion] : [])];
   const source = boundSource.toJSON();
   const isReadOnly = () => options.draft ? !options.draft.canEdit() : options.document.getSnapshot().readOnly;
   const editable = () => [
@@ -101,6 +105,14 @@ export function createSourceEditor(options: SourceEditorOptions) {
         StreamLanguage.define(stex), syntaxHighlighting(highlighting), bracketMatching(),
         search({ top: true }), searchScope, highlightSelectionMatches(), EditorView.lineWrapping,
         preferences.of(preferenceExtensions(options.preferences, completion)), access.of(editable()),
+        referenceLayout,
+        Prec.highest(EditorView.domEventHandlers({
+          keydown(event, target) {
+            if (event.key !== "Escape" || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return false;
+            options.onCompletionContextChange?.();
+            return closeCompletion(target);
+          },
+        })),
         EditorView.domEventHandlers({
           beforeinput(event, target) {
             if (event instanceof InputEvent && target.state.readOnly
@@ -138,6 +150,7 @@ export function createSourceEditor(options: SourceEditorOptions) {
         keymap.of([...completionKeymap, ...defaultKeymap, indentWithTab]),
         EditorView.contentAttributes.of({ "aria-label": `Source: ${options.document.file.path}` }),
         EditorView.updateListener.of(update => {
+          if (update.docChanged || update.selectionSet) options.onCompletionContextChange?.();
           if (update.transactions.some(transaction => transaction.isUserEvent("input.paste"))) {
             undo.stopCapturing();
           }

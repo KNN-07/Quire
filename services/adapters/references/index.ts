@@ -96,7 +96,7 @@ export function createReferencesModules() {
           "Missing: ReadCube approved partner API search/authentication/response contract");
         const page = await state.retrieval.search({ actorId, projectId: input.query.projectId,
           provider: RetrievalProviderSchema.parse(input.query.provider), query: input.query.query,
-          cursor: input.query.cursor, limit: input.query.limit });
+          cursor: input.query.cursor, limit: input.query.limit, signal: request.request.signal });
         return { items: page.items.map(item => item.publication), nextCursor: page.nextCursor };
       });
     },

@@ -35,4 +35,42 @@
 .q-source-draft textarea{inline-size:100%;box-sizing:border-box;min-block-size:80px;color:var(--q-ink);background:var(--q-surface)}
 .q-source-proposals{flex:0 1 auto;max-block-size:25%;overflow:auto;border-block-start:1px solid var(--q-border);padding:var(--q-space-2) var(--q-space-3)}
 .q-source-proposals article{border-inline-start:3px solid var(--q-brand);padding-inline-start:var(--q-space-3);margin-block:var(--q-space-3);overflow-wrap:anywhere}
+.q-source-references{flex:none;padding:var(--q-space-2) var(--q-space-3);border-block-end:1px solid var(--q-border)}
+.q-source-references summary{cursor:pointer;min-block-size:var(--q-touch-target);align-content:center}
+.q-source-references p{margin:0;color:var(--q-secondary)}
+.q-source-editor .cm-tooltip-autocomplete{max-inline-size:min(100%,36rem)}
+.q-source-editor .cm-tooltip-autocomplete ul li{white-space:normal;overflow-wrap:anywhere;min-block-size:var(--q-touch-target);padding:var(--q-space-2)}
+.q-source-editor .cm-completionDetail{display:block;margin:0;font-family:var(--q-font-sans)}
+.q-source-references .q-source-stack{max-block-size:min(32dvb,18rem);overflow:auto;overscroll-behavior:contain}
+.q-source-references p{max-inline-size:65ch}
+.q-source-references select{min-block-size:var(--q-touch-target);border-color:var(--q-muted)}
+.q-source-references select:disabled{opacity:1;color:var(--q-tertiary)}
+.q-source-references .q-button,.q-source-editor .q-reference-tooltip .q-button{border-color:var(--q-tertiary)}
+.q-source-editor .q-reference-tooltip{font-family:var(--q-font-sans);font-size:var(--q-text-form);inline-size:min(28rem,100%);border-color:var(--q-muted);border-radius:var(--q-radius-card);box-shadow:var(--q-shadow);overflow:hidden}
+.q-source-editor .q-reference-tooltip .cm-completionIcon{display:none}
+.q-source-editor .q-reference-tooltip .cm-completionLabel{display:block;position:relative;padding-inline-start:var(--q-space-8);font-family:var(--q-font-mono);font-size:var(--q-text-base);font-weight:600}
+.q-source-editor .q-reference-tooltip [aria-selected=true] .cm-completionLabel::before{content:"\2713";position:absolute;inset-inline-start:0}
+.q-source-editor .q-reference-tooltip .cm-completionDetail{padding-inline-start:var(--q-space-8);white-space:pre-line;font-style:normal;line-height:var(--q-line-body)}
+.q-source-editor .q-reference-tooltip .q-reference-heading{position:sticky;inset-block-start:0;z-index:1;list-style:none;background:var(--q-surface);color:var(--q-ink);border-block-end:1px solid var(--q-border)}
+.q-reference-heading>div{display:flex;align-items:center;justify-content:space-between;gap:var(--q-space-3)}
+.q-reference-keys{font-family:var(--q-font-sans);font-size:var(--q-text-base);font-weight:400;color:var(--q-secondary);white-space:nowrap}
+.q-reference-heading strong,.q-reference-dismiss{white-space:nowrap}
+.q-reference-dismiss{min-block-size:var(--q-touch-target);min-inline-size:var(--q-touch-target);flex-shrink:0}
+@media(max-width:767px){
+  .q-source-references{font-size:var(--q-text-title)}
+  .q-source-references .q-source-stack{max-block-size:32dvb}
+  .q-reference-status{font-size:calc(var(--q-text-brand)*4/3)}
+  .q-source-editor{container-type:size}
+  /* CodeMirror owns candidate selection; compact geometry is an in-flow sheet,
+     not an overlay covering the source or the application navigation. */
+  .q-source-editor .cm-scroller{min-block-size:0}
+  .q-source-editor .q-reference-tooltip{position:static!important;flex:0 0 auto;max-inline-size:100%;inline-size:100%;font-size:var(--q-text-title);border-radius:var(--q-radius-panel) var(--q-radius-panel) 0 0}
+  .q-source-editor .q-reference-tooltip>ul{max-block-size:85cqh}
+  .q-source-editor .q-reference-tooltip .cm-completionLabel{font-size:calc(var(--q-text-brand)*4/3)}
+  .q-source-editor .q-reference-tooltip .q-reference-keys{font-size:calc(var(--q-text-brand)*4/3)}
+  .q-reference-heading>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--q-space-1) var(--q-space-3)}
+  .q-reference-keys{grid-column:1;grid-row:2}
+  .q-reference-dismiss{grid-column:2;grid-row:1/3;align-self:center}
+}
 @media(max-width:767px){.q-source-panel .q-button{min-block-size:var(--q-touch-target);font-size:var(--q-text-form)}.q-source-panel{font-size:var(--q-text-brand)}.q-source-tools{max-block-size:55%}.q-source-shortcuts{display:block}.q-source-shortcuts dd{margin-block-end:var(--q-space-3)}}
+@media(max-width:767px){.q-source-references .q-button,.q-source-editor .q-reference-tooltip .q-button{font-size:calc(var(--q-text-brand)*4/3)}}

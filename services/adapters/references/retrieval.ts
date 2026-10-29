@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { IdSchema, PublicationSchema } from "@quire/contracts";
-import type { Id, Publication, Transaction } from "@quire/contracts";
+import type { Id, Publication, SqlExecutor, Transaction } from "@quire/contracts";
 import { referenceBlob, ServiceError } from "@quire/runtime";
 import type { AdapterServices } from "../shared";
 import { Crossref } from "./crossref";
@@ -11,6 +11,7 @@ import { Mendeley } from "./mendeley";
 import { ReferenceTransport } from "./transport";
 import { ProvenanceSchema } from "./publication";
 import type { RetrievedPublication } from "./publication";
+import { CoreProjects } from "../../core/base";
 
 export const RetrievalProviderSchema = z.enum(["crossref", "arxiv", "semanticScholar", "mendeley", "dimensions"]);
 export type RetrievalProvider = z.infer<typeof RetrievalProviderSchema>;
@@ -49,9 +50,16 @@ export class PublicationRetrieval {
     if (!project) throw new ServiceError("NOT_FOUND", 404, "Project not found");
     await context.services.get("projects").authorize(input.actorId, { projectId: input.projectId, branch: project.default_branch }, "read");
     const settings = await this.configuration(input.provider);
+    const deadline = AbortSignal.timeout(30_000);
+    const signal = input.signal ? AbortSignal.any([input.signal, deadline]) : deadline;
+    const checkCancellation = () => {
+      if (signal.aborted) throw new ServiceError("EGRESS_TIMEOUT", 502, "Provider request canceled or timed out");
+    };
+    checkCancellation();
     const request = { baseUrl: settings.baseUrl, query: z.string().trim().min(1).max(2000).parse(input.query),
       cursor: input.cursor ?? null, limit: z.number().int().min(1).max(100).parse(input.limit ?? 50),
-      signal: input.signal ?? AbortSignal.timeout(30_000) };
+      signal };
+    let grantVersion: { readonly id: Id; readonly version: number } | undefined;
     let result: RetrievalPage;
     switch (input.provider) {
       case "crossref": result = await this.crossref.search(request); break;
@@ -63,15 +71,30 @@ export class PublicationRetrieval {
         if (!grant) throw new ServiceError("PROVIDER_UNCONFIGURED", 503, "Missing: Mendeley registered application and account grant with all scope");
         const owned = await this.services.grants.credentials(input.actorId, grant.id);
         if (owned.tokens.expiresAt && owned.tokens.expiresAt <= context.clock.now()) throw new ServiceError("GRANT_EXPIRED", 409, "Refresh Mendeley grant");
+        grantVersion = { id: grant.id, version: owned.grant.version };
         result = await new Mendeley(this.transport).page({ ...request, accessToken: owned.tokens.accessToken });
         break;
       }
       case "dimensions": throw new ServiceError("PROVIDER_UNCONFIGURED", 503, "Missing: licensed Dimensions response contract");
       default: { const unreachable: never = input.provider; throw new TypeError(String(unreachable)); }
     }
-    const items = await this.retain(input.actorId, result);
-    await this.configuration(input.provider);
-    await context.services.get("projects").authorize(input.actorId, { projectId: input.projectId, branch: project.default_branch }, "read");
+    const verify = async (tx: SqlExecutor) => {
+      checkCancellation();
+      await this.services.grants.activeActor(input.actorId, tx);
+      const current = await this.services.configuration.get(input.provider, tx);
+      if (!current.enabled) throw new ServiceError("PROVIDER_DISABLED", 503, `${input.provider} disabled by operator`);
+      if (current.version !== settings.version) throw new ServiceError("PROVIDER_CHANGED", 409, "Provider configuration changed");
+      await new CoreProjects({ ...context, db: tx }).authorize(input.actorId,
+        { projectId: input.projectId, branch: project.default_branch }, "read");
+      if (grantVersion) {
+        const owned = await this.services.grants.credentials(input.actorId, grantVersion.id, tx);
+        if (owned.grant.version !== grantVersion.version) throw new ServiceError("GRANT_FENCE_LOST", 409, "Connection changed during provider request");
+        if (owned.tokens.expiresAt && owned.tokens.expiresAt <= context.clock.now()) throw new ServiceError("GRANT_EXPIRED", 409, "Refresh Mendeley grant");
+      }
+      checkCancellation();
+    };
+    const items = await this.retain(input.actorId, result, verify);
+    await verify(context.db);
     return { items, nextCursor: result.nextCursor };
   }
   async lookup(actorId: Id, doi: string, provider: "doi" | "crossref" = "crossref"): Promise<RetrievedPublication> {
@@ -82,8 +105,9 @@ export class PublicationRetrieval {
     if (!item) throw new ServiceError("PUBLICATION_NOT_FOUND", 404, "DOI record absent");
     return item;
   }
-  async retain(actorId: Id, page: RetrievalPage): Promise<readonly RetrievedPublication[]> {
+  async retain(actorId: Id, page: RetrievalPage, verify?: (tx: SqlExecutor) => Promise<void>): Promise<readonly RetrievedPublication[]> {
     const { context } = this.services;
+    await verify?.(context.db);
     const responseDigest = await context.blobs.put(page.response.bytes);
     const items = page.publications.map(publication => ({ publication, provenance: ProvenanceSchema.parse({
       provider: publication.provider, providerId: publication.providerId, endpoint: page.response.endpoint,
@@ -92,8 +116,10 @@ export class PublicationRetrieval {
     await context.uow.run(async tx => {
       await tx.lock("quire:accounts");
       await this.services.grants.activeActor(actorId, tx);
+      await verify?.(tx);
       await referenceBlob(tx, { digest: responseDigest, bytes: page.response.bytes.byteLength }, context.clock);
       for (const item of items) await this.save(tx, actorId, item);
+      await verify?.(tx);
     });
     return items;
   }

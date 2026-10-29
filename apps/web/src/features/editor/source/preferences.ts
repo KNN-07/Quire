@@ -2,14 +2,14 @@ import { assertNever } from "@quire/contracts";
 import type { Preferences } from "@quire/contracts";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { autocompletion, closeBrackets, closeBracketsKeymap, currentCompletions } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
 import { emacs } from "@replit/codemirror-emacs";
 import { keymap } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import type { CompletionSource } from "@codemirror/autocomplete";
 
-export function preferenceExtensions(preferences: Preferences, completion: CompletionSource): Extension {
+export function preferenceExtensions(preferences: Preferences, completion: readonly CompletionSource[]): Extension {
   let bindings: Extension;
   switch (preferences.bindings) {
     case "default": bindings = []; break;
@@ -21,7 +21,8 @@ export function preferenceExtensions(preferences: Preferences, completion: Compl
   const height = { compact: "1.4", normal: "1.7", wide: "2" };
   return [
     bindings,
-    autocompletion({ override: [completion], activateOnTyping: preferences.autocomplete }),
+    autocompletion({ override: completion, activateOnTyping: preferences.autocomplete,
+      tooltipClass: state => currentCompletions(state).some(option => option.type === "reference") ? "q-reference-tooltip" : "" }),
     preferences.autoClose ? [closeBrackets(), keymap.of(closeBracketsKeymap)] : [],
     EditorState.tabSize.of(2),
     EditorView.contentAttributes.of({ spellcheck: "false", lang: preferences.dictionary }),

@@ -24,6 +24,7 @@ import { prepareImagePaste } from "../visual/upload";
 import { draftChange, draftKey, readDraft } from "./tracking";
 import { useSourceTracking } from "./use-tracking";
 import { SourceProposals } from "./Proposals";
+import { useInlineReferences } from "./InlineReferences";
 import "./source.css";
 
 const emptyIndex: TexIndex = { headings: [], labels: [], citations: [] };
@@ -56,6 +57,7 @@ function SourcePanelContent(props: SourcePanelProps) {
   };
   const snapshot = useSyncExternalStore(props.document.subscribe, props.document.getSnapshot, props.document.getSnapshot);
   const tracking = useSourceTracking(props, snapshot);
+  const inlineReferences = useInlineReferences(props, editor, tracking.draft.enabled);
   const trackingLatest = useRef(tracking);
   trackingLatest.current = tracking;
   const readOnly = tracking.draft.enabled ? !tracking.editable : snapshot.readOnly;
@@ -77,6 +79,8 @@ function SourcePanelContent(props: SourcePanelProps) {
       parent: node, document: props.document, preferences: latest.current.preferences, sharedUndo,
       externalInsertionBlocked: () => readDraft(draftKey(latest.current.workspace, latest.current.document), latest.current.document).enabled,
       index: () => completionIndex.current, selection: latest.current.selection,
+      remoteCompletion: inlineReferences.completion,
+      onCompletionContextChange: inlineReferences.invalidate,
       ...(trackingLatest.current.draft.enabled ? { draft: {
         text: initial, canEdit: () => trackingLatest.current.editable,
       } } : {}),
@@ -188,6 +192,8 @@ function SourcePanelContent(props: SourcePanelProps) {
       {tracking.error && <p role="alert">{tracking.error}</p>}
     </div>
     {snapshot.readOnlyReason && !tracking.draft.enabled && <p className="q-source-notice" role="status">{snapshot.readOnlyReason}</p>}
+    {inlineReferences.controls}
+    {inlineReferences.status}
     {tool !== "check" && tool !== "preferences" && <SpellingStatus state={spelling.state} compact />}
     <div ref={parent} className="q-source-editor" onPasteCapture={event => {
       if (!Array.from(event.clipboardData.items).some(item => item.kind === "file")) return;
