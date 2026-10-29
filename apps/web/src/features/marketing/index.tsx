@@ -32,7 +32,6 @@ export function MarketingPage(props: MarketingPageProps) {
     <footer className="qm-footer qm-wrap"><BrandMark />
       <a href="/self-hosting#install">Docs</a><a href="/api/health">Status</a>
       <a href="/security">Security</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a>
-      <span>Quire · Local and self-hosted writing</span>
     </footer>
   </div>;
 }

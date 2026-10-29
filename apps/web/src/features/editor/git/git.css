@@ -117,3 +117,9 @@
   .git-conflicts__file-header label,.git-conflicts__file-header select{width:100%;min-height:var(--q-touch-target)}
 }
 @media(prefers-reduced-motion:reduce){.git-notice{transform:translateX(-50%)}}
+.git-clean{display:inline-flex;align-items:center;gap:var(--q-space-2)}
+.git-clean>.q-icon{color:var(--q-success)}
+.git-empty>.q-icon{color:var(--q-success);animation:q-pop var(--q-motion-slow) var(--q-ease-out)}
+.git-empty{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.git-files li{transition:background-color var(--q-motion-fast) var(--q-ease);animation:q-fade-up var(--q-motion) var(--q-ease-out) both}
+.git-files li:hover:not(.is-selected){background:var(--q-inset)}

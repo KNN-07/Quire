@@ -24,6 +24,5 @@ export function PasswordCreationField({ label, disabled = false }: {
         }} />)}
       </span>
       <span role="status" aria-live="polite" aria-atomic="true">{guidance}</span>
-      {" "}Length-only feedback; not a security guarantee.
     </>} />;
 }

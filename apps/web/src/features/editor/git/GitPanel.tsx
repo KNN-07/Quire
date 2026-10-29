@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, IconButton, Modal, RelativeTime, Spinner } from "../../../ui";
+import { Button, Icon, IconButton, Modal, RelativeTime, Spinner } from "../../../ui";
 import { ConflictPanel } from "./ConflictPanel";
 import { DiffView } from "./DiffView";
 import { cloneUrl, shortOid } from "./types";
@@ -80,7 +80,7 @@ export function GitPanel(props: GitPanelProps) {
           {status.hunks.length > 0 && <Button size="small" variant="ghost" disabled={!writable || git.busy}
             onClick={() => { void git.stage(status.hunks.map(hunk => hunk.id), status.staged.length !== status.hunks.length); }}>
             {status.staged.length === status.hunks.length ? "Unstage all" : "Stage all"}</Button>}</div>
-        {status.files.length === 0 ? <p className="git-muted">Working tree clean.</p>
+        {status.files.length === 0 ? <p className="git-muted git-clean"><Icon name="check2" size={14} />Working tree clean</p>
           : <ul className="git-files">{status.files.map(file => {
             const fileHunks = status.hunks.filter(hunk => hunk.path === file.path);
             const staged = fileHunks.length > 0 && fileHunks.every(hunk => hunk.staged);
@@ -115,9 +115,7 @@ export function GitPanel(props: GitPanelProps) {
       <section className="git-section">
         <h2>Remote</h2>
         {gitConnections.length === 0 ? <>
-          <p className="git-muted">No configured Git remote. <a href="/settings/git">Configure a connection</a>.</p>
-          {remoteAvailability?.reason && <details className="git-reason"><summary>Why is a remote unavailable?</summary>
-            <p>{remoteAvailability.reason}</p></details>}
+          <p className="git-muted" title={remoteAvailability?.reason ?? undefined}>No remote. <a href="/settings/git">Connect one</a></p>
         </>
           : gitConnections.map(connection => <div className="git-remote" key={connection.id}>
             <span><strong>{connection.label}</strong><small>{connection.provider} · {connection.state}</small></span>
@@ -137,9 +135,9 @@ export function GitPanel(props: GitPanelProps) {
         <h2>Clone with Git</h2>
         <label htmlFor="git-clone-url">HTTPS clone URL</label>
         <div className="git-control-row"><input id="git-clone-url" readOnly value={cloneUrl(props.workspace.scope.projectId)} />
-          <Button size="small" onClick={() => { void navigator.clipboard.writeText(cloneUrl(props.workspace.scope.projectId)); }}>Copy</Button></div>
-        <p>Username <code>git</code>. Use a personal Git token as the password.</p>
-        <Button size="small" onClick={() => setTokenDialog(true)}>Create access token</Button>
+          <IconButton size="small" icon="copy" label="Copy" onClick={() => { void navigator.clipboard.writeText(cloneUrl(props.workspace.scope.projectId)); }} /></div>
+        <p>User <code>git</code>, access token as password.</p>
+        <Button size="small" onClick={() => setTokenDialog(true)}><Icon name="key" size={14} />Create access token</Button>
       </section>
     </aside>
     {git.conflict ? <ConflictPanel conflict={git.conflict} busy={git.busy}

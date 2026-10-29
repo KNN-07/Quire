@@ -23,14 +23,14 @@ export function TemplateBrowser({ client, onChoose, compact = false, externalQue
     `${template.name} ${template.description}`.toLowerCase().includes(externalQuery.toLowerCase()));
   return <section className={`p-templates ${compact ? "p-templates--compact" : ""}`} aria-label="Templates">
     {!compact && <div className="p-heading"><h2>Start from a template</h2></div>}
-    <div className="p-search"><Icon name="search" /><Field label="Search templates" placeholder="Search templates" value={query} onChange={event => setQuery(event.target.value)} type="search" /></div>
-    <div className="p-cluster" aria-label="Template categories">
+    {compact && <div className="p-search"><Icon name="search" /><Field label="Search templates" placeholder="Search templates" value={query} onChange={event => setQuery(event.target.value)} type="search" /></div>}
+    {categories.length > 1 && <div className="p-cluster" aria-label="Template categories">
       {categories.map(item => <Button key={item} aria-pressed={category === item} variant={category === item ? "dark" : "neutral"} onClick={() => setCategory(item)}>{item}</Button>)}
-    </div>
+    </div>}
     {resource.loading && <Spinner label="Loading templates" />}
     {resource.error && <div role="alert">{resource.error} <Button onClick={resource.reload}>Retry templates</Button></div>}
-    {!resource.loading && !resource.error && visible.length === 0 && <EmptyState title="No templates found" description="Try another search or category." />}
-    <div className="p-template-grid">
+    {!resource.loading && !resource.error && visible.length === 0 && <EmptyState icon="template" title="No templates found" description="Try another search or category." />}
+    <div className="p-template-grid q-stagger">
       {visible.map(template => <button type="button" key={template.id} className="p-template" aria-label={`${compact ? "Select" : "Use"} template ${template.name}`} aria-pressed={(selection ?? selected) === template.id}
         onClick={() => { setSelected(template.id); onChoose(template); }}>
         <span className="p-template__preview" aria-hidden="true"><span className="p-template__paper"><span /><span /><span /></span></span>

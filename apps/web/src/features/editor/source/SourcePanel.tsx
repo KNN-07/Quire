@@ -182,8 +182,8 @@ function SourcePanelContent(props: SourcePanelProps) {
         : tracking.draft.submission ? "Submission outcome pending. Retry the same request; your draft is retained."
           : tracking.conflict && tracking.dirty ? "Source changed. Your draft is retained and cannot overwrite newer source."
             : tracking.draft.enabled ? "Local proposal draft. Submit explicitly to share for review; shared source stays unchanged."
-              : tracking.dirty ? "Tracking paused. Your unsubmitted draft is retained; turn tracking on to resume." : "Direct editing. Turn on tracking to propose source changes."}</p>
-      {tracking.draft.enabled && <p>Project file changes, citation copies, images, external insertions and Visual editing are unavailable while tracking. Text typing, paste, formatting and Find replace edit this draft.</p>}
+              : tracking.dirty ? "Tracking paused. Your unsubmitted draft is retained; turn tracking on to resume." : ""}</p>
+      {tracking.draft.enabled && <p>Visual editing, file changes and insertions pause while tracking.</p>}
       {!tracking.online && tracking.draft.enabled && <p>Reconnect and wait for source acknowledgment before editing or submitting. Your draft is retained.</p>}
       {tracking.dirty && <details className="q-source-draft" open>
         <summary>Your unsubmitted source changes</summary>

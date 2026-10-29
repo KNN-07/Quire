@@ -120,3 +120,16 @@
 .account-signup .account-provider-grid:has(>:nth-child(4)){grid-template-columns:minmax(0,1fr);gap:var(--q-space-3)}
 .account-signup .account-provider-grid:has(>:nth-child(4)) .q-button{min-height:40px;padding-inline:var(--q-space-5)}
 .account-signup .account-intro ol{padding-inline-start:var(--q-space-8);color:rgb(255 255 255 / 82%)}
+.account-nav a{gap:var(--q-space-4)}
+.account-nav a .q-icon{color:var(--q-tertiary);transition:color var(--q-motion-fast) var(--q-ease)}
+.account-nav a[aria-current] .q-icon{color:var(--q-brand)}
+.account-main{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.account-intro ul li:before{content:none}
+.account-intro ul li>.q-icon{margin-top:3px;color:#9DB0FF}
+.account-intro ol{list-style:none;padding:0;counter-reset:q-step}
+.account-intro ol li{display:flex;align-items:center;gap:var(--q-space-5);counter-increment:q-step;color:rgb(255 255 255 / 82%)}
+.account-intro ol li::before{content:counter(q-step);display:grid;place-items:center;flex:none;inline-size:28px;block-size:28px;border:1px solid rgb(255 255 255 / 30%);border-radius:50%;font-weight:600;font-size:var(--q-text-sm)}
+.account-intro ol li:first-child::before{background:var(--q-white);color:var(--q-dark);border-color:transparent}
+.account-provider-grid:empty{display:none}
+.account-provider-grid .q-button .q-icon{color:var(--q-tertiary)}
+.account-auth__form{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}

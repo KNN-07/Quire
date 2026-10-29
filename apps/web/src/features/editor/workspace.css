@@ -147,3 +147,13 @@
   .qe-drawer>.q-modal__body{block-size:calc(100dvh - 80px);overflow:hidden}
   .qe-share-dialog{margin-block-start:var(--q-space-7)}
 }
+/* Menus open with a short drop; the caret turns while a menu is open. */
+.qe-project-menu>summary{list-style:none}
+.qe-project-menu>summary::-webkit-details-marker{display:none}
+.qe-menu-caret{transition:transform var(--q-motion) var(--q-ease-out)}
+.qe-project-menu[open] .qe-menu-caret{transform:rotate(180deg)}
+.qe-project-menu[open]>nav{animation:q-pop var(--q-motion) var(--q-ease-out);transform-origin:top right}
+.qe-source-header summary.q-icon-button{inline-size:28px;padding:0}
+.qe-rail-button[aria-pressed="true"]::after{content:"";position:absolute;inset-inline-start:-6px;inset-block:10px;inline-size:2px;border-radius:2px;background:var(--q-brand);animation:q-fade var(--q-motion) var(--q-ease)}
+.qe-compile-status--queued::before,.qe-compile-status--running::before{background:var(--q-warning);animation:q-pulse 1.2s var(--q-ease) infinite}
+.qe-count{animation:q-pop var(--q-motion) var(--q-ease-out)}

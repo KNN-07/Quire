@@ -129,3 +129,12 @@
 .admin-resource>.admin-table tr:last-child td{border-block-end:0}
 .admin-table th,.admin-table td{padding:var(--q-space-4) var(--q-space-7)}
 .admin-resource{margin-block-end:var(--q-space-7)}
+.admin-navigation a{gap:var(--q-space-4)}
+.admin-navigation a .q-icon{color:var(--q-tertiary)}
+.admin-navigation a[aria-current=page] .q-icon{color:var(--q-brand)}
+.admin-denied{display:grid;justify-items:start;gap:var(--q-space-3);animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.admin-denied>.q-icon{color:var(--q-tertiary)}
+.admin-denied h1,.admin-denied p{margin:0}
+.admin-content{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.admin-main table tbody tr{transition:background-color var(--q-motion-fast) var(--q-ease)}
+.admin-main table tbody tr:hover{background:var(--q-inset)}

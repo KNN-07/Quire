@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { Event, Thread } from "@quire/contracts";
-import { Button, EmptyState, Spinner } from "../../../ui";
+import { Button, Icon, EmptyState, Spinner } from "../../../ui";
 import { editorValue } from "../shared";
 import type { ReviewPanelProps } from "../shared";
 import { createAnchor, resolveAnchor } from "./anchors";
@@ -82,8 +82,7 @@ export function ThreadsPanel(props: ReviewPanelProps) {
   return <section className="quire-review__section" aria-labelledby="threads-title"
     data-review-live={live ? "true" : "false"}>
     <header className="quire-review__section-header">
-      <div><h2 id="threads-title">Comments</h2>
-        <p>Comments stay attached to their text as it is edited.</p></div>
+      <div><h2 id="threads-title"><Icon name="comment" />Comments</h2></div>
       <label className="quire-review__compact-label">Show<select value={status}
         onChange={event => {
           const next = event.currentTarget.value;
@@ -116,7 +115,7 @@ export function ThreadsPanel(props: ReviewPanelProps) {
       : "Your current role cannot add comments."}</PanelMessage>}
 
     {threads === null ? <div className="quire-review__loading"><Spinner label="Loading comments" /></div>
-      : threads.length === 0 ? <EmptyState title={`No ${status === "all" ? "" : `${status} `}comments`}
+      : threads.length === 0 ? <EmptyState icon="comment" title={`No ${status === "all" ? "" : `${status} `}comments`}
         description={canComment ? "Select source text and add the first anchored comment." : "There are no comments to review."} />
       : <ol className="quire-thread-list">{threads.map(record => {
         const { thread } = record;

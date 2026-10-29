@@ -17,7 +17,7 @@ export type SettingsProps = AccountPageProps & {
   readonly userVersion: number | null;
   readonly refresh: () => Promise<void>;
 };
-const tabs = [["profile", "Profile"], ["security", "Sign-in & SSO"], ["editor", "Editor"], ["ai", "AI assistant"], ["git", "Git & integrations"], ["notifications", "Notifications"], ["billing", "Billing"], ["organizations", "Organizations"]] as const;
+const tabs = [["profile", "Profile", "user"], ["security", "Sign-in & SSO", "lock"], ["editor", "Editor", "code"], ["ai", "AI assistant", "sparkle"], ["git", "Git & integrations", "branch"], ["notifications", "Notifications", "bell"], ["billing", "Billing", "card"], ["organizations", "Organizations", "building"]] as const;
 export function Settings(props: AccountPageProps) {
   const [account, setAccount] = useState<ResponseOf<typeof endpoints.me> | null>(null);
   const [version, setVersion] = useState<number | null>(null);
@@ -43,8 +43,8 @@ export function Settings(props: AccountPageProps) {
     <AppHeader className="account-header" actions={account && <span className="account-header__avatar" title={account.user.name} aria-hidden="true">{account.user.name.trim().split(/\s+/u).slice(0, 2).map(part => Array.from(part)[0] ?? "").join("").toLocaleUpperCase()}</span>}>
       <a href="/projects" className="account-back" onClick={event => { event.preventDefault(); props.navigate("/projects"); }}><Icon name="arrowLeft" size={14} />Back to projects</a></AppHeader>
     <div className="account-shell">
-      <nav className="account-nav" aria-label="Settings sections"><h1>Settings</h1>{tabs.map(([id, label]) => <a key={id} href={`/settings/${id}`} aria-current={tab === id ? "page" : undefined} onClick={event => { event.preventDefault(); props.navigate(`/settings/${id}`); }}>{label}</a>)}</nav>
-      <main className="account-main account-stack">
+      <nav className="account-nav" aria-label="Settings sections"><h1>Settings</h1>{tabs.map(([id, label, icon]) => <a key={id} href={`/settings/${id}`} aria-current={tab === id ? "page" : undefined} onClick={event => { event.preventDefault(); props.navigate(`/settings/${id}`); }}><Icon name={icon} />{label}</a>)}</nav>
+      <main key={tab} className="account-main account-stack">
         {loading && <p role="status">Loading account settings…</p>}
         {error && <><Notice error={error} message="" /><Button onClick={() => {
           setError(""); setLoading(true);

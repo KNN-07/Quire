@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 import { endpoints } from "@quire/contracts";
 import type { Event, Id, Suggestion } from "@quire/contracts";
-import { Button, EmptyState, Spinner } from "../../../ui";
+import { Button, Icon, EmptyState, Spinner } from "../../../ui";
 import { editorValue } from "../shared";
 import type { ReviewPanelProps } from "../shared";
 import { createAnchor, resolveAnchor } from "./anchors";
@@ -107,8 +107,7 @@ export function SuggestionsPanel({ client, workspace, document, selection, navig
 
   return <section className="quire-review__section" aria-labelledby="suggestions-title">
     <header className="quire-review__section-header">
-      <div><h2 id="suggestions-title">Tracked proposals</h2>
-        <p>Reviewers propose exact source replacements; only Editors and Owners can decide them.</p></div>
+      <div><h2 id="suggestions-title"><Icon name="edit" />Tracked proposals</h2></div>
       <label className="quire-review__compact-label">Status<select value={status}
         onChange={event => {
           const next = event.currentTarget.value;
@@ -134,10 +133,8 @@ export function SuggestionsPanel({ client, workspace, document, selection, navig
       onChange={event => { setAuthor(event.currentTarget.value); setSelected(new Set()); }}>
       <option value="">All proposal authors</option>{authors.map(id => <option key={id} value={id}>{authorName(id)}</option>)}
     </select></label>
-    <ul className="quire-change__legend" aria-label="Proposal author legend">{authors.map(id =>
+    <ul className="quire-change__legend" aria-label="Proposal author legend" title="Colors identify proposal authors, not the editor who later accepts a proposal.">{authors.map(id =>
       <li key={id} data-actor-color={actorColor(id)}><span aria-hidden="true" />{authorName(id)}</li>)}</ul>
-    <p className="quire-review__fine">Colors identify persisted proposal authors, not the editor who later accepts a proposal.
-      Previews are read-only; ordinary source typing is not tracked by this panel.</p>
     <form className="quire-review__form" onSubmit={event => {
       event.preventDefault();
       if (!document) return;
@@ -167,7 +164,7 @@ export function SuggestionsPanel({ client, workspace, document, selection, navig
       </Button>
     </form>
     {suggestions === null ? <div className="quire-review__loading"><Spinner label="Loading proposals" /></div>
-      : visible.length === 0 ? <EmptyState title="No tracked proposals"
+      : visible.length === 0 ? <EmptyState icon="edit" title="No tracked proposals"
         description={status === "all" ? "Select source text to propose a replacement." : `No ${status} proposals match this scope.`} />
       : <>{pending.length > 0 && <div className="quire-suggestion__bulk">
         <span>{pending.length} pending edit{pending.length === 1 ? "" : "s"}</span>

@@ -90,3 +90,4 @@
   .q-source-tracking .q-button[aria-pressed]::before{content:"";inline-size:6px;block-size:6px;border-radius:50%;background:var(--q-muted)}
   .q-source-tracking .q-button[aria-pressed=true]::before{background:var(--q-success)}
 }
+.q-source-strip>.q-source-tracking>p[role=status]:empty{display:none}

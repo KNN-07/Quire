@@ -72,7 +72,7 @@ export function Backups({ client, navigate }: { readonly client: AdminClient; re
             <Button size="small" onClick={() => navigate(`/admin/support?operation=${backup.operationId}`)}>Details</Button>
           </div></td>
         </tr>)}</tbody>
-      </table></div> : <EmptyState title="No backups yet" description="Create a complete backup before changing or updating your instance." />}
+      </table></div> : <EmptyState icon="database" title="No backups yet" description="Create a complete backup before changing or updating your instance." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {backups.resource?.data.nextCursor && <Button onClick={() => setCursor(backups.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
     {policy.error ? <p role="alert">{policy.error}</p> : policy.resource

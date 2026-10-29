@@ -109,7 +109,7 @@ export function Environments({ client, navigate }: {
               onClick={() => setSelected({ environment, retire: true })}>Retire</Button>
           </div></td>
         </tr>; })}</tbody>
-      </table></div> : <EmptyState title="No environments registered" description="Import a compiler manifest or build a verified environment." />}
+      </table></div> : <EmptyState icon="image" title="No environments registered" description="Import a compiler manifest or build a verified environment." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {environments.resource?.data.nextCursor && <Button onClick={() => setCursor(environments.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
     <section className="admin-policy"><h2>Register an environment</h2>

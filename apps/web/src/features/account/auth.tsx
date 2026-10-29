@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { endpoints } from "@quire/contracts";
-import { BrandMark, Button, Field } from "../../ui";
+import { BrandMark, Button, Field, Icon } from "../../ui";
 import { mutationHeaders, Notice, unwrap, useAction, value } from "./shared";
 import type { AccountPageProps } from "./shared";
 import { StartingPoint } from "./starting-point";
@@ -15,10 +15,10 @@ function AuthShell({ signup = false, children }: { readonly signup?: boolean; re
     <aside className="account-intro" aria-label="About Quire">
       <a href="/" aria-label="Quire home"><BrandMark /></a>
       <div className="account-intro__body">
-        <p className="account-statement">{signup ? "Your first paper starts here." : <>Write LaTeX together.<br />Version it like code.</>}</p>
-        {signup ? <ol><li>Create your account</li><li>Verify your email</li><li>Pick a starting point</li></ol> : <>
+        <p className="account-statement q-enter">{signup ? "Your first paper starts here." : <>Write LaTeX together.<br />Version it like code.</>}</p>
+        {signup ? <ol className="q-stagger"><li>Create your account</li><li>Verify your email</li><li>Pick a starting point</li></ol> : <>
           <div className="account-equation">z<sub>t+1</sub> = f<sub>θ</sub>(z<sub>t</sub>, a<sub>t</sub>) + ε<sub>t</sub></div>
-          <ul><li>Source, split, visual and PDF views with SyncTeX</li><li>Real Git underneath: branch, diff, push to GitHub or GitLab</li><li>Your organization’s SSO, templates and TeX Live image</li></ul>
+          <ul className="q-stagger"><li><Icon name="columns" />Source, split, visual and PDF views with SyncTeX</li><li><Icon name="branch" />Real Git underneath: branch, diff, push to GitHub or GitLab</li><li><Icon name="building" />Your organization’s SSO, templates and TeX Live image</li></ul>
         </>}
       </div>
       <p>© 2026 Quire</p>
@@ -119,7 +119,6 @@ export function SignUp(props: AccountPageProps) {
           <Notice {...action} /><Button type="submit" variant="primary" busy={action.busy}>Create account</Button>
         </fieldset>
       </form>
-      <p className="account-muted">Account access follows your server’s policies. No payment is collected here.</p>
     </>}
   </AuthShell>;
 }

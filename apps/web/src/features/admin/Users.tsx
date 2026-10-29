@@ -83,7 +83,7 @@ export function Users({ client }: { readonly client: AdminClient }) {
     {error ? <div role="alert" className="admin-message"><p>{error}</p>
       <Button onClick={() => setRefresh(value => value + 1)}>Retry</Button></div>
       : loading ? <Spinner label="Loading users" />
-        : users.length === 0 ? <EmptyState title="No users found" description="Try another search or invite someone to this instance." />
+        : users.length === 0 ? <EmptyState icon="users" title="No users found" description="Try another search or invite someone to this instance." />
           : <div className="admin-user-table"><table className="admin-table">
             <thead><tr><th>Name</th><th>Role</th><th>Groups</th><th>Projects</th><th>Last active</th><th><span className="q-sr-only">Actions</span></th></tr></thead>
             <tbody>{users.map(user => <tr key={user.id}>

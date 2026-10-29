@@ -48,7 +48,7 @@ export function Support({ client, path, navigate }: {
           <td data-label="Status"><StatusBadge state={operation.status} /></td><td data-label="Progress">{Math.round(operation.progress * 100)}%</td>
           <td data-label="Actions"><Button size="small" onClick={() => navigate(`/admin/support?operation=${operation.id}`)}>View details</Button></td>
         </tr>)}</tbody>
-      </table></div> : <EmptyState title="No operations yet" description="Diagnostic generation, exports and administration tasks will appear here." />}
+      </table></div> : <EmptyState icon="lifebuoy" title="No operations yet" description="Diagnostic generation, exports and administration tasks will appear here." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {operations.resource?.data.nextCursor && <Button onClick={() => setCursor(operations.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
   </section>;

@@ -58,7 +58,7 @@ export function Workers({ client }: { readonly client: AdminClient }) {
             <Button size="small" variant="danger" disabled={worker.state === "busy" || workers.resource?.version === null}
               onClick={() => setSelected({ worker, action: "remove" })}>Remove</Button></div></td>
         </tr>)}</tbody>
-      </table></div> : <EmptyState title="No compile workers" description="Add a worker to an available pool to run isolated document builds." />}
+      </table></div> : <EmptyState icon="cpu" title="No compile workers" description="Add a worker to an available pool to run isolated document builds." />}
     {workers.resource?.version === null && <p role="alert">The server did not return worker concurrency metadata. Refresh before changing workers.</p>}
     {policy.error ? <p role="alert">{policy.error}</p> : policy.resource
       ? <WorkerPolicy key={policy.resource.data.version} policy={policy.resource.data} client={client} onSaved={policy.refresh} />

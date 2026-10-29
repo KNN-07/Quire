@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { assertNever, IdSchema } from "@quire/contracts";
 import type { FileEntry } from "@quire/contracts";
 import type { ToolsPanelProps } from "../shared";
-import { Button, Field, Modal } from "../../../ui";
+import { Button, Field, Icon, Modal } from "../../../ui";
 import { createToolsActions, saveDownload } from "./actions";
 import { Feedback } from "./Feedback";
 import { FileTree } from "./FileTree";
@@ -106,7 +106,7 @@ export function FilesPanel(props: FilesPanelProps) {
         event.currentTarget.querySelector("summary")?.focus();
       }
     }}>
-      <summary>File actions</summary><div className="editor-tools__file-menu">{creation}{selectedActions}</div>
+      <summary aria-label="File actions" title="File actions"><Icon name="plus" /></summary><div className="editor-tools__file-menu">{creation}{selectedActions}</div>
     </details> : creation}
     <FileTree files={props.workspace.files} selected={selectedId} disabled={state.busy || !!state.blocked} onSelect={select} onOpen={open} />
     {props.presentation !== "compact" && selectedActions}

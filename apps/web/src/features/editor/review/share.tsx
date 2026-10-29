@@ -86,7 +86,7 @@ export function SharePanel(props: ReviewPanelProps) {
 
   if (!workspace.access.capabilities.manageAccess) {
     if (workspace.access.actorId === null) {
-      return <EmptyState title="Sign in to request access"
+      return <EmptyState icon="lock" title="Sign in to request access"
         description="Anonymous link readers cannot request a named Reviewer or Editor role." />;
     }
     if (workspace.access.role === "editor") {

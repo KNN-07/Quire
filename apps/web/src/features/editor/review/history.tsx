@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { Event, HistoryVersion, Id, ResponseOf } from "@quire/contracts";
-import { Button, EmptyState, Modal, Spinner } from "../../../ui";
+import { Button, Icon, EmptyState, Modal, Spinner } from "../../../ui";
 import { editorValue } from "../shared";
 import type { ReviewPanelProps } from "../shared";
 import { errorMessage, localTime, PanelMessage } from "./common";
@@ -123,12 +123,11 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
 
   if (versions === null) return <div className="quire-review__loading"><Spinner label="Loading history" />
     {error && <PanelMessage tone="error">{error}</PanelMessage>}</div>;
-  if (versions.length === 0) return <EmptyState title="No history yet"
+  if (versions.length === 0) return <EmptyState icon="clock" title="No history yet"
     description="A saved checkpoint, compile, commit, restore, import, or disconnect will create the first immutable version." />;
 
   const timeline = <aside className="quire-history__timeline">
-      <header><div><h2 id="history-title">Versions</h2>
-        <p>Every checkpoint is immutable; restoring creates a new version.</p></div>
+      <header><div><h2 id="history-title"><Icon name="clock" />Versions</h2></div>
         <div role="group" aria-label="History filter" className="quire-history__filter">
           <Button size="small" variant="ghost" aria-pressed={!labelsOnly} onClick={() => setLabelsOnly(false)}>All history</Button>
           <Button size="small" variant="ghost" aria-pressed={labelsOnly} onClick={() => {
@@ -203,7 +202,7 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
 
       {!selected.accessible ? <PanelMessage>Source for this version is outside your configured history window.
         Its metadata remains visible, but download, comparison and restore are denied.</PanelMessage>
-        : !compareFrom ? <EmptyState title="No earlier checkpoint to compare"
+        : !compareFrom ? <EmptyState icon="clock" title="No earlier checkpoint to compare"
           description="This is the only accessible version in the current timeline." />
         : !compareFrom.accessible ? <PanelMessage>The previous version is outside your history window.
           Select an accessible version to compare.</PanelMessage>
@@ -224,8 +223,6 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
               {deleted && <strong>Deleted now</strong>}</button>;
           })}</nav>
           <h3>Recorded file changes</h3>
-          <p className="quire-history__fine">Colors identify who applied each immutable file transition, not who originally wrote its text.
-            Each preview shows one exact replacement span; retained text inside that span is not separately attributed.</p>
           {changesError ? <PanelMessage tone="error">{changesError} Recorded transitions are unavailable.
             No inaccessible intermediate source is shown.</PanelMessage>
             : changes === null ? <Spinner label="Loading recorded changes" />
@@ -256,7 +253,7 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
                   })}>Open current source</Button>}
                 {!workspace.files.some(file => file.id === change.fileId) && <PanelMessage>Deleted now; historical coordinates are not live anchors.</PanelMessage>}
               </article>)}</>}
-          {comparison.files.length === 0 && <EmptyState title="No file differences"
+          {comparison.files.length === 0 && <EmptyState icon="check2" title="No file differences"
             description="The selected endpoints contain the same file paths and bytes; intermediate recorded changes may still exist." />}
           <details><summary>Endpoint before/after comparison</summary>
           {comparison.hunks.filter(hunk => !selectedFile || hunk.fileId === selectedFile).map(hunk => <article key={hunk.id}>
@@ -269,7 +266,6 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
             .map(file => <Button key={file.id} size="small" variant="primary"
               onClick={() => setRestoreTarget({ version: selected, fileIds: [file.id] })}>Recover deleted file</Button>)}
         </div>}
-      <p className="quire-history__fine quire-history__note" role="note">Permanent comment tombstones remain deleted after source restore.</p>
       {error && <PanelMessage tone="error">{error}</PanelMessage>}
       {success && <PanelMessage tone="success">{success}</PanelMessage>}</>}
     </main>

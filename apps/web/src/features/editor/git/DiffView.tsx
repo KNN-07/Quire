@@ -1,4 +1,4 @@
-import { Button } from "../../../ui";
+import { Button, Icon } from "../../../ui";
 import type { GitHunk } from "@quire/contracts";
 import type { CompareTarget, DiffLayout } from "./types";
 import { shortOid } from "./types";
@@ -108,7 +108,7 @@ export function DiffView(props: Props) {
       {props.rendered?.previewUrl && <figure><img src={props.rendered.previewUrl} alt="Rendered PDF comparison preview" />
         <figcaption><Button onClick={props.onDownloadRendered}>Download comparison PDF</Button></figcaption></figure>}
     </div> : <div className="git-diff__scroll">
-      {selected.length === 0 ? <div className="git-empty"><h3>No source differences</h3><p>The working tree matches the named branch.</p></div>
+      {selected.length === 0 ? <div className="git-empty"><Icon name="check2" size={24} /><h3>No source differences</h3><p>The working tree matches the branch.</p></div>
         : selected.map(hunk => props.layout === "split"
           ? <SplitHunk key={hunk.id} hunk={hunk} busy={props.busy} writable={props.writable}
             onStage={props.onStage} onDiscard={props.onDiscard} />

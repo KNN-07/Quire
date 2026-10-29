@@ -189,3 +189,10 @@
   .qa-assistant input:not([type=checkbox]),.qa-assistant select,.qa-assistant summary,.qa-assistant .qa-assistant__check{min-block-size:var(--q-touch-target)}
   .qa-assistant .qa-assistant__icon,.qa-assistant .qa-assistant__submit{inline-size:var(--q-touch-target)}
 }
+/* Messages rise in as they arrive; suggestion chips lift on hover. */
+.qa-assistant__message{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.qa-assistant__message--user{transform-origin:bottom right;animation-name:q-pop}
+.qa-assistant .qa-assistant__suggestion:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--q-shadow)}
+.qa-assistant__composer>.qa-assistant__fine{display:flex;align-items:center;gap:var(--q-space-2)}
+.qa-assistant__submit:not(:disabled):hover .q-icon{transform:translateY(-2px)}
+.qa-assistant__empty>svg,.qa-assistant__empty>.q-icon{animation:q-float 3.2s var(--q-ease) infinite}

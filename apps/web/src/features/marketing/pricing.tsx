@@ -33,7 +33,7 @@ export function Pricing({ client, navigate }: MarketingPageProps) {
       {catalog?.configured && catalog.plans.filter(plan => plan.period === period).map(plan => {
         const target = billingPlanPath(plan);
         const signIn = `/sign-in?${new URLSearchParams({ returnTo: target })}`;
-        return <article className="qm-card" key={plan.id}><h2>{plan.name}</h2><p className="qm-price">{new Intl.NumberFormat(undefined, { style: "currency", currency: plan.currency }).format(plan.amountMinor / 100)}</p><p>Per {plan.period} · {plan.currency}</p><p>Operator-configured amount. Tax and service scope must be confirmed with the operator. Organization billing only; personal subscriptions are not available.</p><a className="qm-link-button" href={signIn} onClick={event => {
+        return <article className="qm-card" key={plan.id}><h2>{plan.name}</h2><p className="qm-price">{new Intl.NumberFormat(undefined, { style: "currency", currency: plan.currency }).format(plan.amountMinor / 100)}</p><p>Per {plan.period} · {plan.currency}</p><p className="qm-note">Organization billing only · tax confirmed by your operator</p><a className="qm-link-button" href={signIn} onClick={event => {
           event.preventDefault();
           void client.call(endpoints.me, { params: {}, query: {}, body: undefined, headers: {} }).then(result => navigate("error" in result ? signIn : target)).catch(() => navigate(signIn));
         }}>Choose {plan.name}</a></article>;

@@ -78,3 +78,32 @@ button:disabled,input:disabled{cursor:not-allowed;opacity:.55}
 .q-status[data-tone=warn]::before{background:var(--q-warning)}
 .q-status[data-tone=bad]::before{background:var(--q-error)}
 .q-status[data-tone=bad]{color:var(--q-error)}
+/* Motion: short, state-explaining transitions; all of it collapses under reduced motion. */
+.q-button,.q-tab,.q-input,.q-icon-button,a,select,textarea{transition:background-color var(--q-motion-fast) var(--q-ease),border-color var(--q-motion-fast) var(--q-ease),color var(--q-motion-fast) var(--q-ease),box-shadow var(--q-motion) var(--q-ease),transform var(--q-motion-fast) var(--q-ease),opacity var(--q-motion) var(--q-ease)}
+.q-button:active:not(:disabled){transform:translateY(1px) scale(.985)}
+.q-button .q-icon{transition:transform var(--q-motion) var(--q-ease-out)}
+.q-button:hover:not(:disabled) .q-icon--nudge{transform:translateX(2px)}
+.q-input:focus,select:focus,textarea:focus{border-color:var(--q-brand);box-shadow:0 0 0 3px var(--q-selected);outline:none}
+.q-modal[open]{animation:q-pop var(--q-motion-slow) var(--q-ease-out)}
+.q-modal[open]::backdrop{animation:q-fade var(--q-motion) var(--q-ease)}
+.q-toast{animation:q-slide-in var(--q-motion-slow) var(--q-ease-out)}
+.q-tabs__panel:not([hidden]){animation:q-fade-up var(--q-motion) var(--q-ease-out)}
+.q-empty{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.q-empty>.q-icon{color:var(--q-tertiary);animation:q-float 3.2s var(--q-ease) infinite}
+main{animation:q-fade var(--q-motion-slow) var(--q-ease)}
+details[open]>:not(summary){animation:q-fade-up var(--q-motion) var(--q-ease-out)}
+.q-status[data-tone=warn]::before{animation:q-pulse 1.6s var(--q-ease) infinite}
+.q-enter{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out) both}
+.q-stagger>*{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out) both}
+.q-stagger>:nth-child(2){animation-delay:30ms}.q-stagger>:nth-child(3){animation-delay:60ms}.q-stagger>:nth-child(4){animation-delay:90ms}
+.q-stagger>:nth-child(5){animation-delay:120ms}.q-stagger>:nth-child(6){animation-delay:150ms}.q-stagger>:nth-child(n+7){animation-delay:180ms}
+@keyframes q-fade{from{opacity:0}}
+@keyframes q-fade-up{from{opacity:0;transform:translateY(6px)}}
+@keyframes q-pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
+@keyframes q-slide-in{from{opacity:0;transform:translateY(12px)}}
+@keyframes q-float{50%{transform:translateY(-3px)}}
+@keyframes q-pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after,::backdrop{animation-duration:1ms!important;animation-iteration-count:1!important;animation-delay:0ms!important;transition-duration:1ms!important}
+  .q-button:active:not(:disabled){transform:none}
+}

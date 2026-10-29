@@ -72,10 +72,7 @@ export function Security(props: SettingsProps) {
       }); }}>Refresh export status</Button>}
     </div>}
     <h3>Delete account</h3>
-    <p className="account-muted">Transfer or delete your remaining owned projects first, including archived or trashed projects.
-      Already-deleted projects do not need reassignment. Each organization must retain another active administrator.</p>
-    <p className="account-muted">Account deletion does not cancel organization subscriptions. Manage billing separately before leaving.
-      Retained project history and operator backups are not securely erased by this action.</p>
+    <p className="account-muted" title="Each organization must retain another active administrator. Retained project history and operator backups are not securely erased.">Transfer or delete your owned projects first, including archived and trashed ones. Organization subscriptions are not canceled.</p>
     {props.account.user.managedBy !== null && <p>Your organization controls deletion while your account is managed.</p>}
     <Button variant="danger" disabled={props.account.user.managedBy !== null} onClick={() => setConfirmDelete(true)}>Delete account…</Button>
     <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your account">

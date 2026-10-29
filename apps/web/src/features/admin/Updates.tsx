@@ -50,7 +50,7 @@ export function Updates({ client, navigate }: { readonly client: AdminClient; re
             onClick={() => { setSelected(release); setSchedule(""); setRequestedAt(null); setAutomatic(false); setRequestKey(crypto.randomUUID()); setError(""); }}>
             Schedule update</Button></td>
         </tr>)}</tbody>
-      </table></div> : <EmptyState title="No releases available" description="No releases have been returned by the configured release source." />}
+      </table></div> : <EmptyState icon="refresh" title="No releases available" description="No releases have been returned by the configured release source." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {releases.resource?.data.nextCursor && <Button onClick={() => setCursor(releases.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
     <Modal open={selected !== null} title={selected ? `Install ${selected.version}` : "Schedule update"} onClose={() => { if (!busy) setSelected(null); }}

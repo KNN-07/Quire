@@ -190,10 +190,9 @@ export function AssistantComposer({ state, composer }: { readonly state: Assista
       </div>
     </div>
     <p role="status" aria-label="Message visibility" className="qa-assistant__fine">
-      {mode === "ask" ? "Ask mode · read only · " : "Agent mode · edits need your OK · "}{state.conversation
-      ? `Shared with project collaborators in conversation ${state.conversation.id}.`
-      : composer.projectSearch
-        ? "Kept private to your session. Selected context and authorized project-search excerpts go to the configured provider."
-        : "Kept private to your session. Selected context goes to the configured provider."}</p>
+      <Icon name={state.conversation ? "users" : "lock"} size={12} />
+      <span title={state.conversation ? `Conversation ${state.conversation.id}` : composer.projectSearch
+        ? "Selected context and authorized project-search excerpts go to the configured provider."
+        : "Selected context goes to the configured provider."}>{mode === "ask" ? "Read only · " : "Edits need your OK · "}{state.conversation ? "Shared with collaborators" : "Private to you"}</span></p>
   </form>;
 }

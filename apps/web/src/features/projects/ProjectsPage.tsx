@@ -20,11 +20,15 @@ const DirectionSchema = z.enum(["asc", "desc"]);
 const WorkspaceSchema = z.union([z.enum(["all", "personal"]), IdSchema]);
 const engines: Record<string, string> = { pdflatex: "pdfLaTeX", latex: "LaTeX", xelatex: "XeLaTeX", lualatex: "LuaLaTeX", plain: "Plain TeX" };
 const lists = [
-  { label: "All projects", owner: "all", state: "active" },
-  { label: "Your projects", owner: "me", state: "active" },
-  { label: "Shared with you", owner: "shared", state: "active" },
-  { label: "Archived", owner: "all", state: "archived" },
-  { label: "Trash", owner: "all", state: "trash" },
+  { label: "All projects", owner: "all", state: "active", icon: "folder" },
+  { label: "Your projects", owner: "me", state: "active", icon: "user" },
+  { label: "Shared with you", owner: "shared", state: "active", icon: "users" },
+  { label: "Archived", owner: "all", state: "archived", icon: "archive" },
+  { label: "Trash", owner: "all", state: "trash", icon: "trash" },
+] as const;
+const imports = [
+  { mode: "blank", label: "Blank project", icon: "filePlus" }, { mode: "github", label: "Import from GitHub", icon: "github" },
+  { mode: "git", label: "Clone git URL", icon: "branch" }, { mode: "upload", label: "Upload .zip", icon: "upload" },
 ] as const;
 export function ProjectsPage({ client, navigate, path, onSessionChange }: ProjectsPageProps) {
   const onboardingImport = new URL(path, window.location.origin).searchParams.get("onboarding") === "1"
@@ -133,13 +137,12 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
   const navigation = <nav className="p-nav" aria-label="Project lists">
     <Button variant="primary" onClick={() => { setCreation({ mode: "template" }); setDrawer(false); }}><Icon name="plus" />New project</Button>
     {lists.map(item => <Button key={item.label} variant="ghost" aria-current={owner === item.owner && state === item.state && !tagId ? "page" : undefined}
-      onClick={() => { setOwner(item.owner); setState(item.state); setTagId(undefined); resetSelection(); setDrawer(false); }}>{item.label}</Button>)}
+      onClick={() => { setOwner(item.owner); setState(item.state); setTagId(undefined); resetSelection(); setDrawer(false); }}><Icon name={item.icon} />{item.label}</Button>)}
     <div className="p-heading"><h2>Tags</h2><IconButton label="New tag" icon="plus" onClick={() => { setDrawer(false); setTagEditor({}); }} /></div>
     {tags.loading && <Spinner label="Loading tags" />}
     {tags.error && <p role="alert">{tags.error}<Button onClick={tags.reload}>Retry tags</Button></p>}
     {tags.data?.map(tag => <div className="p-tag-row" key={tag.id}><Button variant="ghost" aria-pressed={tagId === tag.id} onClick={() => { setTagId(tag.id); resetSelection(); setDrawer(false); }}><span className="p-dot" style={{ backgroundColor: tag.colorHex }} />{tag.name}</Button><IconButton label={`Edit tag ${tag.name}`} icon="settings" onClick={() => { setDrawer(false); setTagEditor({ tag }); }} /></div>)}
     {tagId && <Button onClick={() => { setTagId(undefined); resetSelection(); }}>Clear tag filter</Button>}
-    <Button variant="ghost" onClick={() => navigate("/settings/profile")}>Account settings</Button>
   </nav>;
   return <div className="p-projects" data-path={path}>
     <AppHeader actions={<Button variant="ghost" className="p-account" aria-label="Account settings" title={account.data?.name}
@@ -169,13 +172,12 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
     {account.error && <p role="alert">{account.error} <Button onClick={account.reload}>Retry account</Button></p>}
     {avatarError && <p role="status">{avatarError}</p>}
     <div className="p-shell"><aside className="p-sidebar">{navigation}</aside><main className="p-main">
-      <div className="p-heading"><IconButton className="p-drawer-trigger" label="Project filters" icon="menu" onClick={() => setDrawer(true)} /><h1>{title}</h1><Button className="p-mobile-new" variant="primary" onClick={() => setCreation({ mode: "template" })}>New project</Button><div className="p-cluster">
-        {([{ mode: "blank", label: "Blank project" }, { mode: "github", label: "Import from GitHub" }, { mode: "git", label: "Clone git URL" }, { mode: "upload", label: "Upload .zip" }] as const).map(item => <Button key={item.mode} onClick={() => setCreation({ mode: item.mode })}>{item.label}</Button>)}
+      <div className="p-heading"><IconButton className="p-drawer-trigger" label="Project filters" icon="menu" onClick={() => setDrawer(true)} /><h1>{title}</h1><Button className="p-mobile-new" variant="primary" onClick={() => setCreation({ mode: "template" })}><Icon name="plus" />New project</Button><div className="p-cluster">
+        {imports.map(item => <Button key={item.mode} onClick={() => setCreation({ mode: item.mode })}><Icon name={item.icon} />{item.label}</Button>)}
       </div></div>
       <div className="p-cluster p-toolbar">
-        <label className="p-field p-inline">Owner<select aria-label="Owner" value={owner} onChange={event => { setOwner(OwnerSchema.parse(event.target.value)); resetSelection(); }}><option value="all">All</option><option value="me">You</option><option value="shared">Shared with you</option></select></label>
-        <label className="p-field p-inline">Sort by<select aria-label="Sort by" value={sort} onChange={event => { setSort(SortSchema.parse(event.target.value)); resetSelection(); }}><option value="updated">Last edited</option><option value="title">Title</option><option value="owner">Owner</option></select></label>
-        <label className="p-field p-inline">Direction<select aria-label="Direction" value={direction} onChange={event => { setDirection(DirectionSchema.parse(event.target.value)); resetSelection(); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select></label>
+        <label className="p-field p-inline"><Icon name="list" /><select aria-label="Sort by" value={sort} onChange={event => { setSort(SortSchema.parse(event.target.value)); resetSelection(); }}><option value="updated">Last edited</option><option value="title">Title</option><option value="owner">Owner</option></select></label>
+        <label className="p-field p-inline"><select aria-label="Direction" value={direction} onChange={event => { setDirection(DirectionSchema.parse(event.target.value)); resetSelection(); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select></label>
         <IconButton variant="ghost" icon="refresh" label="Refresh projects" onClick={reload} />
       </div>
       {selected.length > 0 && <div className="p-bulk" aria-label="Selected projects"><strong>{selected.length} selected</strong>
@@ -192,11 +194,11 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
       {workspaces.error && <p role="alert">{workspaces.error}<Button onClick={workspaces.reload}>Retry workspaces</Button></p>}
       {projects.loading && <Spinner label="Loading projects" />}
       {projects.error && <div role="alert">{projects.error}<Button onClick={projects.reload}>Retry projects</Button></div>}
-      {!projects.loading && !projects.error && rows.length === 0 && <EmptyState title="No projects found" description="Change the filters or create a project." action={<Button onClick={() => setCreation({ mode: "blank" })}>Blank project</Button>} />}
-      {shownRows.length > 0 && <div className="p-table-wrap"><table className="p-table"><thead><tr><th><label className="p-select"><input type="checkbox" aria-label="Select all projects on this page" checked={shownRows.every(row => selected.includes(row.id))} onChange={event => setSelected(event.target.checked ? shownRows.map(row => row.id) : [])} /></label></th><th>Title</th><th>Owner</th><th>Last edited</th><th>Git</th><th>Compiler</th><th><span className="q-sr-only">Actions</span></th></tr></thead><tbody>
+      {!projects.loading && !projects.error && rows.length === 0 && <EmptyState icon="folder" title="No projects found" description="Change the filters or create a project." action={<Button onClick={() => setCreation({ mode: "blank" })}>Blank project</Button>} />}
+      {shownRows.length > 0 && <div className="p-table-wrap"><table className="p-table"><thead><tr><th><label className="p-select"><input type="checkbox" aria-label="Select all projects on this page" checked={shownRows.every(row => selected.includes(row.id))} onChange={event => setSelected(event.target.checked ? shownRows.map(row => row.id) : [])} /></label></th><th>Title</th><th>Owner</th><th>Last edited</th><th>Git</th><th>Compiler</th><th><span className="q-sr-only">Actions</span></th></tr></thead><tbody className="q-stagger">
         {shownRows.map(row => <tr key={row.id}><td><label className="p-select"><input type="checkbox" aria-label={`Select ${row.name}`} checked={selected.includes(row.id)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.id] : previous.filter(id => id !== row.id))} /></label></td>
-          <td data-label="Title"><Button variant="ghost" className="p-project-title" onClick={() => navigate(`/projects/${row.id}/edit`)}>{row.name}</Button><span className="p-cluster">{row.tagIds.map(id => tags.data?.find(tag => tag.id === id)).filter(tag => tag !== undefined).map(tag => <span className="p-tag" key={tag.id}>{tag.name}</span>)}</span></td>
-          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><RelativeTime value={row.updatedAt} /></td><td data-label="Git"><code className="p-branch">{row.defaultBranch}</code></td><td data-label="Compiler">{engines[row.settings.engine] ?? row.settings.engine}</td><td className="p-row-actions"><IconButton variant="ghost" icon="more" label={`Project actions for ${row.name}`} title="Project actions" onClick={() => setActionProject(row)} /></td>
+          <td data-label="Title"><Button variant="ghost" className="p-project-title" onClick={() => navigate(`/projects/${row.id}/edit`)}><Icon name="file" className="p-project-icon" />{row.name}</Button><span className="p-cluster">{row.tagIds.map(id => tags.data?.find(tag => tag.id === id)).filter(tag => tag !== undefined).map(tag => <span className="p-tag" key={tag.id}>{tag.name}</span>)}</span></td>
+          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><RelativeTime value={row.updatedAt} /></td><td data-label="Git"><code className="p-branch"><Icon name="branch" size={13} />{row.defaultBranch}</code></td><td data-label="Compiler">{engines[row.settings.engine] ?? row.settings.engine}</td><td className="p-row-actions"><IconButton variant="ghost" icon="more" label={`Project actions for ${row.name}`} title="Project actions" onClick={() => setActionProject(row)} /></td>
         </tr>)}
       </tbody></table></div>}
       {projects.data?.nextCursor && !projects.loading && !projects.error && <Button onClick={() => { setCursor(projects.data?.nextCursor ?? undefined); setSelected([]); }}>Next page</Button>}

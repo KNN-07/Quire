@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { ResponseOf } from "@quire/contracts";
-import { AppHeader, Button, Spinner } from "../../ui";
+import { AppHeader, Button, Icon, Spinner } from "../../ui";
 import type { AdminPageProps } from "./api";
 import { errorMessage } from "./api";
 import { Architecture } from "./Architecture";
@@ -24,13 +24,13 @@ import "./admin.css";
 export type { AdminPageProps } from "./api";
 type Overview = ResponseOf<typeof endpoints.adminOverview>;
 const navigation = [
-  { id: "overview", label: "Overview" }, { id: "identity", label: "Authentication" },
-  { id: "benefits", label: "Project benefits" },
-  { id: "users", label: "Users & groups" }, { id: "workers", label: "Compile workers" },
-  { id: "tex", label: "TeX Live images" }, { id: "ai", label: "AI provider" },
-  { id: "templates", label: "Templates" }, { id: "storage", label: "Storage & backups" },
-  { id: "updates", label: "Updates" }, { id: "support", label: "Support" }, { id: "audit", label: "Audit log" },
-  { id: "architecture", label: "Architecture" },
+  { id: "overview", label: "Overview", icon: "activity" }, { id: "identity", label: "Authentication", icon: "shield" },
+  { id: "benefits", label: "Project benefits", icon: "zap" },
+  { id: "users", label: "Users & groups", icon: "users" }, { id: "workers", label: "Compile workers", icon: "cpu" },
+  { id: "tex", label: "TeX Live images", icon: "image" }, { id: "ai", label: "AI provider", icon: "sparkle" },
+  { id: "templates", label: "Templates", icon: "template" }, { id: "storage", label: "Storage & backups", icon: "database" },
+  { id: "updates", label: "Updates", icon: "refresh" }, { id: "support", label: "Support", icon: "lifebuoy" }, { id: "audit", label: "Audit log", icon: "list" },
+  { id: "architecture", label: "Architecture", icon: "server" },
 ] as const;
 
 export function AdminPage({ path, client, navigate }: AdminPageProps) {
@@ -62,12 +62,12 @@ export function AdminPage({ path, client, navigate }: AdminPageProps) {
     window.scrollTo({ top: 0 });
   }, [section]);
   return <div className="admin-shell">
-    <AppHeader className="admin-header" actions={<Button onClick={() => navigate("/projects")}>Back to projects</Button>}>Server administration</AppHeader>
+    <AppHeader className="admin-header" actions={<Button onClick={() => navigate("/projects")}><Icon name="arrowLeft" />Back to projects</Button>}>Server administration</AppHeader>
     <div className="admin-body">
       <nav className="admin-navigation" aria-label="Administration">
         {navigation.map(item => <a key={item.id} href={item.id === "overview" ? "/admin" : `/admin/${item.id}`}
           aria-current={section === item.id ? "page" : undefined}
-          onClick={event => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) { event.preventDefault(); navigate(event.currentTarget.pathname); } }}>{item.label}</a>)}
+          onClick={event => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0) { event.preventDefault(); navigate(event.currentTarget.pathname); } }}><Icon name={item.icon} />{item.label}</a>)}
       </nav>
       <label className="admin-mobile-navigation">Administration
         <select aria-label="Administration section" value={section}
@@ -75,10 +75,10 @@ export function AdminPage({ path, client, navigate }: AdminPageProps) {
           {navigation.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </label>
-      <main className="admin-main" id="admin-content">
+      <main key={section} className="admin-main" id="admin-content">
         {loading ? <Spinner label="Checking operator access" /> : !overview
-          ? <section><h1>{denied ? "Operator access denied" : "Administration unavailable"}</h1>
-            <p role="alert">{message}</p><p>No privileged controls are available until the server authorizes this session.</p>
+          ? <section className="admin-denied"><Icon name={denied ? "lock" : "warning"} size={28} /><h1>{denied ? "Operator access denied" : "Administration unavailable"}</h1>
+            <p role="alert">{message}</p>
             <Button onClick={() => setRefresh(previous => previous + 1)}>Retry access check</Button></section>
           : <div className="admin-content">
             {section === "overview" ? <><Overview data={overview} refresh={() => setRefresh(previous => previous + 1)} navigate={navigate} /><CompileQueue client={client} navigate={navigate} /><EditorMaintenance client={client} /></>

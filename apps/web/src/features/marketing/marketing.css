@@ -199,3 +199,31 @@
 .qm-card>ul.qm-grid{list-style:none;padding:0}
 .qm-card>ul.qm-grid li{position:relative;padding-left:24px}
 .qm-card>ul.qm-grid li::before{content:"";position:absolute;left:2px;top:.4em;width:10px;height:5px;border-left:2px solid var(--q-success);border-bottom:2px solid var(--q-success);transform:rotate(-45deg)}
+/* Icons and motion: feature tiles, window chrome, hero entrance and scroll reveal. */
+.qm-dots{display:inline-flex;gap:6px}
+.qm-dots>i{inline-size:9px;block-size:9px;border-radius:50%;background:var(--q-border)}
+.qm-terminal .qm-dots>i{background:#3A3F4B}
+.qm-terminal figcaption{display:flex;align-items:center;gap:12px;font-family:var(--q-font-mono);font-size:12px}
+.qm-ai-sample figcaption{display:flex;align-items:center;gap:6px;color:var(--q-ai);font-weight:600}
+.qm-feature-icon{display:inline-grid;place-items:center;inline-size:36px;block-size:36px;margin-bottom:12px;border-radius:10px;background:var(--q-selected);color:var(--q-brand);transition:transform var(--q-motion) var(--q-ease-out)}
+.qm-dark .qm-feature-icon{background:rgb(157 176 255 / 14%);color:#9DB0FF}
+.qm-feature-list article:hover .qm-feature-icon,.qm-dark article:hover .qm-feature-icon{transform:translateY(-2px) rotate(-4deg)}
+.qm-card h3{display:flex;align-items:center;gap:8px}
+.qm-card h3>.q-icon{color:var(--q-brand)}
+.qm-card{transition:transform var(--q-motion) var(--q-ease-out),box-shadow var(--q-motion) var(--q-ease)}
+.qm-four>.qm-card:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgb(22 24 29 / 10%)}
+.qm-link-button{transition:background-color var(--q-motion-fast) var(--q-ease),transform var(--q-motion-fast) var(--q-ease),box-shadow var(--q-motion) var(--q-ease)}
+.qm-link-button:hover .q-icon--nudge{transform:translateX(3px)}
+.qm-link-button .q-icon{transition:transform var(--q-motion) var(--q-ease-out);margin-inline-start:6px}
+.qm-hero>*{animation:q-fade-up 480ms var(--q-ease-out) both}
+.qm-hero>:nth-child(2){animation-delay:60ms}.qm-hero>:nth-child(3){animation-delay:120ms}.qm-hero>:nth-child(4){animation-delay:180ms}
+.qm-hero>.qm-editor{animation:q-rise 720ms var(--q-ease-out) 240ms both}
+.qm-editor pre{position:relative}
+.qm-editor pre::after{content:"";display:inline-block;inline-size:2px;block-size:1.1em;margin-inline-start:2px;vertical-align:text-bottom;background:var(--q-brand);animation:q-caret 1.1s steps(1) infinite}
+@keyframes q-rise{from{opacity:0;transform:translateY(24px) scale(.985)}}
+@keyframes q-caret{50%{opacity:0}}
+@keyframes q-reveal{from{opacity:.55;transform:translateY(20px)}}
+@supports(animation-timeline:view()){
+  @media screen{.qm-section>h2,.qm-section>.qm-lead,.qm-grid>*,.qm-split>*,.qm-faq>details{animation:q-reveal linear both;animation-timeline:view();animation-range:entry 0% entry 45%}}
+}
+@media(prefers-reduced-motion:reduce){.qm-editor pre::after{animation:none}}

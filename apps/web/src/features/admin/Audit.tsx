@@ -60,7 +60,7 @@ export function Audit({ client, navigate }: { readonly client: AdminClient; read
             <td data-label="Event">{row.event}</td><td data-label="Actor"><code>{row.actorId ?? "System"}</code></td>
             <td data-label="Details"><Button size="small" onClick={() => setSelected(row)}>Inspect</Button></td>
           </tr>)}</tbody></table>
-      </div> : <EmptyState title="No matching events" description="Change the event or time filters to inspect other activity." />}
+      </div> : <EmptyState icon="list" title="No matching events" description="Change the event or time filters to inspect other activity." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {rows.resource?.data.nextCursor && <Button onClick={() => setCursor(rows.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
     {siem.error ? <p role="alert">SIEM configuration: {siem.error}</p> : siem.resource

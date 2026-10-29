@@ -90,3 +90,11 @@
   .q-pdf-panel .q-pdf-toolbar select{min-height:32px;padding-block:0}
   .q-pdf-panel .q-pdf-toolbar label{min-height:32px;font-size:var(--q-text-sm);color:var(--q-tertiary)}
 }
+.q-pdf-content>.q-pdf-empty>p{display:grid;justify-items:center;gap:var(--q-space-3);animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+.q-pdf-content>.q-pdf-empty>p>.q-icon{color:var(--q-tertiary)}
+.q-pdf-content>.q-pdf-empty>p>strong{color:var(--q-ink);font-size:var(--q-text-form)}
+.q-pdf-content>.q-pdf-empty>p>span{font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.q-pdf-options>summary>svg{transition:transform var(--q-motion) var(--q-ease-out)}
+.q-pdf-options[open]>summary>svg{transform:rotate(90deg)}
+.q-pdf-options[open]>.q-pdf-toolbar{animation:q-pop var(--q-motion) var(--q-ease-out)}
+.q-pdf-viewer canvas{animation:q-fade var(--q-motion-slow) var(--q-ease)}

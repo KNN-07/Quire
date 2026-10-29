@@ -40,7 +40,6 @@
 .editor-tools__tree .editor-tools__file{gap:var(--q-space-2);padding-inline-start:calc(var(--q-space-3) + var(--qe-tree-level, 0) * 16px);font-weight:400;border-radius:var(--q-radius-md)}
 .editor-tools__tree .editor-tools__file[aria-selected="true"]{font-weight:600}
 .editor-tools__marker{display:inline-grid;place-items:center;flex:none;inline-size:14px;block-size:14px;color:var(--q-tertiary)}
-.editor-tools__file[aria-selected="true"] .editor-tools__marker:empty::before{content:"";inline-size:7px;block-size:7px;border-radius:2px;background:var(--q-brand)}
 .editor-tools__tree .editor-tools__hint{margin-inline-start:auto;font-size:var(--q-text-xs)}
 .editor-tools__hint{color:var(--q-tertiary);font-size:var(--q-text-sm)}
 .editor-tools__error{color:var(--q-error)!important}
@@ -62,3 +61,14 @@
   .editor-tools button,.editor-tools select,.editor-tools textarea,.editor-tools label:has(input[type="checkbox"]){min-height:var(--q-touch-target)}
   .editor-tools__cluster{gap:var(--q-space-3)}
 }
+.editor-tools__kind{color:var(--q-tertiary)}
+.editor-tools__kind[data-kind="folder"]{color:var(--q-syntax-string)}
+.editor-tools__kind[data-kind="tex"]{color:var(--q-brand)}
+.editor-tools__kind[data-kind="bib"]{color:var(--q-syntax-math)}
+.editor-tools__kind[data-kind="pdf"]{color:var(--q-error)}
+.editor-tools__file[aria-selected="true"] .editor-tools__kind{color:var(--q-brand)}
+.editor-tools__marker>svg{transition:transform var(--q-motion) var(--q-ease-out)}
+.editor-tools__file-actions>summary>svg{transition:transform var(--q-motion) var(--q-ease-out)}
+.editor-tools__file-actions[open]>summary>svg{transform:rotate(45deg)}
+.editor-tools__file-menu{border-radius:var(--q-radius-md);animation:q-pop var(--q-motion) var(--q-ease-out)}
+.editor-tools__tree{animation:q-fade var(--q-motion-slow) var(--q-ease)}

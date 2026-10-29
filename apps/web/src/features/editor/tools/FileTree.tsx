@@ -2,7 +2,20 @@ import { useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { FileEntry, Id } from "@quire/contracts";
 import { Button, Icon } from "../../../ui";
+import type { IconName } from "../../../ui";
 
+const imageExtensions = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp", "eps"]);
+function fileIcon(file: FileEntry): IconName {
+  if (file.kind === "folder") return "folder";
+  const extension = file.path.split(".").at(-1)?.toLowerCase() ?? "";
+  if (file.link) return "link";
+  if (extension === "bib") return "book";
+  if (extension === "pdf") return "pdf";
+  if (imageExtensions.has(extension)) return "image";
+  if (extension === "yml" || extension === "yaml" || extension === "json") return "sliders";
+  if (extension === "py" || extension === "sty" || extension === "cls") return "code";
+  return "file";
+}
 type TreeRowStyle = CSSProperties & { readonly "--qe-tree-level": number };
 type Props = {
   readonly files: readonly FileEntry[];
@@ -74,6 +87,7 @@ export function FileTree({ files, selected, disabled, onSelect, onOpen }: Props)
         if (target) { onSelect(target); refs.current.get(target.id)?.focus(); }
       }}>
       <span className="editor-tools__marker" aria-hidden="true">{file.kind === "folder" ? <Icon name={collapsed.has(file.path) ? "chevronRight" : "chevronDown"} size={14} /> : null}</span>
+      <Icon name={fileIcon(file)} size={15} className="editor-tools__kind" data-kind={file.kind === "folder" ? "folder" : file.path.split(".").at(-1)} />
       <span className="editor-tools__path">{slash > 0 && <span className={`editor-tools__dir${folderPaths.has(file.path.slice(0, slash)) ? " editor-tools__dir--nested" : ""}`}>{file.path.slice(0, slash + 1)}</span>}{file.path.slice(slash + 1)}</span>
       {hint && <span className="editor-tools__hint">{hint}</span>}
     </Button>;

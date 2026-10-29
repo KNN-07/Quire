@@ -78,7 +78,7 @@ export function Templates({ client }: { readonly client: AdminClient }) {
             {transitions[template.status] && <Button size="small" onClick={() => { setSelected(template); setMessage(""); }}>{transitions[template.status]?.label}</Button>}
           </div></td>
         </tr>)}</tbody>
-      </table></div> : <EmptyState title="No templates yet" description="Create a template from one of your source projects." />}
+      </table></div> : <EmptyState icon="template" title="No templates yet" description="Create a template from one of your source projects." />}
     <div className="admin-row">{cursor && <Button onClick={() => setCursor(undefined)}>First page</Button>}
       {templates.resource?.data.nextCursor && <Button onClick={() => setCursor(templates.resource?.data.nextCursor ?? undefined)}>Next page</Button>}</div>
     {editing && <TemplateForm client={client} template={editing === "new" ? null : editing}

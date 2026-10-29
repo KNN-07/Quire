@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { AuthOptions, createClient } from "@quire/contracts";
 import { Button, Icon } from "../../ui";
+import type { IconName } from "../../ui";
 import { Notice, readInput, unwrap } from "./shared";
 import type { AccountPageProps } from "./shared";
 import { LdapSignIn } from "./ldap-sign-in";
@@ -23,6 +24,15 @@ export function useAuthOptions(client: ReturnType<typeof createClient>) {
     return () => controller.abort();
   }, [reload]);
   return { options, error, reload, setError };
+}
+
+function providerIcon(id: string): IconName {
+  if (id.includes("github")) return "github";
+  if (id.includes("google")) return "globe";
+  if (id.includes("orcid")) return "user";
+  if (id.includes("ldap")) return "server";
+  if (id.includes("saml") || id.includes("oidc")) return "shield";
+  return "key";
 }
 
 export function ProviderOptions({ client, availability, returnTo, onSessionChange, navigate, organizationDiscovery = false }: Pick<AccountPageProps, "onSessionChange" | "navigate"> & {
@@ -51,7 +61,7 @@ export function ProviderOptions({ client, availability, returnTo, onSessionChang
     void availability.reload().catch((cause: unknown) => { if (cause instanceof Error) availability.setError(cause.message); else throw cause; });
   }}>Reload sign-in options</Button></> : !options ? <p role="status">Loading sign-in options…</p> : options.providers.length === 0 ? <p className="account-muted">No external sign-in providers are configured.</p> : <>
     <div className="account-provider-grid">
-      {[...options.providers].sort((a, b) => Number(b.capability.enabled) - Number(a.capability.enabled)).map(provider => <Button key={provider.id} disabled={!provider.capability.enabled} aria-describedby={provider.capability.enabled ? undefined : `${idPrefix}-${provider.id}`} title={provider.capability.enabled ? undefined : reason(provider)} onClick={() => selectProvider(provider.id)}>Continue with {provider.label}</Button>)}
+      {options.providers.filter(provider => provider.capability.enabled).map(provider => <Button key={provider.id} onClick={() => selectProvider(provider.id)}><Icon name={providerIcon(provider.id)} />Continue with {provider.label}</Button>)}
     </div>
     {unavailable.length > 0 && <details className="account-unavailable">
       <summary>{unavailable.length === 1 ? "1 sign-in option unavailable" : `${unavailable.length} sign-in options unavailable`}</summary>

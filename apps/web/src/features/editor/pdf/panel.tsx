@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Button, Tabs } from "../../../ui";
+import { Button, Icon, Spinner, Tabs } from "../../../ui";
 import type { CompileJob, CompileSettings } from "@quire/contracts";
 import { EditorApiError } from "../shared";
 import type { CompileState, PdfLocation, PdfPanelProps, SourceLocation } from "../shared";
@@ -145,14 +145,14 @@ export function PdfPanel(props: PdfPanelOptions) {
       })}>Clear generated cache</Button>
       {props.presentation === "embedded" && viewerChoice}
     </div>;
-  const quietStatus = props.presentation === "embedded" && state.job?.status === "succeeded" && !stale && !offline && !notice;
+  const quietStatus = !loading && !stale && !offline && !notice && (props.presentation === "embedded" && state.job?.status === "succeeded" || !state.job);
   return <section className="q-pdf-panel" aria-label="Compilation and PDF" data-presentation={props.presentation ?? "standalone"}>
     {props.presentation === "embedded" ? <details className="q-pdf-options" onKeyDown={event => {
       if (event.key === "Escape") {
         event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false;
         event.currentTarget.querySelector("summary")?.focus();
       }
-    }}><summary>PDF options</summary>{controls}</details> : controls}
+    }}><summary aria-label="PDF options" title="PDF options"><Icon name="sliders" /></summary>{controls}</details> : controls}
     <div className={`q-pdf-status${quietStatus ? " q-sr-only" : ""}`} role="status" aria-live="polite"
       data-compile-status={state.job?.status ?? "uncompiled"} data-preview-stale={stale}>
       {loading ? "Discovering compilation…" : state.job ?
@@ -180,7 +180,7 @@ export function PdfPanel(props: PdfPanelOptions) {
         }}>Source to PDF</Button>}
         </div>}
         {data ? <PdfViewer compact={props.presentation === "embedded"} data={data} browser={browser} location={location} onReverse={reverse} onError={onError} /> :
-          <div className="q-pdf-body q-pdf-empty"><p>{artifact ? "Loading compiled PDF…" : "No successful PDF available. Recompile this project."}</p></div>}
+          <div className="q-pdf-body q-pdf-empty"><p>{artifact ? <><Spinner label="Loading compiled PDF" />Loading compiled PDF…</> : <><Icon name="pdf" size={28} /><strong>No PDF yet</strong><span>Recompile to build it · Ctrl/Cmd+Enter</span></>}</p></div>}
       </div> },
       { value: "logs", label: "Logs", content: tab === "logs" ? <div className="q-pdf-content"><CompileLogs client={props.client}
         workspace={props.workspace} job={state.job} navigation={props.navigation} onError={onError} onFixDiagnostic={props.onFixDiagnostic} /></div> : null },

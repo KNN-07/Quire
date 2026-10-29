@@ -169,3 +169,6 @@
 .quire-review__section-header{flex-wrap:wrap}
 .quire-review__section-header>div{flex:1 1 14rem;min-inline-size:0}
 .quire-change__legend:empty{display:none}
+.quire-review__section-header h2,.quire-history__timeline h2{display:inline-flex;align-items:center;gap:var(--q-space-3)}
+.quire-review__section-header h2>.q-icon,.quire-history__timeline h2>.q-icon{color:var(--q-tertiary)}
+.quire-review__section,.quire-history__timeline,.quire-history__detail{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}

@@ -72,7 +72,7 @@ export function ChatPanel({ client, workspace, document, refreshWorkspace }: Rev
     </header>
     {disabledReason && <PanelMessage>{disabledReason}</PanelMessage>}
     {messages === null ? <div className="quire-review__loading"><Spinner label="Loading chat" /></div>
-      : messages.length === 0 ? <EmptyState title="No chat messages"
+      : messages.length === 0 ? <EmptyState icon="comment" title="No chat messages"
         description={enabled ? "Send the first message to collaborators on this branch." : "There is no visible chat history."} />
       : <ol className="quire-chat__messages">{messages.map(message =>
         <li key={message.id} className={message.authorId === workspace.access.actorId ? "quire-chat__message quire-chat__message--own" : "quire-chat__message"}>

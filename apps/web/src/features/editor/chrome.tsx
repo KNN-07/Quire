@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { IdSchema, assertNever, endpoints } from "@quire/contracts";
 import type { Environment, GitStatus, Id } from "@quire/contracts";
-import { BrandMark, Button, Modal } from "../../ui";
+import { BrandMark, Button, Icon, Modal } from "../../ui";
 import { editorValue } from "./shared";
 import type { CompileState, DocumentSnapshot, EditorClient, EditorDocument, EditorLayout, EditorRoute, EditorWorkspace, SourceLocation } from "./shared";
 import type { ToolPanel } from "./tools";
@@ -118,7 +118,7 @@ export function EditorSourceChrome({ document, tools, readOnly }: {
   return <header className="qe-source-header"><strong title={document.file.path}>{document.file.path}</strong>
     <details className="qe-project-menu" onKeyDown={event => {
       if (event.key === "Escape") { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
-    }}><summary className="q-button" aria-label="Source actions">Source actions</summary><nav aria-label="Source actions">
+    }}><summary className="q-button q-icon-button" aria-label="Source actions" title="Source actions"><Icon name="more" /></summary><nav aria-label="Source actions">
       {sourceTools.map(({ tool, label }) => <Button size="small" variant="ghost" key={tool} disabled={!tools} onClick={event => {
         event.currentTarget.closest("details")?.removeAttribute("open"); tools?.open(tool);
       }}>{label}</Button>)}
@@ -151,11 +151,11 @@ export function EditorHeader({ model, actions, metadata }: ChromeProps) {
       <button type="button" key={peer.id} className={`qe-avatar qe-avatar--${index}`} aria-label={peer.name} title={peer.name} onClick={actions.share}>{peer.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.slice(0, 1)).join("")}</button>)}
       {peers.length > 2 && <Button size="small" title="Connected collaborators" onClick={actions.share}>+{peers.length - 2}</Button>}</div>}
     {model.page === "edit" && <Button aria-pressed={model.assistantOpen} onClick={actions.assistant}><Glyph name="assistant" small />Assistant</Button>}
-    <Button onClick={actions.share}>Share</Button>
-    {model.page !== "edit" && <Button onClick={() => actions.navigate("edit")}>Back to editor</Button>}
+    <Button onClick={actions.share}><Icon name="share" />Share</Button>
+    {model.page !== "edit" && <Button onClick={() => actions.navigate("edit")}><Icon name="arrowLeft" />Back to editor</Button>}
     <details className="qe-project-menu" onKeyDown={event => {
       if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); }
-    }}><summary className="q-button">Workspace</summary><nav aria-label="Project views">
+    }}><summary className="q-button"><Icon name="layers" />Workspace<Icon name="chevronDown" size={14} className="qe-menu-caret" /></summary><nav aria-label="Project views">
       {pageOrder.map(page =>
         <Button key={page} variant="ghost" onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); actions.navigate(page); }}>{pageLabels[page]}</Button>)}
       <Button variant="ghost" disabled={!workspace.access.capabilities.chat} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); actions.chat(); }}>Project chat</Button>
