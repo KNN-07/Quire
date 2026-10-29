@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { endpoints, DigestSchema, IdSchema } from "@quire/contracts";
 import type { Id, Operation } from "@quire/contracts";
-import { Button, EmptyState, Spinner } from "../../ui";
+import { Button, EmptyState, RelativeTime, Spinner, StatusBadge } from "../../ui";
 import type { AdminClient } from "./api";
 import { downloadBytes, errorMessage } from "./api";
 import { DataView } from "./DataView";
@@ -44,8 +44,8 @@ export function Support({ client, path, navigate }: {
         <thead><tr><th>Operation</th><th>Created</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead>
         <tbody>{operations.resource.data.items.map(operation => <tr key={operation.id}>
           <td data-label="Operation">{operation.kind}</td>
-          <td data-label="Created"><time dateTime={operation.createdAt}>{new Date(operation.createdAt).toLocaleString()}</time></td>
-          <td data-label="Status">{operation.status}</td><td data-label="Progress">{Math.round(operation.progress * 100)}%</td>
+          <td data-label="Created"><RelativeTime value={operation.createdAt} /></td>
+          <td data-label="Status"><StatusBadge state={operation.status} /></td><td data-label="Progress">{Math.round(operation.progress * 100)}%</td>
           <td data-label="Actions"><Button size="small" onClick={() => navigate(`/admin/support?operation=${operation.id}`)}>View details</Button></td>
         </tr>)}</tbody>
       </table></div> : <EmptyState title="No operations yet" description="Diagnostic generation, exports and administration tasks will appear here." />}

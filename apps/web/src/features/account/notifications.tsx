@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { NotificationPreferences, ResponseOf } from "@quire/contracts";
-import { Button } from "../../ui";
+import { Button, RelativeTime } from "../../ui";
 import { Check, listInput, Notice, Panel, readInput, unwrap, useAction } from "./shared";
 import type { SettingsProps } from "./settings";
 
@@ -52,7 +52,7 @@ export function Notifications(props: SettingsProps) {
     <Notice {...action} />
     {action.error && <Button onClick={() => { void action.run(async () => { await loadPreferences(); }); }}>Reload current notification preferences</Button>}
     <h3>Recent notifications</h3>
-    {error ? <><Notice error={error} message="" /><Button onClick={() => { void action.run(async () => { await load(); setError(""); }); }}>Reload notifications</Button></> : !items ? <p role="status">Loading notifications…</p> : items.items.length === 0 ? <p>No notifications yet.</p> : <ul className="account-list">{items.items.map(item => <li key={item.id}><div className="account-row"><span>{item.kind}<small>{new Date(item.createdAt).toLocaleString()}</small></span>{item.read ? <span>Read</span> : <Button busy={action.busy} onClick={() => { void action.run(async () => {
+    {error ? <><Notice error={error} message="" /><Button onClick={() => { void action.run(async () => { await load(); setError(""); }); }}>Reload notifications</Button></> : !items ? <p role="status">Loading notifications…</p> : items.items.length === 0 ? <p>No notifications yet.</p> : <ul className="account-list">{items.items.map(item => <li key={item.id}><div className="account-row"><span>{item.kind}<small><RelativeTime value={item.createdAt} /></small></span>{item.read ? <span>Read</span> : <Button busy={action.busy} onClick={() => { void action.run(async () => {
       unwrap(await props.client.call(endpoints.notificationRead, { params: { id: item.id }, query: {}, body: { expectedVersion: item.version } })); await load();
     }); }}>Mark read</Button>}</div></li>)}</ul>}
   </Panel>;

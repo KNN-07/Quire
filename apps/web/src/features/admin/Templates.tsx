@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { TemplateVersion } from "@quire/contracts";
-import { Button, EmptyState, Modal, Spinner } from "../../ui";
+import { Button, EmptyState, Modal, Spinner, StatusBadge } from "../../ui";
 import type { AdminClient } from "./api";
 import { errorMessage } from "./api";
 import { useAdminResource } from "./useAdminResource";
@@ -69,7 +69,7 @@ export function Templates({ client }: { readonly client: AdminClient }) {
         <tbody>{templates.resource.data.items.map(template => <tr key={template.id}>
           <td data-label="Template"><strong>{template.name}</strong><small>{template.category}</small></td>
           <td data-label="Visibility">{template.visibility}</td><td data-label="License">{template.license}</td>
-          <td data-label="Status">{template.status}</td>
+          <td data-label="Status"><StatusBadge state={template.status} /></td>
           <td data-label="Actions"><div className="admin-row">
             {template.status === "draft" && <Button size="small" onClick={() => setEditing(template)}>Edit</Button>}
             {template.status !== "draft" && <Button size="small" onClick={() => {

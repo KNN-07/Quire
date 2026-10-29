@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { AdminUserSummary } from "@quire/contracts";
-import { Button, EmptyState, Field, Spinner } from "../../ui";
+import { Button, EmptyState, Field, RelativeTime, Spinner } from "../../ui";
 import type { AdminClient } from "./api";
 import { downloadBytes, errorMessage } from "./api";
 import { InviteUser, ManageUser } from "./UserDialogs";
@@ -92,7 +92,7 @@ export function Users({ client }: { readonly client: AdminClient }) {
               <td data-label="Role">{user.operator ? "Operator" : user.groups.length ? "Member" : "Guest"}</td>
               <td data-label="Groups">{user.groups.length ? user.groups.map(group => group.name).join(", ") : "No groups"}</td>
               <td data-label="Projects">{user.projectCount}</td>
-              <td data-label="Last active">{user.lastSeenAt ? <time dateTime={user.lastSeenAt}>{new Date(user.lastSeenAt).toLocaleString()}</time> : "Not yet"}</td>
+              <td data-label="Last active">{user.lastSeenAt ? <RelativeTime value={user.lastSeenAt} /> : "Not yet"}</td>
               <td data-label="Actions"><Button size="small" onClick={() => setSelected(user)}>Manage<span className="q-sr-only"> {user.name}</span></Button></td>
             </tr>)}</tbody>
           </table></div>}

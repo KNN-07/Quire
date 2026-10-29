@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { Backup, ResponseOf } from "@quire/contracts";
-import { Button, EmptyState, Field, Modal, Spinner } from "../../ui";
+import { Button, EmptyState, Field, Modal, Spinner, StatusBadge } from "../../ui";
 import type { AdminClient } from "./api";
 import { errorMessage } from "./api";
 import { useAdminResource } from "./useAdminResource";
@@ -62,7 +62,7 @@ export function Backups({ client, navigate }: { readonly client: AdminClient; re
         <thead><tr><th>Created</th><th>Destination</th><th>Status</th><th>Verification</th><th>Actions</th></tr></thead>
         <tbody>{backups.resource.data.items.map(backup => <tr key={backup.id}>
           <td data-label="Created"><time dateTime={backup.createdAt}>{new Date(backup.createdAt).toLocaleString()}</time></td>
-          <td data-label="Destination"><code>{backup.destination}</code></td><td data-label="Status">{backup.status}</td>
+          <td data-label="Destination"><code>{backup.destination}</code></td><td data-label="Status"><StatusBadge state={backup.status} /></td>
           <td data-label="Verification">{backup.verifiedAt ? <time dateTime={backup.verifiedAt}>{new Date(backup.verifiedAt).toLocaleString()}</time> : "Not verified"}</td>
           <td data-label="Actions"><div className="admin-row">
             <Button size="small" disabled={backup.status !== "succeeded"}

@@ -129,9 +129,9 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
   const timeline = <aside className="quire-history__timeline">
       <header><div><h2 id="history-title">Versions</h2>
         <p>Every checkpoint is immutable; restoring creates a new version.</p></div>
-        <div role="group" aria-label="History filter">
-          <Button size="small" variant={labelsOnly ? "neutral" : "dark"} onClick={() => setLabelsOnly(false)}>All history</Button>
-          <Button size="small" variant={labelsOnly ? "dark" : "neutral"} onClick={() => {
+        <div role="group" aria-label="History filter" className="quire-history__filter">
+          <Button size="small" variant="ghost" aria-pressed={!labelsOnly} onClick={() => setLabelsOnly(false)}>All history</Button>
+          <Button size="small" variant="ghost" aria-pressed={labelsOnly} onClick={() => {
             setLabelsOnly(true);
             const first = versions.find(version => version.labels.length > 0);
             if (first) { setSelectedId(first.id); setSelectedFile(null); }
@@ -157,7 +157,7 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
     <main className="quire-history__detail">
       {selected && <><header className="quire-history__toolbar">
         <div><h2>{selected.labels[0]?.name ?? historyReasonLabels[selected.snapshot.reason]}</h2>
-          <p>Revision {selected.snapshot.revision} · {localTime(selected.snapshot.createdAt)} · checkpoint actor, not original text ownership</p></div>
+          <p>Revision {selected.snapshot.revision} · {localTime(selected.snapshot.createdAt)} · <span title="Recorded actors are checkpoint actors, not original text ownership">checkpoint actor</span></p></div>
         <div><Button onClick={() => void run("download", async () => {
           const bytes = editorValue(await client.call(endpoints.historySource, {
             params: { p: workspace.scope.projectId, id: selected.id },
@@ -224,7 +224,7 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
               {deleted && <strong>Deleted now</strong>}</button>;
           })}</nav>
           <h3>Recorded file changes</h3>
-          <p>Colors identify who applied each immutable file transition, not who originally wrote its text.
+          <p className="quire-history__fine">Colors identify who applied each immutable file transition, not who originally wrote its text.
             Each preview shows one exact replacement span; retained text inside that span is not separately attributed.</p>
           {changesError ? <PanelMessage tone="error">{changesError} Recorded transitions are unavailable.
             No inaccessible intermediate source is shown.</PanelMessage>
@@ -269,7 +269,7 @@ export function HistoryPanel({ client, workspace, document, navigation, refreshW
             .map(file => <Button key={file.id} size="small" variant="primary"
               onClick={() => setRestoreTarget({ version: selected, fileIds: [file.id] })}>Recover deleted file</Button>)}
         </div>}
-      <PanelMessage>Permanent comment tombstones remain deleted after source restore.</PanelMessage>
+      <p className="quire-history__fine quire-history__note" role="note">Permanent comment tombstones remain deleted after source restore.</p>
       {error && <PanelMessage tone="error">{error}</PanelMessage>}
       {success && <PanelMessage tone="success">{success}</PanelMessage>}</>}
     </main>

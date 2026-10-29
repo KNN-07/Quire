@@ -112,3 +112,20 @@
   .admin-architecture-mobile{display:grid;gap:var(--q-space-5);padding-inline-start:var(--q-space-9)}
   .admin-header{flex-wrap:wrap;height:auto;min-block-size:var(--q-header-height);padding-block:var(--q-space-3)}
 }
+/* Overview: health strip, compact stat cards and status badges. */
+.admin-page-heading>div{flex:1;min-inline-size:0}
+.admin-page-heading>div>h1{margin:0}
+.admin-page-heading>div>p{margin:var(--q-space-2) 0 0}
+.admin-overview-card h2{font-size:var(--q-text-sm);font-weight:500;color:var(--q-tertiary);margin:0 0 var(--q-space-3)}
+.admin-overview-card p{font-size:var(--q-text-sm);margin-block:var(--q-space-2) var(--q-space-4)}
+.admin-overview-card .q-button{padding-inline:0;color:var(--q-brand);font-size:var(--q-text-sm)}
+.admin-overview-card .q-button:hover:not(:disabled){background:transparent;text-decoration:underline}
+.admin-health{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--q-space-5);list-style:none;margin:0;padding:0}
+.admin-health>li{display:grid;gap:var(--q-space-2);padding:var(--q-space-6) var(--q-space-7);border:1px solid var(--q-border);border-radius:12px;background:var(--q-surface);min-inline-size:0}
+.admin-health strong{font-weight:600;text-transform:capitalize}
+.admin-health span{font-size:var(--q-text-sm);color:var(--q-secondary);overflow-wrap:anywhere}
+.admin-table th{font-size:var(--q-text-sm);background:var(--q-sidebar)}
+.admin-resource:has(>.admin-table){padding:0;overflow:hidden}
+.admin-resource>.admin-table tr:last-child td{border-block-end:0}
+.admin-table th,.admin-table td{padding:var(--q-space-4) var(--q-space-7)}
+.admin-resource{margin-block-end:var(--q-space-7)}

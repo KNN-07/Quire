@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { AdapterGrant, ResponseOf } from "@quire/contracts";
 import { Button } from "../../ui";
-import { Notice, Panel, readInput, unwrap, useAction } from "./shared";
+import { Notice, Panel, readInput, Requirement, unwrap, useAction } from "./shared";
 import type { AccountPageProps } from "./shared";
 import { ConnectionForm } from "./connection-forms";
 import type { CredentialProvider } from "./connection-forms";
@@ -74,7 +74,7 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
               }
             }}>Connect {label}</Button>
           </div>
-          {capability?.reason && <p className="connection-requirements">{capability.reason}</p>}
+          {capability?.reason && <Requirement reason={capability.reason} summary="What does this need?" />}
           {!capability && <p className="connection-requirements">This provider is not installed in this application.</p>}
           {form === provider && <ConnectionForm client={client} provider={form} saved={() => load()} cancel={() => setForm(null)} />}
         </li>;

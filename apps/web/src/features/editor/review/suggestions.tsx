@@ -118,9 +118,9 @@ export function SuggestionsPanel({ client, workspace, document, selection, navig
         <option value="accepted">Accepted</option><option value="rejected">Rejected</option>
         <option value="conflict">Conflict</option></select></label>
     </header>
-    <div className="quire-suggestion__scope" role="group" aria-label="Proposal scope">
-      <Button size="small" variant={fileOnly ? "dark" : "neutral"} onClick={() => { setFileOnly(true); setSelected(new Set()); }}>This file</Button>
-      <Button size="small" variant={fileOnly ? "neutral" : "dark"} onClick={() => { setFileOnly(false); setSelected(new Set()); }}>Overview</Button>
+    <div className="quire-suggestion__scope quire-review__segments" role="group" aria-label="Proposal scope">
+      <Button size="small" variant="ghost" aria-pressed={fileOnly} onClick={() => { setFileOnly(true); setSelected(new Set()); }}>This file</Button>
+      <Button size="small" variant="ghost" aria-pressed={!fileOnly} onClick={() => { setFileOnly(false); setSelected(new Set()); }}>Overview</Button>
     </div>
     <nav className="quire-suggestion__scope" aria-label="Files with proposals">
       {workspace.files.filter(file => suggestions?.some(suggestion => suggestion.edits.some(edit => edit.fileId === file.id)))
@@ -136,7 +136,7 @@ export function SuggestionsPanel({ client, workspace, document, selection, navig
     </select></label>
     <ul className="quire-change__legend" aria-label="Proposal author legend">{authors.map(id =>
       <li key={id} data-actor-color={actorColor(id)}><span aria-hidden="true" />{authorName(id)}</li>)}</ul>
-    <p>Colors identify persisted proposal authors, not the editor who later accepts a proposal.
+    <p className="quire-review__fine">Colors identify persisted proposal authors, not the editor who later accepts a proposal.
       Previews are read-only; ordinary source typing is not tracked by this panel.</p>
     <form className="quire-review__form" onSubmit={event => {
       event.preventDefault();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { endpoints } from "@quire/contracts";
-import { Button, Spinner } from "../../ui";
+import { Button, RelativeTime, Spinner, StatusBadge } from "../../ui";
 import type { AdminClient } from "./api";
 import { useAdminResource } from "./useAdminResource";
 
@@ -23,9 +23,9 @@ export function CompileQueue({ client, navigate }: {
           <thead><tr><th>Project</th><th>Compiler</th><th>Status</th><th>Worker</th><th>Queued</th></tr></thead>
           <tbody>{queue.resource.data.items.map(job => <tr key={job.id}>
             <td data-label="Project">{job.projectName}<small> · {job.branch}</small></td>
-            <td data-label="Compiler">{job.engine}</td><td data-label="Status">{job.status}</td>
+            <td data-label="Compiler">{job.engine}</td><td data-label="Status"><StatusBadge state={job.status} /></td>
             <td data-label="Worker">{job.workerId ?? "Not assigned"}</td>
-            <td data-label="Queued"><time dateTime={job.queuedAt}>{new Date(job.queuedAt).toLocaleString()}</time></td>
+            <td data-label="Queued"><RelativeTime value={job.queuedAt} /></td>
           </tr>)}</tbody></table>}
       </div>
       {queue.resource.data.nextCursor && <Button onClick={() => setCursor(queue.resource?.data.nextCursor ?? undefined)}>Next queued jobs</Button>}

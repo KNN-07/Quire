@@ -24,7 +24,9 @@
 .qe-route,.qe-pdf-owner{block-size:100%;min-block-size:0;min-inline-size:0;overflow:hidden}
 .qe-route>*{block-size:100%;min-block-size:0}
 .qe-workspace [hidden]{display:none}
-.qe-title{min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-inline-end:auto}
+.qe-title{min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qe-breadcrumb>span[aria-hidden]{color:var(--q-muted)}
+.qe-breadcrumb>.q-button{color:var(--q-secondary);font-weight:400}
 .qe-breadcrumb{display:flex;align-items:center;gap:var(--q-space-2);flex:1;min-inline-size:0}
 .qe-breadcrumb>.q-button{padding-inline:0}
 .qe-breadcrumb>.q-button{flex-shrink:0;white-space:nowrap}

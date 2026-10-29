@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { endpoints, IdSchema, resourceVersionTag } from "@quire/contracts";
 import type { Id, Operation, ProjectSummary, Tag, TemplateVersion } from "@quire/contracts";
-import { AppHeader, Button, EmptyState, Field, Icon, IconButton, Modal, Spinner } from "../../ui";
+import { AppHeader, Button, EmptyState, Field, Icon, IconButton, Modal, RelativeTime, Spinner } from "../../ui";
 import { errorMessage, mutationHeaders, useResource, value } from "./api";
 import type { ProjectsPageProps } from "./api";
 import { NewProjectDialog } from "./NewProjectDialog";
@@ -19,16 +19,6 @@ const SortSchema = z.enum(["updated", "title", "owner"]);
 const DirectionSchema = z.enum(["asc", "desc"]);
 const WorkspaceSchema = z.union([z.enum(["all", "personal"]), IdSchema]);
 const engines: Record<string, string> = { pdflatex: "pdfLaTeX", latex: "LaTeX", xelatex: "XeLaTeX", lualatex: "LuaLaTeX", plain: "Plain TeX" };
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-function edited(iso: string) {
-  const date = new Date(iso);
-  const minutes = Math.round((date.getTime() - Date.now()) / 60_000);
-  if (minutes > -1) return "Just now";
-  if (minutes > -60) return relative.format(minutes, "minute");
-  if (minutes > -24 * 60) return relative.format(Math.round(minutes / 60), "hour");
-  if (minutes > -7 * 24 * 60) return relative.format(Math.round(minutes / (24 * 60)), "day");
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }) });
-}
 const lists = [
   { label: "All projects", owner: "all", state: "active" },
   { label: "Your projects", owner: "me", state: "active" },
@@ -206,7 +196,7 @@ export function ProjectsPage({ client, navigate, path, onSessionChange }: Projec
       {shownRows.length > 0 && <div className="p-table-wrap"><table className="p-table"><thead><tr><th><label className="p-select"><input type="checkbox" aria-label="Select all projects on this page" checked={shownRows.every(row => selected.includes(row.id))} onChange={event => setSelected(event.target.checked ? shownRows.map(row => row.id) : [])} /></label></th><th>Title</th><th>Owner</th><th>Last edited</th><th>Git</th><th>Compiler</th><th><span className="q-sr-only">Actions</span></th></tr></thead><tbody>
         {shownRows.map(row => <tr key={row.id}><td><label className="p-select"><input type="checkbox" aria-label={`Select ${row.name}`} checked={selected.includes(row.id)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.id] : previous.filter(id => id !== row.id))} /></label></td>
           <td data-label="Title"><Button variant="ghost" className="p-project-title" onClick={() => navigate(`/projects/${row.id}/edit`)}>{row.name}</Button><span className="p-cluster">{row.tagIds.map(id => tags.data?.find(tag => tag.id === id)).filter(tag => tag !== undefined).map(tag => <span className="p-tag" key={tag.id}>{tag.name}</span>)}</span></td>
-          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><time dateTime={row.updatedAt} title={new Date(row.updatedAt).toLocaleString()}>{edited(row.updatedAt)}</time></td><td data-label="Git"><code className="p-branch">{row.defaultBranch}</code></td><td data-label="Compiler">{engines[row.settings.engine] ?? row.settings.engine}</td><td className="p-row-actions"><IconButton variant="ghost" icon="more" label={`Project actions for ${row.name}`} title="Project actions" onClick={() => setActionProject(row)} /></td>
+          <td data-label="Owner">{row.ownerName}</td><td data-label="Last edited"><RelativeTime value={row.updatedAt} /></td><td data-label="Git"><code className="p-branch">{row.defaultBranch}</code></td><td data-label="Compiler">{engines[row.settings.engine] ?? row.settings.engine}</td><td className="p-row-actions"><IconButton variant="ghost" icon="more" label={`Project actions for ${row.name}`} title="Project actions" onClick={() => setActionProject(row)} /></td>
         </tr>)}
       </tbody></table></div>}
       {projects.data?.nextCursor && !projects.loading && !projects.error && <Button onClick={() => { setCursor(projects.data?.nextCursor ?? undefined); setSelected([]); }}>Next page</Button>}

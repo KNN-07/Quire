@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { ResponseOf } from "@quire/contracts";
-import { AppHeader, Button } from "../../ui";
+import { AppHeader, Button, Icon } from "../../ui";
 import { Notice, readInput, unwrap } from "./shared";
 import type { AccountPageProps } from "./shared";
 import { Profile } from "./profile";
@@ -40,7 +40,8 @@ export function Settings(props: AccountPageProps) {
   const tab = requestedTab === "notif" ? "notifications" : requestedTab === "identities" ? "security" : requestedTab;
   const settingsProps = account ? { ...props, account, userVersion: version, refresh } : null;
   return <>
-    <AppHeader actions={<a href="/projects">Back to projects</a>}>Account</AppHeader>
+    <AppHeader className="account-header" actions={account && <span className="account-header__avatar" title={account.user.name} aria-hidden="true">{account.user.name.trim().split(/\s+/u).slice(0, 2).map(part => Array.from(part)[0] ?? "").join("").toLocaleUpperCase()}</span>}>
+      <a href="/projects" className="account-back" onClick={event => { event.preventDefault(); props.navigate("/projects"); }}><Icon name="arrowLeft" size={14} />Back to projects</a></AppHeader>
     <div className="account-shell">
       <nav className="account-nav" aria-label="Settings sections"><h1>Settings</h1>{tabs.map(([id, label]) => <a key={id} href={`/settings/${id}`} aria-current={tab === id ? "page" : undefined} onClick={event => { event.preventDefault(); props.navigate(`/settings/${id}`); }}>{label}</a>)}</nav>
       <main className="account-main account-stack">

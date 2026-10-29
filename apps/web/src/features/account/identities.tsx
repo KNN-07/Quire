@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { LinkedIdentity } from "@quire/contracts";
 import { Button } from "../../ui";
-import { listInput, Notice, unwrap, useAction } from "./shared";
+import { listInput, Notice, Requirement, unwrap, useAction } from "./shared";
 import type { SettingsProps } from "./settings";
 import { useAuthOptions } from "./auth-options";
 
@@ -38,7 +38,9 @@ export function LinkedIdentities(props: SettingsProps) {
     {availability.error && <Notice error={availability.error} message="" />}
     {!availability.options && !availability.error && <p role="status">Loading provider availability…</p>}
     {availability.options?.providers.map(provider => <div key={provider.id} className="account-row">
-      <span>{provider.label}{!provider.capability.enabled && <small>{provider.capability.reason ?? provider.capability.state}</small>}</span>
+      <span>{provider.label}{!provider.capability.enabled && (provider.capability.reason && provider.capability.reason.length > 40
+        ? <Requirement reason={provider.capability.reason} summary="Not configured" />
+        : <small>{provider.capability.reason ?? provider.capability.state}</small>)}</span>
       <Button disabled={!provider.capability.enabled || version === null} busy={action.busy} onClick={() => { void action.run(async () => {
         if (version === null) return;
         const response = await props.client.callWithMetadata(endpoints.identityLink, { params: { provider: provider.id }, query: {}, body: { expectedVersion: version } });

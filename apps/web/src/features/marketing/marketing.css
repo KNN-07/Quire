@@ -164,3 +164,38 @@
   .qm-airgap{padding-top:0}
   .qm-install .q-tabs__list{flex-wrap:wrap}
 }
+/* Landing details from the design: eyebrow pill, terminal, tinted AI band, checked lists, closing call. */
+.qm-pill{display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;background:var(--q-selected);color:var(--q-brand);font-size:13px;font-weight:500}
+.qm-terminal{background:var(--q-dark);border-color:var(--q-dark);color:#E6E8EC;box-shadow:var(--q-dialog-shadow)}
+.qm-terminal figcaption{color:#9AA0AC}
+.qm-terminal pre{color:#E6E8EC}
+.qm-ai-band{background:var(--q-ai-wash);border-color:var(--q-ai-border)}
+.qm-ai-band .qm-eyebrow{color:var(--q-ai)}
+.qm-ai-band .qm-ai-sample{background:var(--q-surface);box-shadow:var(--q-shadow)}
+.qm-split ul{list-style:none;padding-left:0}
+.qm-split ul li{position:relative;padding-left:28px}
+.qm-split ul li::before{content:"";position:absolute;left:2px;top:.35em;width:12px;height:6px;border-left:2px solid var(--q-success);border-bottom:2px solid var(--q-success);transform:rotate(-45deg)}
+.qm-ai-band .qm-split ul li::before{border-color:var(--q-ai)}
+.qm-dark .qm-split ul li::before{border-color:#9db0ff}
+.qm-closing{padding-block:96px}
+.qm-closing h2{font-family:var(--q-font-serif);font-weight:400;font-size:40px}
+@media(max-width:700px){.qm-closing{padding-block:64px}.qm-closing h2{font-size:30px}}
+/* Pricing comparison: six accessible groups presented as one table. */
+.qm-comparison{margin-top:28px;border:1px solid var(--q-border);border-radius:12px;overflow:hidden;background:var(--q-surface)}
+.qm-comparison .qm-comparison-group{margin-top:0}
+.qm-comparison .qm-comparison-group>h3{margin:0;padding:18px 20px 8px;font-family:var(--q-font-sans);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--q-tertiary)}
+.qm-comparison .qm-table-wrap{margin-top:0;border:0;border-radius:0}
+.qm-comparison .qm-comparison-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.qm-comparison .qm-comparison-group:not(:first-child) thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.qm-comparison tbody th{font-weight:500}
+.qm-comparison-operator{color:var(--q-tertiary)!important;font-size:13px}
+/* Self-hosting: download cards, boxed commands and checked capability lists. */
+.qm-file-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;list-style:none;padding:0;margin:28px 0 0}
+.qm-file-list a{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:12px 16px;border:1px solid var(--q-border);border-radius:10px;background:var(--q-surface);color:var(--q-ink);font-weight:500;text-decoration:none}
+.qm-file-list a::after{content:"↓";color:var(--q-tertiary)}
+.qm-file-list a:hover{border-color:var(--q-brand);color:var(--q-brand)}
+.qm-note{margin-top:20px;font-size:14px;color:var(--q-tertiary)}
+.qm-airgap>pre{margin-block:24px 16px;padding:20px 24px;border-radius:12px;background:var(--q-dark);color:#E6E8EC;font-size:12.5px;line-height:1.8;overflow-x:auto;white-space:pre;overflow-wrap:normal}
+.qm-card>ul.qm-grid{list-style:none;padding:0}
+.qm-card>ul.qm-grid li{position:relative;padding-left:24px}
+.qm-card>ul.qm-grid li::before{content:"";position:absolute;left:2px;top:.4em;width:10px;height:5px;border-left:2px solid var(--q-success);border-bottom:2px solid var(--q-success);transform:rotate(-45deg)}

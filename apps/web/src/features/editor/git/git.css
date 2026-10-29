@@ -2,7 +2,13 @@
 .git-workspace{position:relative;display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr) minmax(260px,340px);grid-template-rows:minmax(0,1fr);min-width:0;min-height:0;height:100%;background:var(--q-bg);color:var(--q-ink)}
 .git-mobile-tabs{display:none}
 .git-sidebar,.git-history{min-width:0;min-height:0;overflow:auto;padding:var(--q-space-7);background:var(--q-surface)}
-.git-sidebar{border-inline-end:1px solid var(--q-border)}
+.git-sidebar{display:flex;flex-direction:column;border-inline-end:1px solid var(--q-border)}
+.git-sidebar>*{flex-shrink:0}
+.git-reason{font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.git-reason>summary{cursor:pointer;width:fit-content}
+.git-reason>summary:hover{color:var(--q-ink)}
+.git-reason>p{margin-block-start:var(--q-space-3)!important;padding:var(--q-space-4) var(--q-space-5);border-radius:var(--q-radius-md);background:var(--q-inset);overflow-wrap:anywhere}
+.git-diff__toolbar strong.git-diff__none{font-family:var(--q-font-sans);font-weight:500;color:var(--q-secondary)}
 .git-history{border-inline-start:1px solid var(--q-border);background:var(--q-sidebar)}
 .git-section,.git-commit,.git-clone,.git-history section{display:grid;gap:var(--q-space-3);padding-block:var(--q-space-7);border-block-end:1px solid var(--q-border)}
 .git-sidebar>:first-child,.git-history>:first-child{padding-block-start:0}
@@ -60,7 +66,7 @@
 .git-rendered{min-height:0;overflow:auto;padding:var(--q-space-9);background:var(--q-workspace)}
 .git-rendered figure{display:grid;justify-items:center;gap:var(--q-space-5);margin:0}
 .git-rendered img{display:block;width:min(100%,900px);height:auto;border:1px solid var(--q-border);background:var(--q-surface);box-shadow:var(--q-shadow)}
-.git-empty,.git-loading{display:grid;place-content:center;justify-items:center;gap:var(--q-space-5);min-height:220px;padding:var(--q-space-9);text-align:center}
+.git-empty,.git-loading{font-family:var(--q-font-sans);display:grid;place-content:center;justify-items:center;gap:var(--q-space-5);min-height:220px;padding:var(--q-space-9);text-align:center}
 .git-empty h2,.git-empty h3{margin:0}.git-empty p{max-width:52ch;margin:0;color:var(--q-secondary)}
 .git-history section{padding-block:var(--q-space-7)}
 .git-history ol li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px var(--q-space-3);padding:var(--q-space-3);border-radius:var(--q-radius-md)}

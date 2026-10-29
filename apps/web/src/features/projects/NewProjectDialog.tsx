@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { assertNever, endpoints, IdSchema } from "@quire/contracts";
 import type { Operation, Project, TemplateVersion } from "@quire/contracts";
-import { Button, Field, Modal, Tabs } from "../../ui";
+import { Button, Field, Modal, Tabs, formatBytes } from "../../ui";
 import { errorMessage, mutationHeaders, useResource, value } from "./api";
 import type { ProjectsPageProps } from "./api";
 import { TemplateBrowser } from "./Templates";
@@ -212,7 +212,7 @@ function CreationForm({ client, navigate, onClose, onCreated, initialMode = "tem
     event.preventDefault(); if (!busy && !created && !operation && (!importLocked || onboardingImport?.requiredFile)) setFile(event.dataTransfer.files[0]);
   }}><strong>Drop a .zip project here</strong><p>Folders and file names are kept as they are. Server upload limits apply.</p>
     <Field label="Choose file" type="file" accept=".zip,application/zip" disabled={busy || Boolean(created) || Boolean(operation) || importLocked && !onboardingImport?.requiredFile} onChange={event => setFile(event.target.files?.[0])} />
-    {file && <p>{file.name} · {file.size.toLocaleString()} bytes</p>}
+    {file && <p>{file.name} · {formatBytes(file.size)}</p>}
     {onboardingImport?.requiredFile && <p>To finish uploading, reselect {onboardingImport.requiredFile.filename} ({onboardingImport.requiredFile.bytes} bytes). The saved attempt will not be replaced.</p>}
     {importLocked && !onboardingImport?.requiredFile && <p>The original upload is saved. Resume without selecting a file again.</p>}
   </div>;

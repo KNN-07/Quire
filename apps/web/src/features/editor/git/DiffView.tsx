@@ -79,7 +79,7 @@ export function DiffView(props: Props) {
   const selected = props.hunks;
   return <main className="git-diff" aria-label="Git comparison">
     <header className="git-diff__toolbar">
-      <div><strong>{selected[0]?.path ?? "No changed file selected"}</strong>
+      <div><strong className={selected[0] ? undefined : "git-diff__none"}>{selected[0]?.path ?? "No changed file selected"}</strong>
         <span>Working tree vs HEAD ({shortOid(props.head)})</span></div>
       <label>Compare
         <select value={props.target} onChange={event => props.onTarget(event.currentTarget.value === "staged" ? "staged" : "working")}>

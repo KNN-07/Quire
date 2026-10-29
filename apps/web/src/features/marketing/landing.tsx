@@ -1,6 +1,7 @@
 export function Landing() {
   return <>
     <section className="qm-wrap qm-hero">
+      <span className="qm-pill">LaTeX editor for research teams</span>
       <h1>Write LaTeX together.<br />Version it like code.</h1>
       <p>Edit source or a visual document, watch the PDF build beside it, and keep every change in real git - with your organization's single sign-on.</p>
       <div className="qm-actions"><a className="qm-link-button qm-primary" href="/sign-up">Start writing - free</a><a className="qm-link-button" href="/projects?view=templates">Browse templates</a></div>
@@ -19,9 +20,9 @@ export function Landing() {
     </div></section>
     <section id="git" className="qm-wrap qm-section qm-split">
       <div><span className="qm-eyebrow">Real git, not an export</span><h2>Your paper is a repository</h2><p className="qm-lead">Clone it, branch it, commit it. Work offline with the tools you already use, then bring your changes back to Quire.</p><ul><li>Review source changes before you commit</li><li>Keep branches for experiments and submissions</li><li>Connect remote providers when configured</li></ul><a href="/projects">Open your projects</a></div>
-      <figure className="qm-code"><figcaption>Illustrative Git workflow</figcaption><pre>{`git clone <your-project-clone-url>\ngit switch -c revision\n# edit your paper locally\ngit add main.tex\ngit commit -m "Revise introduction"\ngit push origin revision`}</pre></figure>
+      <figure className="qm-code qm-terminal"><figcaption>Illustrative Git workflow</figcaption><pre>{`git clone <your-project-clone-url>\ngit switch -c revision\n# edit your paper locally\ngit add main.tex\ngit commit -m "Revise introduction"\ngit push origin revision`}</pre></figure>
     </section>
-    <section id="ai" className="qm-band"><div className="qm-wrap qm-section qm-split">
+    <section id="ai" className="qm-band qm-ai-band"><div className="qm-wrap qm-section qm-split">
       <figure className="qm-card qm-ai-sample"><figcaption>Illustrative proposed edit</figcaption><p>Tighten the abstract and check the citation.</p><pre>- of their environment and plan inside it.<br />+ their environment and plan inside it.</pre><p>Review the proposed diff before applying it.</p></figure>
       <div><span className="qm-eyebrow">AI assistant</span><h2>A co-author that knows LaTeX - and shows its work</h2><p className="qm-lead">Ask about your paper, or give the agent a task. AI requires your operator's configured model and endpoint.</p><ul><li>Ask questions using selected project context</li><li>Review proposed changes before applying them</li><li>Keep provider and citation search settings explicit</li></ul><a href="/self-hosting#ai">Bring your own model - or none</a></div>
     </div></section>
@@ -43,6 +44,8 @@ export function Landing() {
     ].map(([name, text]) => <article key={name}><h3>{name}</h3><p>{text}</p></article>)}</div></div></section>
     <section className="qm-wrap qm-section qm-center"><h2>Pricing</h2><p className="qm-lead">The local edition is unbilled. Hosted prices and support terms come from your operator.</p><div className="qm-actions"><a className="qm-link-button" href="/pricing">Compare options</a><a href="/self-hosting">Host Quire yourself</a></div></section>
     <section className="qm-band"><div className="qm-faq qm-section"><h2>A few questions</h2><details open><summary>Do I need to install LaTeX?</summary><p>Not on your writing device. The server needs an installed and verified TeX Live environment and an isolated compile worker.</p></details><details><summary>Can I work offline?</summary><p>Clone your project with Git to edit locally. Browser collaboration needs a connection to your server.</p></details><details><summary>Can we host it ourselves?</summary><p>Yes. Start with the native local profile and read the deployment requirements before exposing it to a network.</p><a href="/self-hosting">Self-hosting guide</a></details></div></section>
+    <section className="qm-wrap qm-section qm-center qm-closing"><h2>Your next paper starts here.</h2>
+      <div className="qm-actions"><a className="qm-link-button qm-primary" href="/sign-up">Create your account</a></div></section>
   </>;
 }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { ResponseOf, Worker } from "@quire/contracts";
-import { Button, EmptyState, Field, Modal, Spinner } from "../../ui";
+import { Button, EmptyState, Field, Modal, Spinner, StatusBadge } from "../../ui";
 import type { AdminClient } from "./api";
 import { errorMessage } from "./api";
 import { useAdminResource } from "./useAdminResource";
@@ -50,7 +50,7 @@ export function Workers({ client }: { readonly client: AdminClient }) {
         <tbody>{workers.resource.data.items.map(worker => <tr key={worker.id}>
           <td data-label="Worker"><code title={worker.id}>{worker.id.slice(0, 8)}</code></td>
           <td data-label="Pool">{pools.find(pool => pool.id === worker.poolId)?.name ?? "Unknown pool"}</td>
-          <td data-label="Status">{worker.state}</td><td data-label="Builds today">{worker.buildsToday}</td>
+          <td data-label="Status"><StatusBadge state={worker.state} /></td><td data-label="Builds today">{worker.buildsToday}</td>
           <td data-label="Last heartbeat"><time dateTime={worker.lastHeartbeat}>{new Date(worker.lastHeartbeat).toLocaleTimeString()}</time></td>
           <td data-label="Actions"><div className="admin-row">
             <Button size="small" disabled={worker.state === "offline" || worker.state === "draining" || workers.resource?.version === null}

@@ -37,6 +37,10 @@ export function unwrap<T>(result: Result<T>): T {
 class AccountRequestError extends Error {
   constructor(readonly code: string, message: string) { super(message); this.name = "AccountRequestError"; }
 }
+/** Operator-facing configuration requirements stay available without dominating the page. */
+export function Requirement({ reason, summary = "Why is this unavailable?" }: { readonly reason: string; readonly summary?: string }) {
+  return <details className="account-requirement"><summary>{summary}</summary><p>{reason}</p></details>;
+}
 export function Notice({ error, message }: { readonly error: string; readonly message: string }) {
   return <>{error && <p role="alert" className="account-error">{error}</p>}{message && <p role="status" className="account-notice">{message}</p>}</>;
 }

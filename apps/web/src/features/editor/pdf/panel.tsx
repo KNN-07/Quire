@@ -180,7 +180,7 @@ export function PdfPanel(props: PdfPanelOptions) {
         }}>Source to PDF</Button>}
         </div>}
         {data ? <PdfViewer compact={props.presentation === "embedded"} data={data} browser={browser} location={location} onReverse={reverse} onError={onError} /> :
-          <div className="q-pdf-body"><p>{artifact ? "Loading compiled PDF…" : "No successful PDF available. Recompile this project."}</p></div>}
+          <div className="q-pdf-body q-pdf-empty"><p>{artifact ? "Loading compiled PDF…" : "No successful PDF available. Recompile this project."}</p></div>}
       </div> },
       { value: "logs", label: "Logs", content: tab === "logs" ? <div className="q-pdf-content"><CompileLogs client={props.client}
         workspace={props.workspace} job={state.job} navigation={props.navigation} onError={onError} onFixDiagnostic={props.onFixDiagnostic} /></div> : null },

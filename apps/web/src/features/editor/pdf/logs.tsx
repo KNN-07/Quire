@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { endpoints } from "@quire/contracts";
 import type { CompileJob, Diagnostic } from "@quire/contracts";
-import { Button } from "../../../ui";
+import { Button, formatBytes } from "../../../ui";
 import { editorValue } from "../shared";
 import type { EditorClient, EditorNavigation, EditorWorkspace } from "../shared";
 import { downloadArtifact } from "./artifact";
@@ -41,7 +41,7 @@ export function CompileLogs({ client, workspace, job, navigation, onError, onFix
     });
     return () => abort.abort();
   }, [client, workspace, job?.id, job?.status, onError]);
-  if (!job) return <div className="q-pdf-body"><p>Compile this project to read diagnostics and generated files.</p></div>;
+  if (!job) return <div className="q-pdf-body q-pdf-empty"><p>Compile this project to read diagnostics and generated files.</p></div>;
   const raw = new TextDecoder().decode(bytes);
   const diagnostics = job.diagnostics.filter(item => severity === "all" || item.severity === severity);
   const run = (action: Promise<void>) => void action.catch(error => {
@@ -62,24 +62,26 @@ export function CompileLogs({ client, workspace, job, navigation, onError, onFix
         diagnostics.length ? <ol className="q-pdf-diagnostics">{diagnostics.map(item => {
           const file = workspace.files.find(entry => entry.id === item.fileId);
           const excerpt = new TextDecoder().decode(bytes.subarray(item.rawStart, item.rawEnd));
-          return <li key={item.id}>
-            <strong>{item.severity}</strong><p>{item.message}</p>
-            {item.fileId && <Button onClick={() => {
+          return <li key={item.id} data-severity={item.severity}>
+            <header><strong className="q-pdf-severity">{item.severity}</strong><p>{item.message}</p></header>
+            {excerpt.trim() && excerpt.trim() !== item.message.trim() && <pre>{excerpt}</pre>}
+            <div className="q-pdf-diagnostic-actions">
+            {item.fileId && <Button size="small" onClick={() => {
               if (item.fileId) run(navigation.revealSource({ fileId: item.fileId,
                 line: Math.max(1, item.line ?? 1), column: Math.max(1, item.column ?? 1) }));
             }}>Go to {file?.path ?? "source"}:{item.line ?? 1}</Button>}
-            {onFixDiagnostic && <Button variant="ai" disabled={!loaded || !workspace.access.capabilities.edit || !file?.editable}
+            {onFixDiagnostic && <Button size="small" variant="ai" disabled={!loaded || !workspace.access.capabilities.edit || !file?.editable}
               title={!workspace.access.capabilities.edit ? "Editing access is required" : !file?.editable ? "No editable source is linked" : "Choose context and consent before sending"}
               onClick={() => onFixDiagnostic({ key: crypto.randomUUID(), diagnostic: item, revision: job.snapshot.revision, excerpt })}>
               Fix with AI
             </Button>}
-            <pre>{excerpt}</pre>
+            </div>
           </li>;
         })}</ol> : <p>No {severity === "all" ? "" : `${severity} `}diagnostics reported.</p>}
       <h3>Output files</h3>
-      <ul>{job.artifacts.map(artifact => <li key={artifact.id}>
-        <Button onClick={() => run(downloadArtifact({ client, workspace, artifact }))}>
-          Download {artifact.name} ({artifact.bytes.toLocaleString()} bytes)
+      <ul className="q-pdf-artifacts">{job.artifacts.map(artifact => <li key={artifact.id}>
+        <Button size="small" onClick={() => run(downloadArtifact({ client, workspace, artifact }))}>
+          Download {artifact.name} ({formatBytes(artifact.bytes)})
         </Button>
       </li>)}</ul>
       {!job.artifacts.length && <p>No generated files are available for this job.</p>}

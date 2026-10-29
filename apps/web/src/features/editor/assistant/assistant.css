@@ -96,3 +96,5 @@
   .qa-assistant__context>summary,.qa-assistant__privacy>summary,.qa-assistant .qa-assistant__privacy .q-button{font-size:15px}
 }
 @media(max-width:600px){.qa-assistant .qa-assistant__modes .q-button,.qa-assistant .qa-assistant__tool select,.qa-assistant [aria-label="Project search consent"] .qa-assistant__check{font-size:15px}}
+/* Full-page assistant route: keep conversation and review at a readable measure. */
+.qe-main>.qa-assistant>.qa-assistant__header,.qe-main>.qa-assistant>.qa-assistant__body{padding-inline:max(var(--q-space-7),calc((100% - 860px) / 2))}

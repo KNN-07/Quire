@@ -57,6 +57,20 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   </dialog>;
 }
 
+const okStates = new Set(["ready", "healthy", "configured", "enabled", "succeeded", "active", "connected", "verified", "passed"]);
+const warnStates = new Set(["running", "queued", "pending", "degraded", "draining", "scheduled", "unverified", "stale"]);
+const badStates = new Set(["failed", "error", "unavailable", "unhealthy", "timeout", "denied", "expired"]);
+export type StatusTone = "ok" | "warn" | "bad" | "neutral";
+export function statusTone(state: string): StatusTone {
+  const key = state.toLowerCase();
+  return okStates.has(key) ? "ok" : warnStates.has(key) ? "warn" : badStates.has(key) ? "bad" : "neutral";
+}
+export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> { state: string; tone?: StatusTone | undefined }
+/** A dot plus the reported state text; the text stays first so it reads and copies verbatim. */
+export function StatusBadge({ state, tone, className = "", children, ...props }: StatusBadgeProps) {
+  return <span {...props} className={`q-status ${className}`} data-tone={tone ?? statusTone(state)}>{state}{children}</span>;
+}
+
 export interface EmptyStateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> { title: ReactNode; description?: ReactNode; action?: ReactNode; icon?: IconName }
 export function EmptyState({ title, description, action, icon, className = "", ...props }: EmptyStateProps) {
   return <div {...props} className={`q-empty ${className}`}>{icon && <Icon name={icon} size={24} />}<h2 className="q-empty__title">{title}</h2>{description && <p className="q-empty__description">{description}</p>}{action}</div>;

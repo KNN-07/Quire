@@ -83,7 +83,7 @@ export function ThreadsPanel(props: ReviewPanelProps) {
     data-review-live={live ? "true" : "false"}>
     <header className="quire-review__section-header">
       <div><h2 id="threads-title">Comments</h2>
-        <p>Anchors follow source edits through Yjs relative positions.</p></div>
+        <p>Comments stay attached to their text as it is edited.</p></div>
       <label className="quire-review__compact-label">Show<select value={status}
         onChange={event => {
           const next = event.currentTarget.value;

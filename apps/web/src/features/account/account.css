@@ -93,3 +93,30 @@
 .account-auth:not(.account-signup) .account-provider-grid:has(>:nth-child(4)){gap:var(--q-space-3)}
 .account-auth:not(.account-signup) .account-provider-grid:has(>:nth-child(4)) .q-button{min-height:40px}
 .account-provider-grid .q-button:disabled{opacity:1;color:var(--q-tertiary);background:var(--q-inset);border-style:dashed}
+/* Settings: header, panel rhythm and the profile photo row. */
+.account-header{padding-inline:var(--q-space-9)}
+.account-back{display:inline-flex;align-items:center;gap:var(--q-space-2);color:var(--q-secondary)!important;text-decoration:none;font-size:var(--q-text-base)}
+.account-back:hover{color:var(--q-ink)!important}
+.account-header__avatar{display:grid;place-items:center;inline-size:34px;block-size:34px;border-radius:50%;background:var(--q-avatar-kn);color:var(--q-avatar-kn-ink);font-size:var(--q-text-sm);font-weight:600}
+.account-panel>h2+p.account-muted{margin-block-start:calc(var(--q-space-9) * -1 + var(--q-space-2))}
+.account-panel h2{font-size:var(--q-text-brand)}
+.account-photo{display:flex;align-items:center;gap:var(--q-space-8);flex-wrap:wrap}
+.account-photo__controls{display:flex;flex-direction:column;gap:var(--q-space-4);min-inline-size:0}
+.account-photo .account-avatar{font-size:26px;font-weight:600}
+.account-file{position:relative;cursor:pointer}
+.account-file:focus-within{outline:2px solid var(--q-brand);outline-offset:2px}
+.account-subheading{margin-block-start:var(--q-space-5)!important;padding-block-start:var(--q-space-9);border-block-start:1px solid var(--q-border);font-size:var(--q-text-form)}
+@media(pointer:fine) and (min-width:651px){.account-nav a{min-height:40px}}
+.account-panel h2{font-size:18px}
+.account-form[data-inline]{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:var(--q-space-4)}
+@media(max-width:650px){.account-form[data-inline]{grid-template-columns:minmax(0,1fr)}}
+.account-requirement{font-size:var(--q-text-sm);color:var(--q-tertiary)}
+.account-requirement>summary{cursor:pointer;inline-size:fit-content}
+.account-requirement>summary:hover{color:var(--q-ink)}
+.account-requirement>p{margin-block-start:var(--q-space-3)!important;padding:var(--q-space-4) var(--q-space-5);border-radius:var(--q-radius-md);background:var(--q-inset);color:var(--q-secondary);overflow-wrap:anywhere}
+.account-row>span>.account-requirement{margin-block-start:var(--q-space-1)}
+/* Secondary panel actions size to their label instead of spanning the panel. */
+.account-main :is(.account-panel,.account-stack,.account-form,.account-form fieldset)>.q-button{align-self:flex-start}
+.account-signup .account-provider-grid:has(>:nth-child(4)){grid-template-columns:minmax(0,1fr);gap:var(--q-space-3)}
+.account-signup .account-provider-grid:has(>:nth-child(4)) .q-button{min-height:40px;padding-inline:var(--q-space-5)}
+.account-signup .account-intro ol{padding-inline-start:var(--q-space-8);color:rgb(255 255 255 / 82%)}

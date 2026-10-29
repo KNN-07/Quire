@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, IconButton, Modal, Spinner } from "../../../ui";
+import { Button, IconButton, Modal, RelativeTime, Spinner } from "../../../ui";
 import { ConflictPanel } from "./ConflictPanel";
 import { DiffView } from "./DiffView";
 import { cloneUrl, shortOid } from "./types";
@@ -114,9 +114,11 @@ export function GitPanel(props: GitPanelProps) {
       </form>
       <section className="git-section">
         <h2>Remote</h2>
-        {gitConnections.length === 0 ? <p className="git-muted">
-          {remoteAvailability?.reason ?? "No configured Git remote."} <a href="/settings/git">Configure a connection</a>.
-        </p>
+        {gitConnections.length === 0 ? <>
+          <p className="git-muted">No configured Git remote. <a href="/settings/git">Configure a connection</a>.</p>
+          {remoteAvailability?.reason && <details className="git-reason"><summary>Why is a remote unavailable?</summary>
+            <p>{remoteAvailability.reason}</p></details>}
+        </>
           : gitConnections.map(connection => <div className="git-remote" key={connection.id}>
             <span><strong>{connection.label}</strong><small>{connection.provider} · {connection.state}</small></span>
             {connection.state === "ready" && <span>
@@ -153,7 +155,7 @@ export function GitPanel(props: GitPanelProps) {
     <aside className="git-history" aria-label="History and branches">
       <section><div className="git-section__heading"><h2>History</h2><Button size="small" variant="ghost" onClick={() => { void git.reload(); }}>Refresh</Button></div>
         <ol>{git.log.map(commit => <li key={commit.oid}><strong>{commit.message}</strong>
-          <span>{commit.author} · {new Date(commit.at).toLocaleString()}</span><code>{shortOid(commit.oid)}</code></li>)}</ol></section>
+          <span>{commit.author} · <RelativeTime value={commit.at} /></span><code>{shortOid(commit.oid)}</code></li>)}</ol></section>
       <section><h2>Branches</h2><ul>{git.branches.map(branch => <li key={branch.name}
         className={branch.current ? "is-current" : ""}><span><code>{branch.name}</code>
           <small>{branch.current ? "current" : `${branch.ahead} ahead · ${branch.behind} behind`}</small></span>
