@@ -140,6 +140,6 @@ test("replays only authorized SSE project events and closes streams on session r
   let done = false;
   while (!done) done = (await reader.read()).done;
   expect(done).toBe(true);
-  controller.abort(); outsiderAbort.abort();
   await reader.cancel(); await outsiderReader.cancel();
+  controller.abort(); outsiderAbort.abort();
 });
