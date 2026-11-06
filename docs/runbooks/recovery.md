@@ -110,6 +110,15 @@ Restored worker records are offline and old source PIDs are cleared; no source
 process is adopted or signaled. Those changes are recorded in the restore
 receipt. Durable worker policy and accounting remain intact.
 
+Project sharing baselines are restored exactly from the signed archive,
+including their workspace, sharing ceiling, provenance, and capture timestamp.
+Archive import is not project creation: the sharing capture trigger is
+suspended only inside the isolated database import transaction and restored
+before commit. A failed import rolls back that trigger change with the rows.
+Restoration does not recapture policy from current organization settings or
+relabel migration baselines as creation baselines. Projects created after
+restoration still capture their own creation-time workspace contribution.
+
 ## Schedule and retention
 
 Supported policy schedules are `disabled` or `minute hour * * *` in UTC.

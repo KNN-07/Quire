@@ -12,6 +12,7 @@ import { DigestSchema } from "@quire/contracts";
 import { fixtureIds } from "../../fixtures/foundation";
 import { backupFixture } from "./fixture";
 import { restoreTargetScaleFixture } from "./restore-target-scale-fixture";
+import { CoreProjects } from "../../../services/core/base";
 
 test("restores actual PostgreSQL/S3/owned remote Git into distinct original-dialect stores and rejects shared authority", async () => {
   await using native = await backupFixture();
@@ -83,6 +84,16 @@ test("restores actual PostgreSQL/S3/owned remote Git into distinct original-dial
     .toEqual(await source.runtime.db.all("SELECT id,digest FROM schema_migrations ORDER BY id"));
   expect(await exportDatabase(source.runtime)).toEqual(before);
   expect(await exportRepository(source.runtime, fixtureIds.project)).toEqual(git);
+  const sharing = await source.runtime.db.all("SELECT * FROM account_project_sharing ORDER BY project_id");
+  expect(await target.runtime.db.all("SELECT * FROM account_project_sharing ORDER BY project_id")).toEqual(sharing);
+  const projects = new CoreProjects({ ...target.runtime, routes: target.runtime.routes.forLane("K") });
+  const created = await projects.create(fixtureIds.kien, {
+    name: "PostgreSQL creation after restore", workspaceId: fixtureIds.team, origin: { kind: "blank" },
+  });
+  expect(await target.runtime.db.get("SELECT sharing,provenance FROM account_project_sharing WHERE project_id=?", [created.id]))
+    .toEqual({ sharing: "named", provenance: "creation" });
+  expect(await target.runtime.db.all("SELECT * FROM account_project_sharing WHERE project_id<>? ORDER BY project_id", [created.id]))
+    .toEqual(sharing);
   const survivor = await scale.open("nonempty");
   const blob = await survivor.runtime.blobs.put(new TextEncoder().encode("preserve existing bucket contents"));
   await rejects(restoreBackupToTarget(source.runtime, { archive: archive.destination, target: survivor.runtime,

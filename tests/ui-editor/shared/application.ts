@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "@quire/runtime";
 import type { RealtimeSocketData } from "@quire/runtime";
 import { createApplication } from "../../../apps/server/src/composition";
-import { seed } from "../../../scripts/seed";
+import { seedSharingProject as seed } from "../../fixtures/sharing-seed";
 import { startEditorWeb } from "./web-server";
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");

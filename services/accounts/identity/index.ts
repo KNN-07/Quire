@@ -9,6 +9,7 @@ import { registerReads } from "./reads";
 import { projectBenefitsMigration } from "./project-benefits-migration";
 import { identityProvenanceMigration } from "./identity-provenance-migration";
 import { onboardingMigration } from "./onboarding-migration";
+import { projectSharingMigration } from "./project-sharing-migration";
 import { registerOnboarding } from "./onboarding";
 import { registerOnboardingImports } from "./onboarding-imports";
 
@@ -42,7 +43,7 @@ CREATE TABLE identity_requests (
   response_json TEXT NOT NULL, PRIMARY KEY(actor,route,key)
 ) STRICT;
 `,
-}, projectBenefitsMigration, identityProvenanceMigration, onboardingMigration];
+}, projectBenefitsMigration, identityProvenanceMigration, onboardingMigration, projectSharingMigration];
 export function register(context: ModuleContext): void {
   const repository = store(context);
   const auth = authentication(context, repository);

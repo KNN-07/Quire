@@ -6,7 +6,7 @@ import { IdSchema, DigestSchema, FileEntrySchema, SnapshotSchema } from "@quire/
 import type { CompileSettings, BlobStore, ProjectPort, Id } from "@quire/contracts";
 import { createRuntime, loadConfig, ServiceError } from "@quire/runtime";
 import type { RuntimeOptions } from "@quire/runtime";
-import { seed } from "../../scripts/seed";
+import { seedSharingProject as seed } from "../fixtures/sharing-seed";
 import { fixtureIds as ids, defaultPolicy } from "../fixtures/foundation";
 import { register, migrations, startWorker, stopWorker } from "../../services/compiler";
 import { CompilerStore } from "../../services/compiler/store";

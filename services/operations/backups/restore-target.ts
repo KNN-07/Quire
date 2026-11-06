@@ -223,6 +223,25 @@ async function importDatabase(target: BackupContext, image: DatabaseImage): Prom
       case "postgres": break;
       default: { const exhaustive: never = tx.dialect; throw new BackupError("RESTORE_DIALECT_INVALID", exhaustive); }
     }
+    // Archive replay restores the captured baseline; it is not new project creation.
+    // DDL is transactional on both dialects, including rollback after an import failure.
+    let restoreSharingTrigger: string | undefined;
+    if (image.tables.some(table => table.name === "account_project_sharing")) {
+      switch (tx.dialect) {
+        case "sqlite": {
+          const trigger = z.object({ sql: z.string() }).parse(await tx.get(
+            "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='account_project_sharing_create'"));
+          restoreSharingTrigger = trigger.sql;
+          await tx.exec("DROP TRIGGER account_project_sharing_create");
+          break;
+        }
+        case "postgres":
+          restoreSharingTrigger = "ALTER TABLE projects ENABLE TRIGGER account_project_sharing_create";
+          await tx.exec("ALTER TABLE projects DISABLE TRIGGER account_project_sharing_create");
+          break;
+        default: { const exhaustive: never = tx.dialect; throw new BackupError("RESTORE_DIALECT_INVALID", exhaustive); }
+      }
+    }
     for (const table of [...ordered].reverse()) {
       if (table.name !== "schema_migrations") await tx.run(`DELETE FROM ${identifier(table.name)}`);
     }
@@ -235,6 +254,7 @@ async function importDatabase(target: BackupContext, image: DatabaseImage): Prom
           columns.map(column => decodeCell(row[column] ?? null)));
       }
     }
+    if (restoreSharingTrigger) await tx.exec(restoreSharingTrigger);
     // Dead owners must not acquire authority on the isolated instance; retain every fence.
     await tx.run("UPDATE branch_leases SET expires_at=?", [target.clock.now()]);
     switch (tx.dialect) {

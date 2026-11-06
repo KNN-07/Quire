@@ -5,6 +5,31 @@ template, ZIP, GitHub and generic Git creation. Template/import modes also
 accept an optional exact main-document path. These choices are published
 with the project rather than patched afterward.
 
+## Workspace sharing baseline
+
+The workspace organization's sharing ceiling is captured when a project is
+inserted, including imports and copies. Later workspace policy changes apply
+to future projects. Existing projects retain their workspace sharing baseline;
+owners may tighten access. A copy is a new project and captures its own
+workspace contribution rather than inheriting the source project's baseline.
+
+Upgrade migration `014-a-project-sharing` captures the current workspace
+sharing contribution for every preexisting project in `account_project_sharing`.
+These rows have `provenance='migration'` and a separate `captured_at` timestamp.
+They record upgrade-time policy, **not historical creation-time policy**.
+New insertions have `provenance='creation'`. A null workspace and sharing value
+mean there was no workspace sharing contribution. The upgrade does not change
+project `created_at`, `updated_at`, version, or source history. Restarting does
+not recapture the baseline.
+
+Only the workspace contribution to `sharing` is prospective. Organization
+restrictions on the current actor remain live, including when the actor is
+also a member of the project's workspace. Joining or leaving an organization
+can therefore change that actor's effective permissions on existing projects.
+Project, user, global, and federation restrictions still apply immediately,
+as do AI, chat, anonymous access, session validity, and link revocation.
+A stored permissive baseline does not grant access or override a live denial.
+
 Fresh blank/example creation starts from the account's saved compiler.
 Other fresh modes retain their existing pdfLaTeX fallback unless you select
 another compiler or restore an explicit onboarding draft. A template version

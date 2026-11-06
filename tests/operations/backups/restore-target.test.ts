@@ -7,7 +7,8 @@ import { createBackup, inspectRestoreTarget, restoreBackupToTarget } from "../..
 import { backupHost } from "../../../services/operations/backups/model";
 import { exportDatabase } from "../../../services/operations/backups/database";
 import { exportRepository } from "../../../services/operations/backups/repositories";
-import { fixtureIds } from "../../fixtures/foundation";
+import { fixtureIds, defaultPolicy } from "../../fixtures/foundation";
+import { CoreProjects } from "../../../services/core/base";
 import { backupFixture } from "./fixture";
 
 async function openTarget(fixture: Awaited<ReturnType<typeof backupFixture>>, name: string) {
@@ -20,6 +21,22 @@ async function openTarget(fixture: Awaited<ReturnType<typeof backupFixture>>, na
 test("imports into an explicit native target, preserves original rows/blobs/Git and leaves source and caller handles intact", async () => {
   await using fixture = await backupFixture();
   const source = fixture.runtime;
+  // The archive contains an upgrade baseline and a creation baseline, both authoritative.
+  await source.db.run(`UPDATE account_project_sharing SET provenance='migration',captured_at=?
+    WHERE project_id=?`, ["2026-10-26T01:02:03.456Z", fixtureIds.project]);
+  await source.db.run("UPDATE organizations SET policy_json=? WHERE id=?",
+    [JSON.stringify({ ...defaultPolicy, sharing: "anyone" }), fixtureIds.team]);
+  const sourceProjects = new CoreProjects({ ...source, routes: source.routes.forLane("K") });
+  await sourceProjects.create(fixtureIds.kien, {
+    name: "Creation baseline", workspaceId: fixtureIds.team, origin: { kind: "blank" },
+  });
+  await source.events.dispatch();
+  const sharing = await source.db.all("SELECT * FROM account_project_sharing ORDER BY project_id");
+  expect(sharing).toHaveLength(2);
+  expect(sharing).toContainEqual({
+    project_id: fixtureIds.project, workspace_id: fixtureIds.team, sharing: "named",
+    provenance: "migration", captured_at: "2026-10-26T01:02:03.456Z",
+  });
   const before = await exportDatabase(source);
   const git = await exportRepository(source, fixtureIds.project);
   const archive = await createBackup(source);
@@ -43,9 +60,41 @@ test("imports into an explicit native target, preserves original rows/blobs/Git 
     expect(await exportDatabase(source)).toEqual(before);
     expect(await exportRepository(source, fixtureIds.project)).toEqual(git);
     expect(await target.db.get("SELECT id FROM users LIMIT 1")).not.toBeNull();
+    expect(await target.db.all("SELECT * FROM account_project_sharing ORDER BY project_id")).toEqual(sharing);
+    // Import must restore the creation trigger before admitting subsequent project creation.
+    const targetProjects = new CoreProjects({ ...target, routes: target.routes.forLane("K") });
+    const created = await targetProjects.create(fixtureIds.kien, {
+      name: "After restore", workspaceId: fixtureIds.team, origin: { kind: "blank" },
+    });
+    expect(await target.db.get("SELECT sharing,provenance FROM account_project_sharing WHERE project_id=?", [created.id]))
+      .toEqual({ sharing: "anyone", provenance: "creation" });
+    expect(await target.db.all("SELECT * FROM account_project_sharing WHERE project_id<>? ORDER BY project_id", [created.id]))
+      .toEqual(sharing);
     console.info("RESTORE_TARGET_NATIVE", JSON.stringify({ backup: archive.manifest.id,
       digest: result.receipt.manifestDigest, tables: before.tables.length, database: identity.database,
       blobs: identity.blobs, repositories: identity.repositories }));
+  } finally { await target.close(); }
+}, 120000);
+
+test("rolls back trigger suspension and imported rows when archived sharing insertion fails", async () => {
+  await using fixture = await backupFixture();
+  const source = fixture.runtime;
+  const archive = await createBackup(source);
+  const target = await openTarget(fixture, "sharing-rollback");
+  try {
+    const trigger = await target.db.get(
+      "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='account_project_sharing_create'");
+    await target.db.exec(`CREATE TRIGGER sharing_restore_failure BEFORE INSERT ON account_project_sharing
+      BEGIN SELECT RAISE(ABORT,'injected archived sharing failure'); END`);
+    await rejects(restoreBackupToTarget(source, {
+      archive: archive.destination, target, identity: await inspectRestoreTarget(target),
+      retained: [await inspectRestoreTarget(source)],
+    }), /injected archived sharing failure/);
+    expect(await target.db.get(
+      "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='account_project_sharing_create'")).toEqual(trigger);
+    expect(await target.db.all("SELECT * FROM account_project_sharing")).toEqual([]);
+    expect(await target.db.all("SELECT id FROM projects")).toEqual([]);
+    expect(await target.db.all("SELECT id FROM users")).toEqual([]);
   } finally { await target.close(); }
 }, 120000);
 

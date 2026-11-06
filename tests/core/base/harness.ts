@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { register, migrations, CoreProjects } from "../../../services/core/base";
 import { register as identity, migrations as identityMigrations } from "../../../services/accounts/identity";
 import { register as governance, migrations as governanceMigrations } from "../../../services/accounts/governance";
-import { seed } from "../../../scripts/seed";
+import { seedSharingProject as seed } from "../../fixtures/sharing-seed";
 import { defaultPolicy } from "../../fixtures/foundation";
 
 export const password = "core-base-test-password-2026";

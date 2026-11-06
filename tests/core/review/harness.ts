@@ -10,7 +10,7 @@ import { register, migrations, dispose } from "../../../services/core/review";
 import { register as base, migrations as baseMigrations, CoreProjects } from "../../../services/core/base";
 import { register as identity, migrations as identityMigrations } from "../../../services/accounts/identity";
 import { register as governance, migrations as governanceMigrations } from "../../../services/accounts/governance";
-import { seed } from "../../../scripts/seed";
+import { seedSharingProject as seed } from "../../fixtures/sharing-seed";
 import { postgresFixture } from "./postgres-fixture";
 import * as Y from "yjs";
 
