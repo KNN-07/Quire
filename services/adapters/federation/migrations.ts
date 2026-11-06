@@ -84,4 +84,20 @@ CREATE TABLE federation_tests (
   expires_at TEXT NOT NULL, state_digest TEXT NOT NULL UNIQUE, request_digest TEXT NOT NULL
 );
 `,
+}, {
+  id: "073-a-saml-link-provenance",
+  sql: `CREATE TABLE federation_saml_links (
+    identity_id TEXT PRIMARY KEY REFERENCES identities(id) ON DELETE CASCADE
+  ) STRICT;
+  CREATE TABLE federation_saml_relinks (
+    user_id TEXT PRIMARY KEY REFERENCES users(id), organization_id TEXT NOT NULL REFERENCES organizations(id),
+    account_version INTEGER NOT NULL
+  ) STRICT;`,
+  postgres: `CREATE TABLE federation_saml_links (
+    identity_id TEXT PRIMARY KEY REFERENCES identities(id) ON DELETE CASCADE
+  );
+  CREATE TABLE federation_saml_relinks (
+    user_id TEXT PRIMARY KEY REFERENCES users(id), organization_id TEXT NOT NULL REFERENCES organizations(id),
+    account_version INTEGER NOT NULL
+  );`,
 }];

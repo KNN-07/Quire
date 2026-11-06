@@ -9,6 +9,7 @@ import { OperationSchema } from "./work";
 import { AvatarUploadSchema, SamlCallbackSchema } from "./multipart";
 import { OnboardingChoicesSchema, OnboardingSchema, OnboardingImportDraftSchema, OnboardingImportFileSchema } from "./accounts";
 import { ManagedLifecycleSettingsSchema, ManagedLifecycleScheduleSchema } from "./accounts";
+import { institutionEndpoints } from "./routes-institution";
 
 const r = routesFor("A");
 const operator = routesFor("O");
@@ -38,6 +39,7 @@ const managedMember = z.strictObject({
   canDelete: z.boolean(), canReceiveProjects: z.boolean(),
 });
 export const accountEndpoints = {
+  ...institutionEndpoints,
   onboardingGet: r("GET", "/api/me/onboarding", { params: none, query: none, body: noBody, output: OnboardingSchema }),
   onboardingSave: r("PATCH", "/api/me/onboarding", { params: none, query: none, body: z.strictObject({ actorId: id, choices: OnboardingChoicesSchema, ...version }), output: OnboardingSchema, ...key }),
   onboardingStart: r("POST", "/api/me/onboarding/start", { params: none, query: none, body: z.strictObject({ actorId: id, ...version }), output: OnboardingSchema, ...key }),

@@ -6,6 +6,7 @@ import { ServiceError } from "@quire/runtime";
 import type { ModuleContext, Principal } from "@quire/runtime";
 import { authorize, audit, conflict, denied, membership, missing, newId, page, publishPolicyChange, requireTeamOrganization, route } from "./shared";
 import { csv } from "./reports";
+import { institutionEligibility } from "./institution";
 
 export async function checkSeat(context: TransactionContext, organizationId: Id): Promise<void> {
   await context.db.lock("quire:accounts");
@@ -91,17 +92,21 @@ export function registerMembers(context: ModuleContext): void {
     return csv([["id", "userId", "role", "licensed"], ...rows.map((row) => [row.id, row.userId, row.role, String(row.licensed)])]);
   });
   route(context, endpoints.institutionEnroll, async ({ params }, principal, _request, bound) => {
-    const value = (await bound.db.get("SELECT id,domains_json FROM organizations WHERE slug=? AND kind='institution'", [params.slug]));
-    if (!value) throw missing();
-    const org = z.object({ id: IdSchema, domains_json: z.string() }).parse(value);
-    const allowed = z.array(z.string()).parse(JSON.parse(org.domains_json));
-    if (!principal.user.verifiedEmails.some((email) => allowed.includes(email.split("@")[1]?.toLowerCase() ?? ""))) throw denied();
+    const eligibility = await institutionEligibility(bound, params.slug, principal.user.id);
+    if (!eligibility.eligible) throw denied();
+    const org = { id: eligibility.organizationId };
     const existing = (await bound.db.get("SELECT * FROM members WHERE organization_id=? AND user_id=?", [org.id, principal.user.id]));
-    if (existing) return membership(existing);
-    const id = newId();
-    await bound.db.run("INSERT INTO members(id,organization_id,user_id,role,licensed,created_at) VALUES(?,?,?,'member',0,?)", [id, org.id, principal.user.id, clock.now()]);
-    await bound.db.run("INSERT INTO institutional_eligibility(id,organization_id,user_id,basis,checked_at) VALUES(?,?,?,'verified-domain',?) ON CONFLICT(organization_id,user_id) DO UPDATE SET checked_at=excluded.checked_at", [newId(), org.id, principal.user.id, clock.now()]);
-    await audit(bound, principal, { organizationId: org.id, event: "institution.enrolled", targetId: principal.user.id });
+    const id = existing ? membership(existing).id : newId();
+    const now = clock.now();
+    const expiresAt = eligibility.reconfirmationDays === null ? null :
+      new Date(Date.parse(now) + eligibility.reconfirmationDays * 86_400_000).toISOString();
+    if (!existing) await bound.db.run("INSERT INTO members(id,organization_id,user_id,role,licensed,created_at) VALUES(?,?,?,'member',0,?)", [id, org.id, principal.user.id, now]);
+    await bound.db.run(`INSERT INTO institutional_eligibility(id,organization_id,user_id,basis,checked_at,expires_at)
+      VALUES(?,?,?,'verified-domain',?,?) ON CONFLICT(organization_id,user_id)
+      DO UPDATE SET basis=excluded.basis,checked_at=excluded.checked_at,expires_at=excluded.expires_at`,
+    [newId(), org.id, principal.user.id, now, expiresAt]);
+    await audit(bound, principal, { organizationId: org.id, event: existing ? "institution.reconfirmed" : "institution.enrolled",
+      targetId: principal.user.id, details: { expiresAt } });
     await publishPolicyChange(bound, { userId: principal.user.id, version: 0 });
     return membership((await bound.db.get("SELECT * FROM members WHERE id=?", [id])));
   });

@@ -17,6 +17,8 @@ export type ExternalIdentityVerification = {
   /** Trusted assembly ownership for a newly linked federation identity; never inferred from issuer. */
   readonly organizationId?: Id;
   readonly link?: { readonly userId: Id; readonly sessionId: Id; readonly expectedVersion: number };
+  /** Trusted SAML adapter may consume a narrowly scoped administrator relink grant. */
+  readonly authorizeManagedLink?: (tx: Transaction, userId: Id) => Promise<void>;
   /** SQL only: recheck the provider configuration and apply authorized provisioning. */
   readonly beforeCommit?: (tx: Transaction, userId: Id) => Promise<void>;
 };
@@ -62,7 +64,11 @@ export function createExternalIdentityAdmission<Proof>(
           throw new ServiceError("UNAUTHENTICATED", 401, "Linking session expired");
         }
         const user = await repository.find(link.userId, tx);
-        if (user.managed_by !== null) throw new ServiceError("MANAGED_ACCOUNT", 403, "Managed identity links require federation administration");
+        if (user.managed_by !== null) {
+          if (verifier.kind !== "federation" || identity.organizationId !== user.managed_by || !identity.authorizeManagedLink)
+            throw new ServiceError("MANAGED_ACCOUNT", 403, "Managed identity links require federation administration");
+          await identity.authorizeManagedLink(tx, link.userId);
+        }
         if (linkedUser && linkedUser !== link.userId) throw new ServiceError("IDENTITY_COLLISION", 409, "Identity already belongs to another account");
         await repository.version(tx, link.userId, link.expectedVersion);
         userId = link.userId;

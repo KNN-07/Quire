@@ -26,6 +26,7 @@ export type SamlFault = "none" | "signature" | "unsigned-response" | "unsigned-a
 export function signedResponse(input: {
   readonly requestId: string; readonly issuer: string; readonly audience: string; readonly destination: string;
   readonly key: string; readonly cert: string; readonly fault?: SamlFault; readonly assertionId?: string;
+  readonly subject?: string; readonly email?: string;
 }) {
   const fault = input.fault ?? "none";
   const now = new Date().toISOString();
@@ -51,6 +52,8 @@ export function signedResponse(input: {
     signer.computeSignature(document, { location: { reference: `//*[local-name(.)='${target}']/*[local-name(.)='Issuer']`, action: "after" } });
     return signer.getSignedXml();
   }
+  if (input.subject) xml = xml.replace("signed-researcher", input.subject);
+  if (input.email) xml = xml.replaceAll("signed@example.test", input.email);
   if (fault !== "unsigned-assertion") xml = sign("Assertion", xml);
   if (fault !== "unsigned-response") xml = sign("Response", xml);
   if (fault === "signature") xml = xml.replace("signed@example.test", "attacker@example.test");

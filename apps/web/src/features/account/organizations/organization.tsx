@@ -6,6 +6,8 @@ import { Check, mutationHeaders, Notice, Panel, Select, unwrap, useAction, value
 import type { SettingsProps } from "../settings";
 import { OrganizationReports } from "./reports";
 import { OrganizationManagement } from "./management";
+import { OrganizationSaml } from "./saml";
+import { InstitutionReconfirmationSettings } from "./institution-reconfirmation";
 
 type Props = SettingsProps & { readonly organizationId: string };
 type Access = ResponseOf<typeof endpoints.organizationAccess>;
@@ -122,6 +124,8 @@ export function OrganizationDetail(props: Props) {
       </>}
       {admin && organization.kind === "team" && <OrganizationManagement {...props} organization={organization} refreshOrganization={load}
         canAuthorizeLifecycle={access?.role === "admin"} />}
+      {admin && <OrganizationSaml client={props.client} organizationId={organization.id} />}
+      {admin && organization.kind === "institution" && <InstitutionReconfirmationSettings {...props} organizationId={organization.id} />}
       <h3>Current organization policy</h3>
       <p>This is the organization policy, not a prediction of an individual project's effective benefits.</p>
       <PolicyEditor key={organization.version} policy={organization.policy} editable={admin} busy={action.busy} save={async policy => {
@@ -160,12 +164,12 @@ function PolicyEditor({ policy, editable, busy, save }: {
   readonly policy: Policy; readonly editable: boolean; readonly busy: boolean; readonly save: (policy: Policy) => Promise<void>;
 }) {
   const numbers = [["compileSeconds", "Compile timeout (seconds)"], ["writableMembers", "Writable members"], ["historyDays", "History retention (days)"], ["aiDailyUses", "AI daily uses"]] as const;
-  const checks = [["trackChanges", "Track changes"], ["chat", "Chat"], ["anonymousRead", "Anonymous reading"], ["anonymousEdit", "Anonymous editing"]] as const;
+  const checks = [["trackChanges", "Track changes"], ["chat", "Chat"], ["anonymousRead", "Anonymous reading"]] as const;
   return <form className="account-form" onSubmit={event => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     const numeric = Object.fromEntries(numbers.map(([name]) => [name, value(form, name) === "" ? null : Number(value(form, name))]));
     const toggles = Object.fromEntries(checks.map(([name]) => [name, form.has(name)]));
-    void save(PolicySchema.parse({ ...numeric, ...toggles, ai: value(form, "ai"), sharing: value(form, "sharing") }));
+    void save(PolicySchema.parse({ ...numeric, ...toggles, anonymousEdit: false, ai: value(form, "ai"), sharing: value(form, "sharing") }));
   }}>
     <fieldset disabled={!editable || busy} className="organization-policy">
       <legend>{editable ? "Edit policy" : "Read-only policy (administrator required)"}</legend>
@@ -174,6 +178,7 @@ function PolicyEditor({ policy, editable, busy, save }: {
       <Select label="AI mode" name="ai" defaultValue={policy.ai} options={[["off", "Off"], ["ask", "Ask"], ["agent", "Agent"]]} />
       <Select label="Sharing" name="sharing" defaultValue={policy.sharing} options={[["named", "Named accounts"], ["organization", "Organization"], ["anyone", "Anyone"]]} />
       {checks.map(([name, label]) => <Check key={name} name={name} label={label} checked={policy[name]} />)}
+      <p>All editing requires sign-in, including editing through an Editor link. Anonymous reading requires a valid share link and a policy that allows it.</p>
     </fieldset>
     {editable && <Button type="submit" variant="primary" busy={busy}>Save organization policy</Button>}
   </form>;

@@ -8,6 +8,7 @@ import { compilerEndpoints } from "./routes-compiler";
 import { adapterEndpoints } from "./routes-adapters";
 import { operationEndpoints } from "./routes-operations";
 import { transportEndpoints } from "./routes-transports";
+import { samlAdministrationEndpoints } from "./routes-saml-administration";
 import { billingUsageEndpoints } from "./routes-billing-usage";
 
 export const HealthSchema = z.strictObject({
@@ -17,6 +18,7 @@ export const endpoints = {
   health: endpoint({ method: "GET", path: "/api/health", lane: "F" }, { input: noInput, output: HealthSchema }),
   ...accountEndpoints, ...coreEndpoints, ...compilerEndpoints,
   ...adapterEndpoints, ...operationEndpoints, ...transportEndpoints,
+  ...samlAdministrationEndpoints,
   ...billingUsageEndpoints,
 } as const;
 export type EndpointName = keyof typeof endpoints;

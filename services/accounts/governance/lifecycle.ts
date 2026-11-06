@@ -207,9 +207,12 @@ export async function reconcileInstitutionEligibility(context: ModuleContext): P
         !emails.some((email) => domains.includes(email.email.split("@")[1]?.toLowerCase() ?? ""))) {
         // Only self-enrolled, unlicensed members are removed. Administrative grants and
         // explicitly accepted management are independent of domain eligibility.
-        removed += (await bound.db.run("DELETE FROM members WHERE organization_id=? AND user_id=? AND role='member' AND licensed=0 AND NOT EXISTS(SELECT 1 FROM users WHERE id=? AND managed_by=?)", [row.organization_id, row.user_id, row.user_id, row.organization_id])).changes;
-        await bound.db.run("DELETE FROM institutional_eligibility WHERE organization_id=? AND user_id=?", [row.organization_id, row.user_id]);
-        await publishPolicyChange(bound, { userId: row.user_id, version: 0 });
+        const changes = (await bound.db.run("DELETE FROM members WHERE organization_id=? AND user_id=? AND role='member' AND licensed=0 AND NOT EXISTS(SELECT 1 FROM users WHERE id=? AND managed_by=?)", [row.organization_id, row.user_id, row.user_id, row.organization_id])).changes;
+        removed += changes;
+        // Retain an expired receipt for the user's renewal journey. It grants no membership.
+        if (row.expires_at === null || row.expires_at > bound.clock.now())
+          await bound.db.run("DELETE FROM institutional_eligibility WHERE organization_id=? AND user_id=?", [row.organization_id, row.user_id]);
+        if (changes) await publishPolicyChange(bound, { userId: row.user_id, version: 0 });
       }
     }
     return removed;

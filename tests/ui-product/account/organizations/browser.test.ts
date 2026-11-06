@@ -8,6 +8,35 @@ import { authenticatedContext, startEditorBrowser, waitForRenderedText } from ".
 import { editorValue } from "../../../../apps/web/src/features/editor/shared";
 import { fixtureIds as ids } from "../../../fixtures/foundation";
 import type { Page } from "@playwright/test";
+import { baseFixture, errorEnvelope } from "../../../core/base/harness";
+
+test("an anonymous Editor-link holder cannot mutate source even with a legacy anonymous editing policy", async () => {
+  // Given: a live Editor link and the legacy anonymousEdit flag enabled.
+  await using fixture = await baseFixture();
+  const owner = await fixture.login();
+  await fixture.setPolicy(ids.project, { sharing: "anyone", anonymousRead: true, anonymousEdit: true });
+  const project = await fixture.service.getProject(ids.project);
+  const enabled = await fixture.request(`/api/projects/${ids.project}/link`, {
+    method: "PUT",
+    headers: { ...owner.headers, "idempotency-key": crypto.randomUUID(), "if-match": `"v${project.version}"` },
+    body: JSON.stringify({ role: "editor", expectedVersion: project.version }),
+  });
+  const link = editorValue(resultSchema(endpoints.accessLinkPut.output).parse(await enabled.json()));
+  if (!link.urlOnce) throw new Error("Expected Editor link URL");
+  const token = new URL(link.urlOnce).searchParams.get("share");
+  if (!token) throw new Error("Expected Editor link credential");
+  const scope = { projectId: ids.project, branch: "main" };
+  const branch = await fixture.service.getBranch(scope);
+  // When: the guest submits a source mutation with that credential.
+  const denied = await fixture.request(`/api/projects/${ids.project}/files`, {
+    method: "POST", headers: { "x-project-token": token, "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ scope, path: "guest-write.txt", kind: "file", text: "denied", expectedVersion: branch.revision }),
+  });
+  // Then: authentication denies the write and the source revision stays unchanged.
+  expect(denied.status).toBe(403);
+  expect(errorEnvelope.parse(await denied.json()).error.code).toBe("FORBIDDEN");
+  expect((await fixture.service.getBranch(scope)).revision).toBe(branch.revision);
+});
 
 test("native organization settings admit existing accounts, enforce roles, edit policy and consume reports", async () => {
   const evidence = `docs/evidence/p13-organizations/${crypto.randomUUID()}`;
@@ -55,11 +84,23 @@ test("native organization settings admit existing accounts, enforce roles, edit 
     await waitForRenderedText(page, "Membership saved.");
     const csv = await owner.context.request.get(`${path}/members.csv`);
     expect(csv.status()).toBe(200); expect(await csv.text()).toContain(ids.sam);
+    // Given: a legacy policy can retain anonymousEdit even though editing requires sign-in.
+    const beforePolicy = editorValue(resultSchema(endpoints.organizationGet.output).parse(await (await owner.context.request.get(path)).json()));
+    expect((await owner.context.request.patch(`${path}/policy`, { headers, data: { anonymousEdit: true, expectedVersion: beforePolicy.version } })).status()).toBe(200);
+    await page.getByRole("button", { name: "Refresh organization", exact: true }).click();
+    await waitForRenderedText(page, `version ${beforePolicy.version + 1}`);
+    expect(await page.getByRole("checkbox", { name: "Anonymous editing", exact: true }).count()).toBe(0);
+    await page.getByRole("checkbox", { name: "Anonymous reading", exact: true }).check();
     await page.getByRole("combobox", { name: "AI mode", exact: true }).selectOption("ask");
     await submit(page, "PATCH", `${path}/policy`, () => page.getByRole("button", { name: "Save organization policy", exact: true }).click(), 200);
     await waitForRenderedText(page, "Organization policy saved.");
     const stored = editorValue(resultSchema(endpoints.organizationGet.output).parse(await (await owner.context.request.get(path)).json()));
     expect(stored.policy.ai).toBe("ask");
+    expect(stored.policy.anonymousEdit).toBe(false);
+    expect(stored.policy.anonymousRead).toBe(true);
+    await openOrganization(page, organization.name);
+    expect(await page.getByRole("checkbox", { name: "Anonymous reading", exact: true }).isChecked()).toBe(true);
+    expect(await page.getByRole("combobox", { name: "AI mode", exact: true }).inputValue()).toBe("ask");
     // A concurrent native write makes the displayed policy version stale; never silently overwrite it.
     expect((await owner.context.request.patch(`${path}/policy`, { headers, data: { ai: "agent", expectedVersion: stored.version } })).status()).toBe(200);
     await submit(page, "PATCH", `${path}/policy`, () => page.getByRole("button", { name: "Save organization policy", exact: true }).click(), 409);

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { stat } from "node:fs/promises";
 import { rejects } from "node:assert/strict";
 import { z } from "zod";
-import { MembershipSchema } from "@quire/contracts";
+import { endpoints, MembershipSchema } from "@quire/contracts";
 import { fixtureIds as ids } from "../../fixtures/foundation";
 import { integrationFixture, data } from "./harness";
 
@@ -20,15 +20,17 @@ test("host ticks reconcile institution expiry and domain loss while retaining ac
     const project = await fixture.project(owner);
     await fixture.runtime.db.run("UPDATE organizations SET domains_json=? WHERE id=?", ['["quire.local"]', ids.institution]);
     const institution = z.object({ slug: z.string() }).parse(await fixture.runtime.db.get("SELECT slug FROM organizations WHERE id=?", [ids.institution]));
-    const expiry = new Date(Date.parse(fixture.clock.now()) + 60_000).toISOString();
-    const future = new Date(Date.parse(expiry) + 60_000).toISOString();
+    expect((await fixture.request(`/api/organizations/${ids.institution}/institution-policy`, {
+      method: "PUT", headers: operator.headers, body: JSON.stringify({ reconfirmationDays: 1, expectedVersion: 0 }),
+    })).status).toBe(200);
+    const expiry = new Date(Date.parse(fixture.clock.now()) + 86_400_000).toISOString();
     for (const [email, userId] of [["mai@quire.local", ids.mai], ["sam@quire.local", ids.sam], ["alex@quire.local", ids.alex]] as const) {
       const user = await fixture.login(email);
       const member = await data(await fixture.request(`/api/institutions/${institution.slug}/enroll`, {
         method: "POST", headers: { ...user.headers, "idempotency-key": crypto.randomUUID() }, body: "{}",
       }), MembershipSchema);
-      await fixture.runtime.db.run("UPDATE institutional_eligibility SET expires_at=? WHERE organization_id=? AND user_id=?",
-        [userId === ids.sam ? future : expiry, ids.institution, userId]);
+      expect(await fixture.runtime.db.get("SELECT expires_at FROM institutional_eligibility WHERE organization_id=? AND user_id=?",
+        [ids.institution, userId])).toMatchObject({ expires_at: expiry });
       if (userId === ids.alex) expect((await fixture.request(`/api/organizations/${ids.institution}/members/${member.id}`, {
         method: "PATCH", headers: operator.headers, body: JSON.stringify({ licensed: true, expectedVersion: member.version }),
       })).status).toBe(200);
@@ -37,7 +39,12 @@ test("host ticks reconcile institution expiry and domain loss while retaining ac
       method: "POST", headers: { ...operator.headers, "idempotency-key": crypto.randomUUID() },
       body: JSON.stringify({ userId: ids.mai, role: "member", licensed: true, expectedVersion: 0 }),
     }), MembershipSchema);
-    fixture.clock.advance(59_999);
+    fixture.clock.advance(60_000);
+    const renewing = await fixture.login("sam@quire.local");
+    expect((await fixture.request(`/api/institutions/${institution.slug}/enroll`, {
+      method: "POST", headers: { ...renewing.headers, "idempotency-key": crypto.randomUUID() }, body: "{}",
+    })).status).toBe(200);
+    fixture.clock.advance(86_339_999);
     await fixture.start();
     for (const tick of listeners) tick();
     await fixture.adapters.close();
@@ -62,7 +69,10 @@ test("host ticks reconcile institution expiry and domain loss while retaining ac
     await fixture.adapters.close();
     expect(listeners.size).toBe(0);
     expect(await fixture.runtime.db.get("SELECT id FROM members WHERE organization_id=? AND user_id=?", [ids.institution, ids.sam])).toBeNull();
-    expect(await fixture.runtime.db.get("SELECT id FROM institutional_eligibility WHERE organization_id=?", [ids.institution])).toBeNull();
+    expect(await fixture.runtime.db.get("SELECT id FROM institutional_eligibility WHERE organization_id=? AND user_id=?", [ids.institution, ids.sam])).toBeNull();
+    const expired = await fixture.login("mai@quire.local");
+    expect(await data(await fixture.request(`/api/institutions/${institution.slug}/eligibility`, { headers: expired.headers }),
+      endpoints.institutionEligibility.output)).toMatchObject({ member: false, expiresAt: expiry, state: "ineligible" });
     expect(await fixture.runtime.db.get("SELECT licensed FROM members WHERE organization_id=? AND user_id=?", [ids.institution, ids.alex])).toMatchObject({ licensed: 1 });
     const signedInAgain = await fixture.login("sam@quire.local");
     expect(signedInAgain.user.id).toBe(ids.sam);

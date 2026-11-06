@@ -12,6 +12,7 @@ import { registerAdminMutations } from "./admin-mutations";
 import { registerProjectBenefits } from "./project-benefits";
 import { lifecycleMigration } from "./lifecycle-policy";
 import { registerManagedLifecycle } from "./lifecycle";
+import { institutionMigration, registerInstitution } from "./institution";
 
 export const migrations: readonly Migration[] = [{
   id: "011-a-governance-local",
@@ -56,11 +57,12 @@ BEGIN
   DELETE FROM governance_digest_items WHERE user_id=NEW.id;
 END;
 `,
-}, lifecycleMigration];
+}, lifecycleMigration, institutionMigration];
 export function register(context: ModuleContext): void {
   context.services.get("identity");
   registerOrganizations(context);
   registerMembers(context);
+  registerInstitution(context);
   registerInvitations(context);
   registerManaged(context);
   registerManagementReads(context);

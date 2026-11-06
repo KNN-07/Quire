@@ -5,6 +5,7 @@ import type { ExternalIdentityVerification, IdentityProvider } from "../identity
 import { IdentityStates } from "../identity/state";
 import { authentication } from "../../accounts/identity/authentication";
 import { store } from "../../accounts/identity/store";
+import { passwordAllowed } from "../../accounts/identity/reads";
 import { FederationSaml } from "./saml";
 import { redirect, selected } from "./oidc";
 import type { FederationServices } from "./oidc";
@@ -72,10 +73,31 @@ export function samlProvider(services: FederationServices, tests?: FederationHan
           ...(configurations.deployment.organizationId ? { organizationId: configurations.deployment.organizationId } : {}),
           ...(state.user_id && state.session_id && state.account_version !== null ? {
             link: { userId: state.user_id, sessionId: state.session_id, expectedVersion: state.account_version } } : {}),
+          async authorizeManagedLink(tx, userId) {
+            const grant = await tx.get(`SELECT r.user_id FROM federation_saml_relinks r
+              JOIN users u ON u.id=r.user_id AND u.version=r.account_version AND u.managed_by=r.organization_id
+              JOIN managed_acceptances a ON a.user_id=u.id AND a.organization_id=r.organization_id AND a.state='accepted'
+              JOIN members m ON m.user_id=u.id AND m.organization_id=r.organization_id
+              JOIN sessions s ON s.user_id=u.id
+              WHERE r.user_id=? AND r.organization_id=? AND r.account_version=?
+                AND s.id=? AND s.created_at>? AND s.expires_at>?
+                AND u.password_hash IS NOT NULL AND u.suspended=0 AND u.deleted_at IS NULL
+                AND EXISTS(SELECT 1 FROM verified_emails e WHERE e.user_id=u.id AND lower(e.email)=lower(u.primary_email))`,
+            [userId, configurations.deployment.organizationId ?? null, state.account_version, state.session_id,
+              new Date(Date.parse(context.clock.now()) - 900_000).toISOString(), context.clock.now()]);
+            if (!grant || !await passwordAllowed(context, userId, tx))
+              throw new ServiceError("MANAGED_ACCOUNT", 403, "A current administrator SAML relink grant and independent recovery are required");
+            await tx.run("DELETE FROM federation_saml_relinks WHERE user_id=?", [userId]);
+          },
           async beforeCommit(tx, userId) {
             await configurations.fence(tx, settings.config);
             await identity.publish(tx);
             await provisioning.apply(tx, { userId, config: settings.config, groups: identity.groups });
+            await tx.run(`INSERT INTO federation_saml_links(identity_id)
+              SELECT id FROM identities WHERE user_id=? AND issuer=? AND subject=?
+                AND authority_kind='organization' AND organization_id=?
+              ON CONFLICT DO NOTHING`, [userId, identity.issuer, identity.subject,
+              configurations.deployment.organizationId ?? null]);
           } };
       } });
     await admit(form.get("SAMLResponse") ?? "", request);

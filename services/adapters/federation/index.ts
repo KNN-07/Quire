@@ -21,6 +21,7 @@ import { migrations } from "./migrations";
 import { returnPath } from "../identity/state";
 import { FederationHandshakeTests } from "./handshake-tests";
 import { registerManagedReleaseAuthority } from "../../accounts/identity/managed-release";
+import { registerSamlAdministration } from "./saml-administration";
 
 export function createFederationModules(options: FederationDeployment & { readonly http?: SafeHttpClient } = {}) {
   let services: FederationServices | undefined;
@@ -47,6 +48,7 @@ export function createFederationModules(options: FederationDeployment & { readon
       });
       const http = options.http ?? new SafeHttpClient();
       services = { context, configurations, provisioning, http };
+      registerSamlAdministration(services);
       tests = new FederationHandshakeTests(services);
       registerIdentityPolicy(context, async (executor) => {
         const { config } = await configurations.get(executor);
