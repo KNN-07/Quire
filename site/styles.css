@@ -138,6 +138,44 @@ details p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
   .footer-inner p { width: 100%; }
   .footer-inner nav { margin-left: 0; gap: 0 20px; }
 }
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes reveal {
+  from { opacity: .45; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .hero > * { animation: arrive 650ms cubic-bezier(.22, 1, .36, 1) both; }
+  .hero > :nth-child(2) { animation-delay: 80ms; }
+  .hero > :nth-child(3) { animation-delay: 160ms; }
+  .hero > :nth-child(4) { animation-delay: 240ms; }
+  .hero > :nth-child(5) { animation-delay: 300ms; }
+  .hero > :nth-child(6) { animation-delay: 360ms; }
+  .hero > :focus-within { animation: none; }
+  .button, .brand img, .button span, .text-link span, .editor-preview > a {
+    transition: transform 220ms cubic-bezier(.22, 1, .36, 1), background-color 180ms, box-shadow 220ms;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .button:hover { transform: translateY(-2px); box-shadow: 0 6px 16px #16181d14; }
+    .button:hover span, .text-link:hover span { transform: translateX(4px); }
+    .brand:hover img { transform: rotate(-8deg); }
+    .editor-preview > a:hover { transform: translateY(-4px); }
+  }
+  .button:active { transform: translateY(1px); }
+  details[open] > p { animation: arrive 250ms ease-out; }
+  @supports (animation-timeline: view()) {
+    .section-heading, .section-copy, .views-grid article, .features-grid article,
+    .history-panel, .review-principles, .hosting-grid > div, .questions, .closing {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 25%;
+    }
+    :is(.section-copy, .questions, .closing):focus-within { animation: none; }
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .button:active { transform: none; }
 }
