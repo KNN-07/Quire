@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { AiToolSchema, IdSchema, endpoints } from "@quire/contracts";
+import { useEffect, useRef, useState } from "react";
+import { AiToolSchema, IdSchema, endpoints, isContextualLanguageTool, isLanguageTool, languageCompletionPrefix, languageSelectionEligible } from "@quire/contracts";
 import type { AiTool } from "@quire/contracts";
 import { Button, Icon } from "../../../ui";
 import { editorValue } from "../shared";
@@ -19,6 +19,7 @@ export function useComposer(state: AssistantState) {
   const [threadConsent, setThreadConsent] = useState(false);
   const [projectSearch, setProjectSearch] = useState(false);
   const [language, setLanguage] = useState("");
+  const [captured, setCaptured] = useState(state.languageAction ?? null);
   const [choice, setChoice] = useState(() => state.diagnosticFix ? {
     ...emptyContext, diagnostic: state.diagnosticFix.diagnostic.id,
     files: state.diagnosticFix.diagnostic.fileId ? [state.diagnosticFix.diagnostic.fileId] : [],
@@ -26,7 +27,24 @@ export function useComposer(state: AssistantState) {
   const input = useRef<HTMLTextAreaElement>(null);
   const running = state.run?.status === "queued" || state.run?.status === "running";
   const pending = state.run?.proposals.some(proposal => proposal.edits.some(edit => edit.status === "pending")) ?? false;
-  const setTool = (value: AiTool) => { setToolValue(value); setProjectSearch(false); };
+  const setTool = (value: AiTool) => { setToolValue(value); setCaptured(null); setProjectSearch(false); };
+  useEffect(() => {
+    const action = state.languageAction;
+    if (!action) return;
+    setCaptured(action); setToolValue(action.tool); setMode("agent"); setProjectSearch(false);
+    setPrompt(action.tool === "inline-completion" ? "Complete the sentence at the selected caret. Propose an insertion for review."
+      : `${tools[action.tool]} in the selected text. Preserve LaTeX and propose changes for review.`);
+    setChoice({ ...emptyContext, range: true });
+    input.current?.focus();
+  }, [state.languageAction]);
+  const currentFrom = Math.min(state.selection.anchor, state.selection.head);
+  const currentTo = Math.max(state.selection.anchor, state.selection.head);
+  const languageSelection = captured ?? (state.document ? {
+    from: currentFrom, to: currentTo, text: state.document.source.toJSON().slice(currentFrom, currentTo),
+  } : undefined);
+  const eligible = (value: AiTool) => !isLanguageTool(value) || Boolean(state.preferences?.languageEnabled)
+    && (value !== "inline-completion" || Boolean(state.preferences?.inlineCompletion))
+    && languageSelectionEligible(value, languageSelection);
   async function generate(text = prompt) {
     if (state.threadContext && !threadConsent) throw new TypeError("Consent to the displayed review thread before sending it.");
     if (state.threadContext) {
@@ -40,9 +58,15 @@ export function useComposer(state: AssistantState) {
       }
     }
     await state.document?.flush(state.signal);
-    const from = Math.min(state.selection.anchor, state.selection.head);
-    const to = Math.max(state.selection.anchor, state.selection.head);
-    if (choice.range && (!state.document || from === to)) throw new TypeError("Select a source range first");
+    const from = captured?.from ?? Math.min(state.selection.anchor, state.selection.head);
+    const to = captured?.to ?? Math.max(state.selection.anchor, state.selection.head);
+    if (captured && (state.document?.file.id !== captured.fileId
+      || state.document.source.toJSON().slice(from, to) !== captured.text)) {
+      throw new TypeError("Language context changed. Select the source again before sending.");
+    }
+    if (!eligible(tool)) throw new TypeError("This language operation is unavailable for the selected text or preferences.");
+    const range = choice.range || isContextualLanguageTool(tool);
+    if (range && (!state.document || from === to && tool !== "inline-completion")) throw new TypeError("Select a source range first");
     if (tool === "error-fix" && (!choice.diagnostic || !choice.diagnosticConsent)) throw new TypeError("Choose and consent to a diagnostic first");
     if (state.diagnosticFix) {
       const access = editorValue(await state.client.call(endpoints.projectAccess, {
@@ -55,7 +79,7 @@ export function useComposer(state: AssistantState) {
       throw new TypeError("Attach an image with explicit consent first");
     }
     if (tool === "translate" && !language.trim()) throw new TypeError("Enter a target language");
-    const selection = choice.range && state.document ? {
+    const selection = range && state.document ? {
       fileId: state.document.file.id, from, to, text: state.document.source.toJSON().slice(from, to),
     } : undefined;
     const fileIds = selection && !choice.files.includes(selection.fileId) ? [...choice.files, selection.fileId] : choice.files;
@@ -98,7 +122,7 @@ export function useComposer(state: AssistantState) {
   }
   return {
     mode, setMode, tool, setTool, prompt, setPrompt, threadConsent, setThreadConsent, projectSearch, setProjectSearch,
-    language, setLanguage, choice, setChoice, input, running, pending, generate, cancel, suggest,
+    language, setLanguage, choice, setChoice, input, running, pending, generate, cancel, suggest, eligible, captured,
     /** The last sent message, reused by Regenerate after the input is cleared. */
     regeneratePrompt: sent || prompt,
   };
@@ -153,18 +177,23 @@ export function AssistantAttachments({ state, composer }: { readonly state: Assi
 
 export function AssistantComposer({ state, composer }: { readonly state: AssistantState; readonly composer: ComposerState }) {
   const { mode, tool, prompt, running } = composer;
-  const sendDisabled = !prompt.trim() || state.busy || running || !state.online || !state.workspace.access.actorId;
+  const sendDisabled = !prompt.trim() || state.busy || running || !state.online || !state.workspace.access.actorId || !composer.eligible(tool);
   return <form className="qa-assistant__composer" onSubmit={event => {
     event.preventDefault(); void state.execute(() => composer.generate());
   }}>
     <div className="qa-assistant__input">
-      <AssistantContext state={state} choice={composer.choice} change={composer.setChoice} projectSearch={composer.projectSearch} />
+      <AssistantContext state={composer.captured ? { ...state, selection: { anchor: composer.captured.from, head: composer.captured.to } } : state}
+        choice={{ ...composer.choice, range: composer.choice.range || isContextualLanguageTool(tool) }}
+        requiredRange={isContextualLanguageTool(tool)} change={composer.setChoice} projectSearch={composer.projectSearch} />
       {composer.projectSearch && <p className="qa-assistant__fine">Project search may send readable text excerpts from other files in this branch to the configured provider.
         Quire checks your access for each search. Discovered excerpts are read-only context;
         proposed edits remain limited to your explicitly selected files and ranges.</p>}
       {tool === "translate" && <label className="qa-assistant__inline-field">Target language<input value={composer.language}
         onChange={event => composer.setLanguage(event.target.value)} /></label>}
       {tool === "inline-completion" && !state.preferences?.inlineCompletion && <p className="qa-assistant__fine">Enable inline completion in AI preferences first.</p>}
+      {tool === "inline-completion" && state.document && <details><summary>Read-only sentence prefix sent for completion</summary>
+        <pre>{languageCompletionPrefix(state.document.source.toJSON(), composer.captured?.from ?? Math.min(state.selection.anchor, state.selection.head))}</pre>
+      </details>}
       {tool === "citation-reviewer" && <p className="qa-assistant__fine">Only publications retrieved from your selected, consented providers appear as sources.</p>}
       <label><span className="q-sr-only">Message the assistant</span><textarea ref={composer.input} rows={2} value={prompt}
         placeholder={mode === "ask" ? "Ask about your paper" : "Ask, or describe a change to propose"}
@@ -176,7 +205,7 @@ export function AssistantComposer({ state, composer }: { readonly state: Assista
       <div className="qa-assistant__send">
         <label className="qa-assistant__tool"><span className="q-sr-only">Tool</span><select aria-label="Tool" value={tool}
           onChange={event => composer.setTool(AiToolSchema.parse(event.target.value))}>
-          {AiToolSchema.options.map(value => <option value={value} key={value}>{tools[value]}</option>)}
+          {AiToolSchema.options.map(value => <option value={value} key={value} disabled={!composer.eligible(value)}>{tools[value]}</option>)}
         </select></label>
         {(tool === "chat" || tool === "texgpt") ? <section aria-label="Project search consent" className="qa-assistant__search">
           <label className="qa-assistant__check" title="Allow the assistant to search this project for this request"><input type="checkbox" checked={composer.projectSearch}

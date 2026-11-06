@@ -2,10 +2,11 @@ import type { Diagnostic, Preferences, ResponseOf, endpoints } from "@quire/cont
 import type { DiagnosticFixRequest } from "../pdf";
 import type {
   AuthoringHandle, CompileController, EditorClient, EditorDocument, EditorNavigation,
-  EditorWorkspace, ReviewThreadRequest, SourceSelection,
+  EditorWorkspace, LanguageActionRequest, ReviewThreadRequest, SourceSelection,
 } from "../shared";
 
 export type AssistantPanelProps = {
+  readonly languageAction?: LanguageActionRequest | null;
   readonly client: EditorClient;
   readonly workspace: EditorWorkspace;
   readonly document: EditorDocument | null;

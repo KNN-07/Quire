@@ -1,5 +1,4 @@
 import { useState, useSyncExternalStore } from "react";
-import type { ReactNode } from "react";
 import { assertNever } from "@quire/contracts";
 import type { AiTool } from "@quire/contracts";
 import { Button, Icon } from "../../../ui";
@@ -48,7 +47,7 @@ function Suggestions({ title, items, state, composer }: {
   return <div className="qa-assistant__suggestions">
     {title && <span>{title}</span>}
     <div>{items.map(item => <Button key={item.label} size="small" className="qa-assistant__suggestion"
-      disabled={state.busy || composer.running} onClick={() => composer.suggest({ ...item, range: Boolean(item.range) && selected })}>{item.label}</Button>)}</div>
+      disabled={state.busy || composer.running || !composer.eligible(item.tool)} onClick={() => composer.suggest({ ...item, range: Boolean(item.range) && selected })}>{item.label}</Button>)}</div>
   </div>;
 }
 function Conversation({ state, composer }: { readonly state: AssistantState; readonly composer: ComposerState }) {
@@ -60,7 +59,7 @@ function Conversation({ state, composer }: { readonly state: AssistantState; rea
         <dt>Conversation ID</dt><dd>{state.run.conversationId ?? "private session"}</dd></dl>
     </details>
   </AssistantRunProgress>;
-  const items: ReactNode[] = messages.map((message, index) => <article key={`${index}:${message.role}`}
+  const items = messages.map((message, index) => <article key={`${index}:${message.role}`}
     className={`qa-assistant__message qa-assistant__message--${message.role}`}>
     <strong>{message.role === "user" ? "You" : "Assistant"}</strong><p>{message.text}</p>
   </article>);

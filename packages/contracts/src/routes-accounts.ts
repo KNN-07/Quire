@@ -75,7 +75,9 @@ export const accountEndpoints = {
   avatarPut: r("PUT", "/api/me/avatar", { params: none, query: none, body: AvatarUploadSchema, output: UserSchema, transport: "multipart", ifMatch: true }),
   avatarDelete: r("DELETE", "/api/me/avatar", { params: none, query: none, body: existing, output: ok }),
   preferencesGet: r("GET", "/api/me/preferences", { params: none, query: none, body: noBody, output: PreferencesSchema }),
-  preferencesPatch: r("PATCH", "/api/me/preferences", { params: none, query: none, body: PreferencesSchema.unwrap().omit({ version: true }).partial().extend(version), output: PreferencesSchema }),
+  preferencesPatch: r("PATCH", "/api/me/preferences", { params: none, query: none, body: PreferencesSchema.unwrap().omit({ version: true }).partial().extend({
+    ...version, languageEnabled: z.boolean().optional(), languageFloatingMenu: z.boolean().optional(),
+  }), output: PreferencesSchema }),
   emailAdd: r("POST", "/api/me/emails", { params: none, query: none, body: z.strictObject({ email, ...version }), output: ok, ...key }),
   emailDelete: r("DELETE", "/api/me/emails", { params: none, query: none, body: z.strictObject({ email, ...version }), output: ok }),
   aiConsent: r("POST", "/api/me/ai-consent", { params: none, query: none, body: z.strictObject({ termsVersion: z.string(), accepted: z.boolean(), ...version }), output: ok }),

@@ -86,3 +86,27 @@ accepted terms require renewed consent. POST uses the displayed server
 refresh metadata. The assembler recreates transport on epoch changes.
 Root dev-tooling installation and router/server composition are outside the
 hard ownership boundary.
+
+## Contextual language actions
+
+Layout: Source language actions - selection-anchored, viewport-clamped toolbar
+-> wrapping cluster; scroll owner: `.q-language-actions` only when its bounded
+height is exceeded. Reuse shared Button states and source/Assistant tokens.
+No motion or external component dependency is introduced.
+
+Primary action remains Assistant Send, followed by explicit proposal acceptance.
+Priorities: eligible actions, exact captured UTF-16 range, reviewed result.
+Selection menus never dispatch a provider request or mutate source. The menu
+offers Synonyms for one Unicode word, Split for one Unicode sentence, Join for
+multiple sentences, and rewrites for nonempty selected text. Explicit caret
+completion uses a zero-length editable range and discloses its read-only
+sentence prefix separately. Browser and server share English-locale ICU Unicode
+word/sentence segmentation so deployment locale cannot select different rules.
+
+Language tools and the floating menu default enabled for existing preferences;
+completion retains its existing explicit opt-in. Ctrl/Cmd+Alt+L opens the menu
+even when automatic floating menus are disabled. No customizable shortcut
+binding mechanism exists in the inspected source keymap; Vim/Emacs are binding
+presets. Escape dismisses and returns focus to Source. Tracking, offline and
+read-only source do not offer these actions. Source text changing after capture
+requires a new selection rather than silently sending different text.

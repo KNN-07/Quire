@@ -14,7 +14,7 @@ import { ReviewPanel } from "./review";
 import { GitPanel } from "./git";
 import { AssistantPanel } from "./assistant";
 import { EditorApiError, parseEditorRoute } from "./shared";
-import type { AuthoringHandle, CompileController, CompileState, EditorDocument, EditorLayout, EditorNavigation, EditorPageProps, EditorRoute, ReviewThreadRequest, SourceLocation, SourceSelection } from "./shared";
+import type { AuthoringHandle, CompileController, CompileState, EditorDocument, EditorLayout, EditorNavigation, EditorPageProps, EditorRoute, LanguageActionRequest, ReviewThreadRequest, SourceLocation, SourceSelection } from "./shared";
 import { EditorWorkspaceFrame } from "./workspace";
 import { EditorSessionController } from "./session-controller";
 import type { EditorSessionSnapshot } from "./session-controller";
@@ -54,6 +54,7 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
   const [compilation, setCompilation] = useState<CompileState>({ job: null, preview: null });
   const [diagnosticFix, setDiagnosticFix] = useState<DiagnosticFixRequest | null>(null);
   const [threadContext, setThreadContext] = useState<ReviewThreadRequest | null>(null);
+  const [languageAction, setLanguageAction] = useState<LanguageActionRequest | null>(null);
   const snapshot = useSyncExternalStore(loaded?.document?.subscribe ?? subscribeEmpty, loaded?.document?.getSnapshot ?? snapshotEmpty);
   const metadata = useEditorMetadata(client, loaded?.workspace ?? null);
   const trackingEnabled = loaded?.document
@@ -198,7 +199,11 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
     rail={<EditorRail model={model} actions={actions} metadata={metadata} />}
     slots={{ header, tools: <ToolsPanel {...common} client={toolsClient} filesPresentation="compact" authoring={trackingEnabled ? null : authoring} panel={tool} onPanelChange={setTool} onPreferencesChange={onPreferencesChange} onSessionChange={props.onSessionChange} />,
       source: source ? <div className="qe-source"><EditorSourceChrome document={source.document} tools={sourceTools} readOnly={snapshot?.readOnly ?? true} />
-        <SourcePanel {...source} presentation="embedded" onToolsHandle={setSourceTools} onTrackingChange={setSourceTracking} /></div> : <p className="qe-message">No editable text file is selected. Open Files to create or select one.</p>,
+        <SourcePanel {...source} presentation="embedded" onToolsHandle={setSourceTools} onTrackingChange={setSourceTracking}
+          onLanguageAction={request => {
+            setDiagnosticFix(null); setThreadContext(null); setLanguageAction(request);
+            setToolsOpen(false); setAssistantOpen(true);
+          }} /></div> : <p className="qe-message">No editable text file is selected. Open Files to create or select one.</p>,
       visual: source ? <VisualPanel {...source} /> : <p className="qe-message">Select an editable text file to use Visual.</p>,
       pdf: <PdfPanel {...common} presentation="embedded" preferences={preferences} onController={setCompile} onCompileStateChange={setCompilation} onViewer={value => { viewer.current = value; }} view={route.page === "logs" ? "logs" : route.page === "pdf-diff" ? "diff" : "pdf"}
         {...preferences.errorAssist && !trackingEnabled ? { onFixDiagnostic: (request: DiagnosticFixRequest) => {
@@ -208,6 +213,7 @@ function EditorSession(props: EditorPageProps & { readonly route: EditorRoute })
         onAskThread={request => { setDiagnosticFix(null); setThreadContext(request); void run(() => go("agent")); }} />,
       git: <GitPanel {...common} preferences={preferences} />,
       assistant: <AssistantPanel {...common} preferences={preferences} onPreferencesChange={onPreferencesChange}
+        languageAction={languageAction}
         selection={committedSelection} authoring={trackingEnabled ? null : authoring} citationClient={toolsClient} tracking={trackingEnabled}
         compile={compile} diagnostics={diagnostics} diagnosticFix={diagnosticFix} onClearDiagnosticFix={() => setDiagnosticFix(null)}
         threadContext={threadContext} onClearThreadContext={() => setThreadContext(null)} />,

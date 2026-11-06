@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AiRunSchema, AiRunStepSchema } from "@quire/contracts";
+import { AiRunSchema, AiRunStepSchema, isLanguageTool } from "@quire/contracts";
 import type { Id, Scope, SqlExecutor, Transaction, AiRun, AiRunStep } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { CoreProjects } from "../../core/base";
@@ -44,7 +44,11 @@ export class AiStore {
     if (policy.ai === "off" || (mode === "agent" && policy.ai !== "agent")) {
       throw new ServiceError("AI_POLICY_DENIED", 403, "Current user, organization, project or provider policy denies this AI mode");
     }
-    return { settings, policy, operatorPolicy, preferences: await identityStore({ ...this.context, db }).preferences(actor.id, db) };
+    const preferences = await identityStore({ ...this.context, db }).preferences(actor.id, db);
+    if (input.tool && isLanguageTool(input.tool) && !preferences.languageEnabled) {
+      throw new ServiceError("AI_LANGUAGE_DISABLED", 403, "Language tools are disabled in your preferences");
+    }
+    return { settings, policy, operatorPolicy, preferences };
   }
   async record(id: Id, db: SqlExecutor = this.context.db): Promise<RunRecord> {
     const row = await db.get(`SELECT r.*,m.session_id,m.config_version,m.operator_policy_version,m.conversation_id,m.request_json,m.error_code,m.findings_json,m.steps_json

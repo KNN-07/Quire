@@ -1,5 +1,5 @@
 import type {
-  CompileJob, CompileRequest, Diagnostic, FileEntry, Id,
+  CompileJob, CompileRequest, ContextualLanguageTool, Diagnostic, FileEntry, Id,
   Preferences, Project, RequestOf, ResponseOf, Scope, Thread, Version, createClient, endpoints,
 } from "@quire/contracts";
 import type { ReactNode } from "react";
@@ -111,10 +111,19 @@ export interface SourceToolsHandle {
   readonly readOnly?: boolean;
 }
 export type SourcePanelProps = AuthoringProps & {
+  readonly onLanguageAction?: (request: LanguageActionRequest) => void;
   /** Embedded callers must expose every standalone toolbar action. */
   readonly presentation?: "standalone" | "embedded";
   readonly onToolsHandle?: (handle: SourceToolsHandle | null) => void;
   readonly onTrackingChange?: (enabled: boolean) => void;
+};
+export type LanguageActionRequest = {
+  readonly key: string;
+  readonly tool: ContextualLanguageTool;
+  readonly fileId: Id;
+  readonly from: number;
+  readonly to: number;
+  readonly text: string;
 };
 export type VisualPanelProps = AuthoringProps;
 export type ToolsPanelProps = {

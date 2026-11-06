@@ -45,7 +45,8 @@ test("undo restores accepted text through the core source writer", async () => {
   const original = await fixture.core.readDocument(scope, project.settings.mainFileId);
   provider.respond(context => ({ text: "Insert", citations: [], patches: context.files.map(file =>
     ({ fileId: file.id, path: file.path, from: 0, to: 0, before: "", after: "% accepted\n" })) }));
-  const run = await fixture.run(session, { scope, mode: "agent", tool: "grammar", prompt: "Add comment", fileIds: [original.file.id] });
+  const run = await fixture.run(session, { scope, mode: "agent", tool: "grammar", prompt: "Add comment", fileIds: [original.file.id],
+    selection: { fileId: original.file.id, from: 0, to: original.text.length, text: original.text } });
   await fixture.ai.decisions.decide(session.actor, { id: run.id, editIds: [], decision: "accept",
     expectedVersion: (await fixture.ai.get(session.actor, run.id)).version, key: crypto.randomUUID() });
   // When

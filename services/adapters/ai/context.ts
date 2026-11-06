@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DigestSchema, IdSchema } from "@quire/contracts";
+import { DigestSchema, IdSchema, languageCompletionPrefix, languageSelectionEligible } from "@quire/contracts";
 import { referenceBlob, ServiceError } from "@quire/runtime";
 import type { AiStore } from "./store";
 import { newId } from "./model";
@@ -23,6 +23,9 @@ export async function collectContext(store: AiStore, actor: Actor, request: Crea
   });
 }
 async function collectSelectedContext(store: AiStore, actor: Actor, request: CreateRun, db: SqlExecutor): Promise<RunContext> {
+  if (!languageSelectionEligible(request.tool, request.selection)) {
+    throw new ServiceError("AI_SELECTION_INELIGIBLE", 400, "This language operation is unavailable for the selected text");
+  }
   if (new Set(request.fileIds).size !== request.fileIds.length) throw new ServiceError("AI_CONTEXT_INVALID", 400, "Select distinct files");
   if (request.selection && !request.fileIds.includes(request.selection.fileId)) throw new ServiceError("AI_CONTEXT_INVALID", 400, "Selection file must be explicit");
   const files: SelectedFile[] = [];
@@ -68,7 +71,11 @@ async function collectSelectedContext(store: AiStore, actor: Actor, request: Cre
     throw new ServiceError("AI_IMAGE_REQUIRED", 400, "This tool requires an uploaded PNG or JPEG");
   }
   checkContextSize({ prompt: request.prompt, files: files.map(file => ({ id: file.id, path: file.path,
-    text: file.text.slice(file.from, file.to) })), diagnostic });
+    text: file.text.slice(file.from, file.to) })), diagnostic,
+    ...(request.tool === "inline-completion" ? { completionPrefix: files.map(file => ({
+      fileId: file.id, text: languageCompletionPrefix(file.text, file.from),
+    })) } : {}),
+  });
   return { files, images, diagnostic };
 }
 export async function uploadImage(store: AiStore, actor: Actor, input: {

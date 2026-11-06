@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { AiToolSchema } from "@quire/contracts";
+import { AiToolSchema, FileEntrySchema, isContextualLanguageTool } from "@quire/contracts";
 import { referenceBlob } from "@quire/runtime";
 import { defaultPreferences } from "../../../services/accounts/identity/store";
 import { defaultPolicy } from "../../../services/accounts/identity/policy";
@@ -14,6 +14,12 @@ test("routes every advertised tool through a real configured HTTP completion", a
   await using provider = providerServer(); await using fixture = await aiFixture(provider.origin);
   const session = await fixture.login(); await fixture.configure(); const project = await fixture.project(session);
   const scope = { projectId: project.id, branch: project.defaultBranch };
+  const languageText = "First sentence. Second sentence.";
+  const languageResponse = await fixture.request(`/api/projects/${project.id}/files`, { method: "POST",
+    headers: { ...session.headers, "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ scope, path: "language.tex", kind: "file", text: languageText,
+      expectedVersion: (await fixture.core.getBranch(scope)).revision }) });
+  const languageFile = FileEntrySchema.parse((await languageResponse.json()).data);
   await fixture.runtime.db.run("UPDATE preferences SET value_json=? WHERE user_id=?", [
     JSON.stringify({ ...defaultPreferences, inlineCompletion: true, citationWebSearch: true, citationProviders: ["crossref"] }), session.user.id]);
   const operator = await fixture.login("operator@quire.local");
@@ -39,7 +45,9 @@ test("routes every advertised tool through a real configured HTTP completion", a
     ? [{ provider: "crossref", providerId: "10.1234/verified" }] : [] }));
   // When
   for (const tool of AiToolSchema.options) {
-    const run = await fixture.run(session, { scope, mode: "ask", tool, prompt: `Task ${tool}`, fileIds: [],
+    const to = tool === "inline-completion" ? 0 : tool === "synonyms" ? 5 : tool === "split" ? 15 : languageText.length;
+    const run = await fixture.run(session, { scope, mode: "ask", tool, prompt: `Task ${tool}`, fileIds: isContextualLanguageTool(tool) ? [languageFile.id] : [],
+      ...(isContextualLanguageTool(tool) ? { selection: { fileId: languageFile.id, from: 0, to, text: languageText.slice(0, to) } } : {}),
       ...(tool.endsWith("-image") ? { imageUploadIds: [image.id] } : {}),
       ...(tool === "error-fix" ? { diagnosticId } : {}) });
     expect(run.status).toBe("succeeded");

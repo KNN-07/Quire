@@ -20,11 +20,12 @@ function lineOf(text: string, offset: number) {
   for (let index = text.indexOf("\n"); index !== -1 && index < offset; index = text.indexOf("\n", index + 1)) line++;
   return line;
 }
-export function AssistantContext({ state, choice, change, projectSearch = false }: {
+export function AssistantContext({ state, choice, change, projectSearch = false, requiredRange = false }: {
   readonly state: AssistantState;
   readonly choice: ContextChoice;
   readonly change: (next: ContextChoice) => void;
   readonly projectSearch?: boolean;
+  readonly requiredRange?: boolean;
 }) {
   const from = Math.min(state.selection.anchor, state.selection.head);
   const to = Math.max(state.selection.anchor, state.selection.head);
@@ -49,7 +50,7 @@ export function AssistantContext({ state, choice, change, projectSearch = false 
             ? [...choice.files, file.id] : choice.files.filter(id => id !== file.id) })} />{file.path}</label>)}
     </fieldset>
     <label className="qa-assistant__check"><input type="checkbox" checked={choice.range}
-      disabled={!state.document || from === to}
+      disabled={requiredRange || !state.document || from === to}
       onChange={event => change({ ...choice, range: event.target.checked })} />Send active UTF-16 range {from}–{to} in {state.document?.file.path ?? "no active file"}</label>
     {choice.range && state.document && <pre aria-label="Selected text">{state.document.source.toJSON().slice(from, to)}</pre>}
     <label>Compile diagnostic<select aria-label="Compile diagnostic" value={choice.diagnostic}

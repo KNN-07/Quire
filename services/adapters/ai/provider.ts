@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AiToolSchema } from "@quire/contracts";
+import { AiToolSchema, languageCompletionPrefix } from "@quire/contracts";
 import type { AiTool } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { AdapterDefinition, ProviderSettings, SafeHttpClient } from "../shared";
@@ -57,6 +57,9 @@ export class OpenAiChat {
       from: file.from, to: file.to, text: file.text.slice(file.from, file.to) }));
     const content = [
       { type: "text", text: JSON.stringify({ tool: request.tool, prompt: request.prompt, files: selected,
+        ...(request.tool === "inline-completion" ? { completionPrefix: context.files.map(file => ({
+          fileId: file.id, text: languageCompletionPrefix(file.text, file.from),
+        })) } : {}),
         diagnostic: context.diagnostic, publications: input.publications }) },
       ...context.images.map(image => ({ type: "image_url", image_url: {
         url: `data:${image.mime};base64,${Buffer.from(image.bytes).toString("base64")}`,

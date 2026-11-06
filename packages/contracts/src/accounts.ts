@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema, CapabilitySchema } from "./primitives";
+import { IdSchema, InstantSchema, DigestSchema, CountSchema, RoleSchema, CapabilitySchema, assertNever } from "./primitives";
 import { EngineSchema } from "./projects";
 import { ImportSelectionSchema, ImportUploadSchema } from "./multipart";
 
@@ -26,9 +26,48 @@ export const PreferencesSchema = z.strictObject({
   autoCompile: z.boolean(), autocomplete: z.boolean(), autoClose: z.boolean(), cursors: z.boolean(),
   aiModel: z.string().nullable(), aiMode: z.enum(["ask", "agent"]), aiStyle: z.enum(["match", "academic", "plain"]),
   citationProviders: z.array(z.string()).readonly(), inlineCompletion: z.boolean(), errorAssist: z.boolean(),
+  languageEnabled: z.boolean().default(true), languageFloatingMenu: z.boolean().default(true),
   citationWebSearch: z.boolean(), aiBranch: z.boolean(), shareAiChat: z.boolean(),
   compileBeforeCommit: z.boolean(), version: CountSchema,
 }).readonly();
+/** Contextual language operations share Unicode segmentation in browser and server. */
+export const contextualLanguageTools = [
+  "inline-completion", "synonyms", "grammar", "fluency", "paraphrase", "concise", "scientific", "split", "join",
+] as const;
+export type ContextualLanguageTool = typeof contextualLanguageTools[number];
+const words = new Intl.Segmenter("en", { granularity: "word" });
+const sentences = new Intl.Segmenter("en", { granularity: "sentence" });
+export function languageCompletionPrefix(text: string, caret: number): string {
+  return [...sentences.segment(text.slice(0, caret))].at(-1)?.segment ?? "";
+}
+export function isContextualLanguageTool(tool: string): tool is ContextualLanguageTool {
+  return contextualLanguageTools.some(value => value === tool);
+}
+export function isLanguageTool(tool: string): boolean {
+  return isContextualLanguageTool(tool) || tool === "title" || tool === "abstract" || tool === "translate";
+}
+export function languageSelectionEligible(tool: string, selection?: {
+  readonly from: number; readonly to: number; readonly text: string;
+}): boolean {
+  if (!isContextualLanguageTool(tool)) return true;
+  if (!selection) return false;
+  if (tool === "inline-completion") return selection.from === selection.to && selection.text === "";
+  const text = selection.text.trim();
+  if (selection.from === selection.to || !text) return false;
+  switch (tool) {
+    case "synonyms": {
+      const parts = [...words.segment(text)];
+      return parts.length === 1 && parts[0]?.isWordLike === true;
+    }
+    case "split": case "join": {
+      const count = [...sentences.segment(text)].filter(part =>
+        [...words.segment(part.segment)].some(word => word.isWordLike)).length;
+      return tool === "split" ? count === 1 : count > 1;
+    }
+    case "concise": case "fluency": case "grammar": case "paraphrase": case "scientific": return true;
+    default: return assertNever(tool);
+  }
+}
 export const OrganizationSchema = z.strictObject({
   id: IdSchema, slug: z.string(), name: z.string(), kind: z.enum(["team", "institution"]),
   domains: z.array(z.string()).readonly(), policy: PolicySchema, version: CountSchema,

@@ -11,7 +11,8 @@ test("marks a stale base-text proposal as conflict without overwriting concurren
   provider.respond(context => ({ text: "Replace", citations: [], patches: context.files.map(file => ({
     fileId: file.id, path: file.path, from: 0, to: file.text.length, before: file.text, after: "AI replacement",
   })) }));
-  const run = await fixture.run(session, { scope, mode: "agent", tool: "paraphrase", prompt: "Rewrite", fileIds: [original.file.id] });
+  const run = await fixture.run(session, { scope, mode: "agent", tool: "paraphrase", prompt: "Rewrite", fileIds: [original.file.id],
+    selection: { fileId: original.file.id, from: 0, to: original.text.length, text: original.text } });
   await fixture.core.serialized(scope, lease => fixture.core.commitSource({ actorId: session.user.id, scope, lease,
     expectedRevision: original.file.version.revision, inputs: [{ file: original.file, bytes: new TextEncoder().encode("Concurrent human edit") }] }));
   // When

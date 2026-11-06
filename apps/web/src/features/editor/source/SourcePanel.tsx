@@ -25,6 +25,7 @@ import { draftChange, draftKey, readDraft } from "./tracking";
 import { useSourceTracking } from "./use-tracking";
 import { SourceProposals } from "./Proposals";
 import { useInlineReferences } from "./InlineReferences";
+import { LanguageActions } from "./LanguageActions";
 import "./source.css";
 
 const emptyIndex: TexIndex = { headings: [], labels: [], citations: [] };
@@ -46,6 +47,7 @@ function SourcePanelContent(props: SourcePanelProps) {
   const [error, setError] = useState("");
   const [keysLoading, setKeysLoading] = useState(false);
   const [discard, setDiscard] = useState(false);
+  const [languageShortcut, setLanguageShortcut] = useState<{ readonly key: string; readonly anchor: number; readonly head: number; readonly text: string } | null>(null);
   const sharedUndo = useMemo(() => new UndoManager(props.document.source), [props.document]);
   const otherIndex = useRef<TexIndex>(emptyIndex);
   const currentIndex = useMemo(() => texIndex(source), [source]);
@@ -154,6 +156,12 @@ function SourcePanelContent(props: SourcePanelProps) {
     editor.diagnostics([...checks, ...spelling.issues, ...compiler]);
   }, [editor, source, props.document, props.diagnostics, checks, spelling.issues]);
   return <section className="q-source-panel" aria-label={copy.source} lang={language} data-presentation={props.presentation ?? "standalone"} data-theme={props.preferences.theme} data-spelling-state={spelling.state.kind}
+    onKeyDownCapture={event => {
+      if (!event.nativeEvent.isComposing && (event.ctrlKey || event.metaKey) && event.altKey && event.key.toLowerCase() === "l"
+        && props.preferences.languageEnabled && !tracking.draft.enabled && !readOnly) {
+        event.preventDefault(); event.stopPropagation(); setLanguageShortcut({ key: crypto.randomUUID(), ...props.selection, text: source });
+      }
+    }}
     data-tracking={tracking.draft.enabled ? "on" : "off"} data-tracking-permission={tracking.canTrack ? "allowed" : "denied"}
     data-tracking-state={tracking.conflict && tracking.dirty ? "conflict" : !tracking.online ? "offline" : tracking.busy ? "submitting" : tracking.dirty ? "draft" : "ready"}>
     {props.presentation !== "embedded" && <><header className="q-source-toolbar">
@@ -196,6 +204,8 @@ function SourcePanelContent(props: SourcePanelProps) {
     </div>
     {snapshot.readOnlyReason && !tracking.draft.enabled && <p className="q-source-notice" role="status">{snapshot.readOnlyReason}</p>}
     {inlineReferences.status}
+    <LanguageActions props={props} editor={editor} source={source}
+      blocked={tracking.draft.enabled || readOnly || !online} shortcut={languageShortcut} />
     {tool !== "check" && tool !== "preferences" && <SpellingStatus state={spelling.state} compact />}
     <div ref={parent} className="q-source-editor" onPasteCapture={event => {
       if (!Array.from(event.clipboardData.items).some(item => item.kind === "file")) return;
@@ -235,6 +245,7 @@ function SourcePanelContent(props: SourcePanelProps) {
       {tool === "shortcuts" && <div className="q-source-stack">
         <dl className="q-source-shortcuts"><dt>Find / replace</dt><dd>Ctrl/Cmd+F; Ctrl+H (Windows/Linux)</dd><dt>Bold / italic / comment</dt><dd>Ctrl/Cmd+B / I / /</dd><dt>Completion</dt><dd>Ctrl+Space; Option+Space on Mac if the OS reserves Ctrl+Space</dd><dt>Undo / redo</dt><dd>Ctrl/Cmd+Z / Shift+Z</dd><dt>Indent / outdent</dt><dd>Tab / Shift+Tab</dd><dt>Close tools / completion</dt><dd>Escape</dd></dl>
         <Button disabled={!online} busy={keysLoading} onClick={() => setRefresh(value => value + 1)}>{copy.refresh}</Button>
+        <p>Language actions: Ctrl/Cmd+Alt+L. At a caret, explicitly choose Inline completion. Selected text offers eligible rewrite actions. All changes require Assistant Send and review.</p>
         <p>Commands show required packages in completion details. Labels and bibliography keys come from current project files.</p>
       </div>}
     </aside>}
