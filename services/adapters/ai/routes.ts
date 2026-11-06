@@ -3,6 +3,8 @@ import type { RequestContext } from "@quire/runtime";
 import { ServiceError } from "@quire/runtime";
 import type { AiService } from "./service";
 import { z } from "zod";
+import { billingUsageEndpoints } from "../../../packages/contracts/src/routes-billing-usage";
+import { billingUsage } from "./billing-usage";
 
 export function registerAiRoutes(service: AiService) {
   const { context } = service.store;
@@ -45,6 +47,8 @@ export function registerAiRoutes(service: AiService) {
   });
   context.routes.register(endpoints.aiUsageGet, async (input, request) =>
     service.store.usage(await actor(request), input.query.month));
+  context.routes.register(billingUsageEndpoints.billingUsageGet, async (input, request) =>
+    billingUsage(service.store, await actor(request), input.query.projectId));
   context.routes.register(endpoints.aiConsentGet, async (_input, request) => {
     const principal = await actor(request);
     const row = z.object({

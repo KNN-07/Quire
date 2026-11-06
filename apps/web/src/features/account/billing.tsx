@@ -7,6 +7,7 @@ import type { SettingsProps } from "./settings";
 import { Payments } from "./payments";
 import { checkoutDestination } from "./billing-navigation";
 import { selectedBillingPlan } from "../marketing/pricing-selection";
+import { BillingUsage } from "./billing-usage";
 
 export function Billing(props: SettingsProps) {
   const [catalog, setCatalog] = useState<ResponseOf<typeof endpoints.billingCatalog> | null>(null);
@@ -36,6 +37,7 @@ export function Billing(props: SettingsProps) {
     return () => controller.abort();
   }, [props.client, organization]);
   return <Panel title="Billing">
+    <BillingUsage client={props.client} />
     {error ? <Notice error={error} message="" /> : !catalog ? <p role="status">Loading billing catalog…</p> : <>
       <h3>Available plans</h3>
       {selection?.error && <><Notice error={selection.error} message="" /><a href="/pricing">Return to pricing</a></>}
