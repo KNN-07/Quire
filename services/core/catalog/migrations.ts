@@ -24,4 +24,18 @@ export const migrations: readonly Migration[] = [{
     CREATE INDEX catalog_library_owner ON library_entries(owner_id,id);
     CREATE INDEX catalog_template_versions ON template_versions(template_id,created_at,id);
   `,
+}, {
+  id: "025-k-institution-template-selection",
+  sql: `CREATE TABLE institution_templates (
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+    version_id TEXT NOT NULL REFERENCES template_versions(id) ON DELETE CASCADE,
+    PRIMARY KEY(organization_id,template_id)
+  ) STRICT;`,
+  postgres: `CREATE TABLE institution_templates (
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+    version_id TEXT NOT NULL REFERENCES template_versions(id) ON DELETE CASCADE,
+    PRIMARY KEY(organization_id,template_id)
+  );`,
 }];

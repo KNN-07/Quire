@@ -4,6 +4,7 @@ import { z } from "zod";
 import { actor, etag, replay } from "../base/http";
 import { Library } from "./library";
 import { Templates } from "./templates";
+import { InstitutionTemplates } from "./institution-templates";
 import { transition } from "./publication";
 import { cite } from "./citations";
 import { fail, page, projects } from "./storage";
@@ -17,6 +18,7 @@ export { parseBibtex, singleRecord } from "./bibtex";
 export function register(context: ModuleContext): void {
   const library = new Library(context);
   const templates = new Templates(context);
+  const institutional = new InstitutionTemplates(context);
   const { register: route } = context.routes;
   route(endpoints.libraryList, async (input, request) => page((await library.list(await actor(context, request))), input.query));
   route(endpoints.libraryGet, async (input, request) => {
@@ -59,6 +61,14 @@ export function register(context: ModuleContext): void {
     const principal = await context.services.get("identity").authenticate(request.request);
     return page((await templates.list(principal?.user.id ?? null)), input.query);
   });
+  route(endpoints.institutionTemplates, async (input, request) => {
+    const principal = await context.services.get("identity").authenticate(request.request);
+    return page(await institutional.list(principal?.user.id ?? null, input.params.o), input.query);
+  });
+  route(endpoints.institutionTemplateSelect, async (input, request) =>
+    institutional.select(await actor(context, request), input.params.o, input.params.id, input.body.versionId, input.body.expectedVersion));
+  route(endpoints.institutionTemplateRemove, async (input, request) =>
+    institutional.remove(await actor(context, request), input.params.o, input.params.id, input.body.expectedVersion));
   route(endpoints.adminTemplatesList, async (input, request) => {
     const principal = await context.services.get("identity").require(request.request);
     if (!principal.operator) fail("FORBIDDEN", 403, "Operator access required");

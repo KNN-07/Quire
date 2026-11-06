@@ -19,7 +19,11 @@ test("preserves accepted catalog SQLite digest and applied rows with an explicit
     });
     try {
       expect(original).toHaveLength(12);
-      expect(await runtime.db.all("SELECT * FROM schema_migrations WHERE id <> '006-f-portable' ORDER BY id")).toEqual(original);
+      expect(await runtime.db.all(`SELECT * FROM schema_migrations
+        WHERE id NOT IN ('006-f-portable','025-k-institution-template-selection') ORDER BY id`)).toEqual(original);
+      expect(await runtime.db.all("SELECT id FROM schema_migrations WHERE id='025-k-institution-template-selection'"))
+        .toEqual([{ id: "025-k-institution-template-selection" }]);
+      expect(await runtime.db.all("SELECT * FROM institution_templates")).toEqual([]);
       expect(await runtime.db.all("PRAGMA foreign_key_check")).toEqual([]);
       for (const migration of migrations) {
         if (!migration.postgres) throw new Error(`Missing PostgreSQL variant: ${migration.id}`);
