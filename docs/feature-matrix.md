@@ -55,6 +55,34 @@ runner observation. No unrelated row or historical evidence is promoted.
 
 ## Core retained evidence ledger
 
+**November 6 continuation:** `docs/handoffs/p73-continuation.md` tracks the
+current implementation and its remaining checks. The user elected sign-in for
+all editing and organization-only billing. `p73-authenticated-editing.md`
+supersedes the misleading anonymous-edit policy control: anonymous reads still
+require an allowed valid link, and guest writes remain denied. Separate public
+access without a link is not introduced. `p73-billing-usage.md` supplies actual
+daily actor receipts and explicitly selected project limits; historical personal
+paid-subscription requirements are disposed by the elected organization-only
+scope, while live merchant acceptance remains separate.
+`p73-administration-browser.md` closes native Support diagnostics download and
+Audit filter/export browser journeys only.
+`p73-language-interactions.md` closes the elected I49a contextual selection,
+preference, shortcut and reviewed caret-completion flow with actual provider
+requests and live progress; it does not certify live model interoperability.
+`p73-institutional-templates.md` closes P07's explicit immutable featured-version
+selection and native publication/copy/withdrawal/reselection journey.
+`p73-saml-administration.md` closes the native A55c link-status, reminder,
+unlink-one/all and narrowly authorized managed-relink consumers, preserving
+independent recovery and permanent release fences.
+`p73-institution-reconfirmation.md` closes configurable renewal and expiry
+consumers in A53a/A53b; external domain/IdP proof and commercial tiers remain
+separate. `p73-prospective-sharing.md` closes C40a's workspace-only prospective
+sharing election, explicitly distinguishes upgrade baselines from historical
+creation policy, and preserves archived baselines during restoration.
+These receipts supersede those specific earlier missing-behavior statements
+below. They do not promote whole-product acceptance or remove unrelated
+provider, platform, deployment and accessibility obligations.
+
 | Key | Exact retained paths and accepted scope |
 | --- | --- |
 | HIST | `docs/evidence/capability-audit/core.md`; `docs/feature-matrix.md`. Historical per-row implementation/acceptance findings, read with the supersessions below. Neither is a current pass ledger. |

@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { watch } from "node:fs";
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import { endpoints, resultSchema } from "@quire/contracts";
 import { InstallationStateSchema } from "../../../services/operations/installation/model";
@@ -34,7 +37,23 @@ test("promoted floor and byte-equivalent completed receipt survive controller re
   const before = InstallationStateSchema.parse(await owned.control({ method: "status", input: {} }));
   const original = JSON.stringify(await owned.control({ method: "get", input: { id: completed.operation.id } }));
   expect(before.floor).toEqual({ sequence: 2, version: "2.0.0" });
-  await owned.killController();
+  // systemd-run can exit before --collect removes the transient unit definition.
+  const removed = Promise.withResolvers<void>();
+  const transient = join(owned.config.userRuntimeDir, "systemd/transient");
+  const observer = watch(transient, (_event, file) => {
+    if (file !== owned.config.controllerUnit) return;
+    void lstat(join(transient, file)).then(() => undefined, (error: unknown) => {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") removed.resolve();
+      else removed.reject(error);
+    });
+  });
+  const removalTimeout = setTimeout(() => removed.reject(new Error("Crashed controller unit was not collected")), 30000);
+  try {
+    await Promise.all([owned.killController(), removed.promise]);
+  } finally {
+    clearTimeout(removalTimeout);
+    observer.close();
+  }
   await owned.start();
   const after = InstallationStateSchema.parse(await owned.control({ method: "status", input: {} }));
   expect(after.mode).toBe("open");
