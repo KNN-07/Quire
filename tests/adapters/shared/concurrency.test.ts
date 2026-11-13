@@ -53,3 +53,20 @@ test("rejects publication when account lifecycle clears a grant without changing
   expect(errorEnvelope.parse(await (await response).json()).error.code).toBe("GRANT_UNAVAILABLE");
   expect(await setup.fixture.runtime.db.all("SELECT cursor FROM adapter_cursors")).toEqual([]);
 });
+
+test("rechecks per-action capability before publishing prepared work", async () => {
+  let enabled = true;
+  await using setup = await connectedFixture({
+    actionCapability: () => enabled ? { enabled: true, state: "ready" }
+      : { enabled: false, state: "disabled", reason: "Action disabled" },
+  });
+  const barrier = setup.provider.pauseNextAction();
+  const response = setup.action();
+  try {
+    await abortable(() => barrier.entered, AbortSignal.timeout(5_000));
+    enabled = false;
+  } finally { barrier.release(); }
+  expect(errorEnvelope.parse(await (await response).json()).error.code).toBe("PROVIDER_CHANGED");
+  expect(await setup.fixture.runtime.db.all("SELECT id FROM notifications WHERE kind='fixture.synced'")).toEqual([]);
+  expect(await setup.fixture.runtime.db.all("SELECT cursor FROM adapter_cursors")).toEqual([]);
+});

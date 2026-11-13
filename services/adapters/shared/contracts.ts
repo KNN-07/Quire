@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { InstantSchema } from "@quire/contracts";
-import type { AdapterGrant, Capability, Id, Policy, Transaction } from "@quire/contracts";
+import type { AdapterGrant, Capability, Id, Policy, PublisherContract, Transaction } from "@quire/contracts";
 import type { ModuleContext } from "@quire/runtime";
 import type { SafeHttpClient } from "./http";
 import type { ProviderConfigurations } from "./configuration";
@@ -8,12 +8,14 @@ import type { GrantStore } from "./grants";
 import type { AdapterOperations } from "./operations";
 
 export const GrantTokensSchema = z.strictObject({
+  disconnect: z.enum(["local", "remote"]).optional(),
   accessToken: z.string().min(1), refreshToken: z.string().min(1).nullable(),
   tokenType: z.enum(["Bearer", "Basic"]), scopes: z.array(z.string()).readonly(),
   expiresAt: InstantSchema.nullable(),
 }).readonly();
 export type GrantTokens = z.infer<typeof GrantTokensSchema>;
 export type ProviderSettings = {
+  readonly publisherContract?: PublisherContract;
   readonly id: Id; readonly kind: string; readonly baseUrl: string; readonly model?: string;
   readonly secret: string | null; readonly enabled: boolean; readonly policy: Policy;
   readonly version: number;
@@ -40,19 +42,23 @@ export type PreparedAction = {
   readonly release?: () => Promise<void>;
 };
 export type AdapterActionDefinition = {
+  readonly capability?: (settings: ProviderSettings) => Capability;
   readonly projectAccess: "none" | "read" | "write" | "owner";
   readonly prepare: (parameters: Readonly<Record<string, unknown>>, context: ActionContext) => Promise<PreparedAction>;
 };
 export function defineAction<T extends z.ZodType>(
   schema: T,
   action: {
+    readonly capability?: AdapterActionDefinition["capability"];
     readonly projectAccess: AdapterActionDefinition["projectAccess"];
     readonly prepare: (parameters: z.output<T>, context: ActionContext) => Promise<PreparedAction>;
   },
 ): AdapterActionDefinition {
-  return { projectAccess: action.projectAccess, prepare: (parameters, context) => action.prepare(schema.parse(parameters), context) };
+  return { ...(action.capability ? { capability: action.capability } : {}), projectAccess: action.projectAccess, prepare: (parameters, context) => action.prepare(schema.parse(parameters), context) };
 }
 export type AdapterDefinition = {
+  readonly connection?: (settings: ProviderSettings) => { readonly enrollment: "oauth" | "bearer"; readonly disconnect: "local" | "remote" };
+  readonly enrollBearer?: (settings: ProviderSettings, token: string, signal: AbortSignal) => Promise<GrantTokens>;
   readonly kind: string; readonly label: string;
   /** Names every missing credential, purchased API contract or installed executable. */
   readonly configuration: (settings: ProviderSettings) => readonly string[];
@@ -76,4 +82,9 @@ export function configurationCapability(definition: AdapterDefinition, settings:
   if (missing.length) return { enabled: false, state: "unconfigured", reason: `Missing: ${missing.join("; ")}` };
   if (!settings.enabled) return { enabled: false, state: "disabled", reason: "Provider disabled by operator" };
   return { enabled: true, state: "ready" };
+}
+export function actionCapability(definition: AdapterDefinition, settings: ProviderSettings, action: string): Capability {
+  const capability = configurationCapability(definition, settings);
+  if (!capability.enabled) return capability;
+  return definition.actions[action]?.capability?.(settings) ?? capability;
 }

@@ -5,6 +5,7 @@ import { CoreProjects, downloadOperation } from "../../core/base";
 import { delegatedExport } from "../../core/base/export-adapter";
 import { defineAction } from "../shared";
 import type { AdapterContribution } from "../shared";
+import { OAuthProtocol } from "../shared/oauth-protocol";
 import { PublisherClient } from "./client";
 import {
   parsePublisherContract,
@@ -34,8 +35,28 @@ export const publisherContribution: AdapterContribution = (services) => {
     label: "Configured publisher destination",
     configuration: publisherRequirements,
     oauth: publisherOAuth,
+    connection(settings) {
+      const contract = parsePublisherContract(settings);
+      return { enrollment: contract.authentication === "bearer" ? "bearer" : "oauth",
+        disconnect: contract.authentication === "bearer" ? "local" : "remote" };
+    },
+    async enrollBearer(settings, token, signal) {
+      const contract = parsePublisherContract(settings);
+      if (contract.authentication !== "bearer") {
+        throw new ServiceError("CREDENTIAL_ENROLLMENT_UNSUPPORTED", 422, "Publisher destination requires OAuth enrollment");
+      }
+      await client.verifyToken(settings.baseUrl, contract, token, signal);
+      return { accessToken: token, refreshToken: null, tokenType: "Bearer", scopes: [], expiresAt: null, disconnect: "local" };
+    },
+    async revoke(context) {
+      if (context.tokens.disconnect === "local") return;
+      await new OAuthProtocol(services.http, services.context.clock).revoke(publisherOAuth(context.configuration), context.tokens);
+    },
     actions: {
       prepare: defineAction(PrepareSchema, {
+        capability: settings => parsePublisherContract(settings).actions?.prepare === false
+          ? { enabled: false, state: "disabled", reason: "Publisher preparation disabled by operator" }
+          : { enabled: true, state: "ready" },
         projectAccess: "read",
         async prepare(parameters, context) {
           if (!context.projectId) {
@@ -87,6 +108,9 @@ export const publisherContribution: AdapterContribution = (services) => {
         },
       }),
       submit: defineAction(SubmitSchema, {
+        capability: settings => parsePublisherContract(settings).actions?.submit === false
+          ? { enabled: false, state: "disabled", reason: "Publisher submission disabled by operator" }
+          : { enabled: true, state: "ready" },
         projectAccess: "write",
         async prepare(parameters, context) {
           if (!context.projectId) {
@@ -171,6 +195,9 @@ export const publisherContribution: AdapterContribution = (services) => {
         },
       }),
       status: defineAction(StatusSchema, {
+        capability: settings => parsePublisherContract(settings).actions?.status === false
+          ? { enabled: false, state: "disabled", reason: "Publisher status disabled by operator" }
+          : { enabled: true, state: "ready" },
         projectAccess: "read",
         async prepare(parameters, context) {
           if (!context.projectId) {

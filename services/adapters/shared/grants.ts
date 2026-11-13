@@ -31,7 +31,11 @@ export class GrantStore {
     return this.dto(rowSchema.parse(row));
   }
   private dto(row: z.infer<typeof rowSchema>): AdapterGrant {
+    const disconnect = row.encrypted_secret === null ? undefined : GrantTokensSchema.parse(JSON.parse(
+      this.secrets.open(row.encrypted_secret, `grant:${row.id}:${row.owner_id}:${row.provider}`),
+    )).disconnect;
     return AdapterGrantSchema.parse({
+      ...(disconnect ? { disconnect } : {}),
       id: row.id, provider: row.provider, ownerId: row.owner_id, label: row.label, state: row.state,
       scopes: JSON.parse(row.scopes_json), expiresAt: row.expires_at, version: row.version,
     });
@@ -64,7 +68,8 @@ export class GrantStore {
       VALUES(?,?,?,?,?,'ready',?,?,1,?)`, [id, input.provider, input.actorId, input.label,
       this.secrets.seal(JSON.stringify(input.tokens), `grant:${id}:${input.actorId}:${input.provider}`),
       JSON.stringify(input.tokens.scopes), input.tokens.expiresAt, this.context.clock.now()]);
-    return { id, provider: input.provider, ownerId: input.actorId, label: input.label,
+    return { ...(input.tokens.disconnect ? { disconnect: input.tokens.disconnect } : {}),
+      id, provider: input.provider, ownerId: input.actorId, label: input.label,
       state: "ready", scopes: input.tokens.scopes, expiresAt: input.tokens.expiresAt, version: 1 };
   }
   async claim(input: { readonly actorId: Id; readonly grantId: Id; readonly expectedVersion: number }): Promise<GrantClaim> {

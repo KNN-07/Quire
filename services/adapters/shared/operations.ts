@@ -6,7 +6,7 @@ import type { ModuleContext } from "@quire/runtime";
 import type { ProviderConfigurations } from "./configuration";
 import type { GrantStore } from "./grants";
 import type { AdapterDefinition, ActionContext, PreparedAction } from "./contracts";
-import { configurationCapability } from "./contracts";
+import { actionCapability } from "./contracts";
 import { ExecuteActionSchema, actionDigest, assertCursor, authorizeAction, operationEvent, priorOperation } from "./operation-store";
 import type { ExecuteAction } from "./operation-store";
 
@@ -34,8 +34,8 @@ export class AdapterOperations {
     const previous = await priorOperation(context, input);
     if (previous) return previous;
     const settings = await configuration.get(definition.kind);
-    const capability = configurationCapability(definition, settings);
-    if (!capability.enabled) throw new ServiceError("PROVIDER_UNCONFIGURED", 503, capability.reason ?? "Provider unavailable");
+    const capability = actionCapability(definition, settings, input.action);
+    if (!capability.enabled) throw new ServiceError(capability.state === "disabled" ? "ACTION_UNAVAILABLE" : "PROVIDER_UNCONFIGURED", 503, capability.reason ?? "Provider action unavailable");
     if (owned.tokens.expiresAt && owned.tokens.expiresAt <= context.clock.now()) {
       throw new ServiceError("GRANT_EXPIRED", 409, "Refresh the connection before dispatch");
     }
@@ -90,7 +90,7 @@ export class AdapterOperations {
         await grants.assert(claim, tx);
         await authorizeAction({ ...context, db: tx }, input, action);
         const current = await configuration.get(definition.kind, tx);
-        if (current.version !== settings.version || !configurationCapability(definition, current).enabled) {
+        if (current.version !== settings.version || !actionCapability(definition, current, input.action).enabled) {
           throw new ServiceError("PROVIDER_CHANGED", 409, "Provider configuration changed during operation");
         }
         await assertCursor(tx, input);

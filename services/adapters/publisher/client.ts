@@ -14,6 +14,12 @@ type PublisherResponse = {
 export class PublisherClient {
   constructor(private readonly services: AdapterServices) {}
 
+  async verifyToken(baseUrl: string, contract: PublisherContract, token: string, signal: AbortSignal): Promise<void> {
+    await this.request(endpoint(baseUrl, contract.credentialTestPath), {
+      method: "GET", headers: { authorization: `Bearer ${token}` }, signal,
+    });
+  }
+
   async test(context: ActionContext, contract: PublisherContract): Promise<void> {
     await this.request(
       endpoint(context.configuration.baseUrl, contract.credentialTestPath),

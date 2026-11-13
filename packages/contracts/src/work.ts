@@ -3,6 +3,7 @@ import { IdSchema, InstantSchema, DigestSchema, CountSchema, ScopeSchema,
   JobStatusSchema, CapabilitySchema } from "./primitives";
 import { CompileSettingsSchema, SnapshotSchema, SuggestionSchema } from "./projects";
 import { PolicySchema } from "./accounts";
+import { PublisherContractSchema } from "./publisher";
 
 export const CompileRequestSchema = z.strictObject({
   scope: ScopeSchema, expectedRevision: CountSchema, settings: CompileSettingsSchema.optional(), clean: z.boolean(),
@@ -39,6 +40,7 @@ export const LibraryEntrySchema = z.strictObject({
   readonly: z.boolean(), publication: PublicationSchema.nullable(), version: CountSchema,
 }).readonly();
 export const ProviderConfigSchema = z.strictObject({
+  publisherContract: PublisherContractSchema.optional(),
   id: IdSchema, kind: z.string(), baseUrl: z.string(), model: z.string().optional(), enabled: z.boolean(),
   secretPresent: z.boolean(), capabilities: z.record(z.string(), CapabilitySchema),
   policy: PolicySchema, version: CountSchema,
@@ -101,6 +103,7 @@ export const ReleaseSchema = z.strictObject({
   scheduledAt: InstantSchema.nullable(),
 }).readonly();
 export const AdapterGrantSchema = z.strictObject({
+  disconnect: z.enum(["local", "remote"]).optional(),
   id: IdSchema, provider: z.string(), ownerId: IdSchema, label: z.string(), state: CapabilitySchema.unwrap().shape.state,
   scopes: z.array(z.string()).readonly(), expiresAt: InstantSchema.nullable(), version: CountSchema,
 }).readonly();

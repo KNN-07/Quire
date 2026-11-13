@@ -2,6 +2,7 @@ export * from "./primitives";
 export * from "./projects";
 export * from "./accounts";
 export * from "./work";
+export * from "./publisher";
 export * from "./events";
 export * from "./ports";
 export * from "./storage";

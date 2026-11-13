@@ -32,6 +32,7 @@ export function publisherProvider() {
   let submitRequests = 0;
   let statusRequests = 0;
   let failNextSubmit = false;
+  let credentialBarrier: { entered: ReturnType<typeof Promise.withResolvers<void>>; released: ReturnType<typeof Promise.withResolvers<void>> } | undefined;
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -84,7 +85,12 @@ export function publisherProvider() {
         return new Response(null, { status: 200 });
       }
       if (!tokens.has(access)) return Response.json({ error: "invalid_token" }, { status: 401 });
-      if (url.pathname === "/api/me") return Response.json({ account: "publisher-fixture" });
+      if (url.pathname === "/api/me") {
+        const barrier = credentialBarrier;
+        credentialBarrier = undefined;
+        if (barrier) { barrier.entered.resolve(); await barrier.released.promise; }
+        return Response.json({ account: "publisher-fixture" });
+      }
       if (url.pathname === "/api/submissions" && request.method === "POST") {
         submitRequests++;
         if (failNextSubmit) {
@@ -133,6 +139,16 @@ export function publisherProvider() {
   return {
     origin: server.url.origin,
     observed,
+    pauseCredentialTest() {
+      const entered = Promise.withResolvers<void>(), released = Promise.withResolvers<void>();
+      credentialBarrier = { entered, released };
+      return { entered: entered.promise, release: () => released.resolve() };
+    },
+    issueToken() {
+      const token = randomBytes(32).toString("base64url");
+      tokens.add(token);
+      return token;
+    },
     get submitRequests() {
       return submitRequests;
     },

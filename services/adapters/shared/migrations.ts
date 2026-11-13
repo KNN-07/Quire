@@ -41,6 +41,10 @@ CREATE TABLE adapter_grant_claims (
 );
 `,
 }, {
+  id: "060-x-shared-publisher-contract",
+  sql: "ALTER TABLE adapter_provider_configs ADD COLUMN publisher_contract_json TEXT;",
+  postgres: "ALTER TABLE adapter_provider_configs ADD COLUMN publisher_contract_json TEXT;",
+}, {
   id: "060-x-ai-operator-policy",
   sql: "CREATE TABLE adapter_ai_policy (id TEXT PRIMARY KEY CHECK(id='ai'), policy_json TEXT NOT NULL) STRICT;",
   postgres: "CREATE TABLE adapter_ai_policy (id TEXT PRIMARY KEY CHECK(id='ai'), policy_json TEXT NOT NULL);",

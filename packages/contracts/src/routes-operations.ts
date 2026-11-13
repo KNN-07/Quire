@@ -5,6 +5,7 @@ import { IdParamsSchema as ids, BytesSchema } from "./endpoint";
 import { UserSchema, AdminUserSummarySchema, AuditEntrySchema, PolicySchema } from "./accounts";
 import { OperationSchema, OperationSummarySchema, WorkerSchema, EnvironmentSchema, ProviderConfigSchema, BackupSchema, ReleaseSchema } from "./work";
 import { EngineSchema, ProjectSchema } from "./projects";
+import { PublisherContractSchema } from "./publisher";
 
 const r = routesFor("O");
 const a = routesFor("A");
@@ -55,7 +56,7 @@ export const operationEndpoints = {
   environmentRetire: r("POST", "/api/admin/environments/:id/retire", { params: ids, query: none, body: existing, output: ok }),
   environmentBuild: r("POST", "/api/admin/environments/build", { params: none, query: none, body: z.strictObject({ baseId: id, packageList: z.array(z.string()), fontUploads: z.array(id), mirror: z.url() }), output: OperationSchema, ...key, successStatus: 202 }),
   providerGet: r("GET", "/api/admin/providers/:kind", { params: provider, query: none, body: noBody, output: ProviderConfigSchema }),
-  providerPut: r("PUT", "/api/admin/providers/:kind", { params: provider, query: none, body: z.strictObject({ baseUrl: z.url(), model: z.string().optional(), secret: z.string().optional(), policy: PolicySchema, ...version }), output: ProviderConfigSchema, ifMatch: true }),
+  providerPut: r("PUT", "/api/admin/providers/:kind", { params: provider, query: none, body: z.strictObject({ baseUrl: z.url(), model: z.string().optional(), publisherContract: PublisherContractSchema.optional(), secret: z.string().optional(), policy: PolicySchema, ...version }), output: ProviderConfigSchema, ifMatch: true }),
   providerTest: r("POST", "/api/admin/providers/:kind/test", { params: provider, query: none, body: existing, output: z.strictObject({ ok: z.boolean(), reason: z.string().optional() }) }),
   providerAiPolicyGet: r("GET", "/api/admin/providers/ai/policy", { params: none, query: none, body: noBody,
     output: ProviderConfigSchema.unwrap().shape.aiPolicy.unwrap() }),

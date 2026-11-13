@@ -26,6 +26,19 @@ their business routes in their own modules; identity login is not shared.
 `defineAction(schema, action)` erases a parsed parameter type without casts:
 the schema is applied once, and action receives typed parameters.
 
+P74 adds optional per-action `capability(settings)`. Provider configuration and
+the adapter port expose the same effective capability; operation admission and
+publication enforce it after provider-level readiness. Existing contributions
+without a hook keep their provider capability.
+
+P74 adds typed `publisherContract` configuration with a paired additive storage
+migration. Publisher alone retains legacy model JSON and omitted mapping fields.
+Optional `connection(settings)` advertises enrollment/removal semantics through
+authenticated GET `/api/connections/options`. Optional `enrollBearer` validates
+credentials outside SQL; the publisher credential route fences actor/session and
+configuration before encrypted grant creation. Bearer tokens carry a durable
+local-disconnect marker; public grant DTOs expose only that marker, never tokens.
+
 `AdapterServices` exposes `context: ModuleContext`, `http: SafeHttpClient`,
 `configuration: ProviderConfigurations`, `grants: GrantStore`, and
 `operations: AdapterOperations`.

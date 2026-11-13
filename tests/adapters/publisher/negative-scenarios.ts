@@ -110,6 +110,13 @@ export function registerNegativePublisherScenarios(
     expect((await current.fixture.configure(current.operator, "manual", 1)).status).toBe(200);
     const prepared = await current.prepare("manual-prepare");
     const before = current.fixture.provider.submitRequests;
+    const missingReceipt = await current.fixture.action({
+      session: current.owner, grantId: current.ownerGrant.id, grantVersion: current.ownerGrant.version,
+      projectId: current.projectId, action: "submit",
+      parameters: { preparationId: prepared.preparationId, confirmation: true }, key: "manual-missing-receipt",
+    });
+    expect(missingReceipt.status).toBe(422);
+    expect(ErrorEnvelope.parse(await missingReceipt.json()).error.code).toBe("PUBLISHER_MANUAL_RECEIPT_REQUIRED");
     // When
     const operation = await current.fixture.operation(await current.fixture.action({
       session: current.owner,
@@ -141,5 +148,13 @@ export function registerNegativePublisherScenarios(
       state: "submitted",
     });
     expect(current.fixture.provider.submitRequests).toBe(before);
+    const statusRequests = current.fixture.provider.statusRequests;
+    const status = await current.fixture.operation(await current.fixture.action({
+      session: current.owner, grantId: current.ownerGrant.id, grantVersion: current.ownerGrant.version,
+      projectId: current.projectId, action: "status",
+      parameters: { preparationId: prepared.preparationId }, key: "manual-local-status",
+    }));
+    expect(status.result).toEqual(result);
+    expect(current.fixture.provider.statusRequests).toBe(statusRequests);
   });
 }
