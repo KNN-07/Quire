@@ -8,6 +8,41 @@ project-export or source-download route.
 
 ## Configure installed tools
 
+Controller-managed installations use a signed `installation-roles.json`
+execution profile instead of `QUIRE_PANDOC_IMAGE`. Build the image below, inspect
+its immutable local `sha256:` ID, and include that ID in the release's signed
+profile. The actual API role must have exactly one matching Docker profile
+granting both `pandoc-probe` and `document-convert`:
+
+```json
+{
+  "id": "pandoc",
+  "roles": ["api"],
+  "kinds": ["pandoc-probe", "document-convert"],
+  "backend": "docker",
+  "image": "sha256:<actual 64 hexadecimal image ID>",
+  "profile": "default",
+  "limits": {
+    "wallSeconds": 60,
+    "memoryBytes": 536870912,
+    "processes": 64,
+    "workspaceBytes": 67108864
+  },
+  "maxConcurrent": 4
+}
+```
+
+Installed conversion never inherits an environment-built image or launches
+Docker from the API role. The controller seals source from the committed
+generation's `work/` directory and owns the fixed executable, container,
+resource limits and verified teardown. Its probe has a 15-second wall budget,
+32 processes and 16 KiB stdout ceiling. Conversion stdout has a 64 MiB controller
+ceiling and the configured expanded upload limit also applies; stderr is bounded
+at 64 KiB. Close cancels and awaits standalone probes and conversions.
+
+The environment-variable configuration below applies to direct development
+execution. Both modes require the real isolated probe before reporting readiness.
+
 Native ZIP, TeX snippet/data URL and direct public URL imports need no provider
 credential. Conversion needs an installed Docker daemon and an immutable local
 Pandoc image, not host execution:

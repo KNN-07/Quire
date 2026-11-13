@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ControlError } from "./model";
 import { installationRoleSession } from "./launch";
-import { ExecutionTaskSchema } from "./execution-model";
+import { conversionExecution, ExecutionTaskSchema } from "./execution-model";
 import type { ExecutionLimitsSchema, ExecutionWork } from "./execution-model";
 
 export type InstallationRecipe = {
@@ -31,7 +31,7 @@ export async function installationExecutionContext(input: {
   // A derived immutable image is selected by ID, not promoted to authority here.
   // The controller must resolve it through its successful owned-build ledger
   // and reapply the current inherited signed profile before any launch.
-  const profiles = exact.length ? exact : allowed;
+  const profiles = conversionExecution(input.kind) ? exact : exact.length ? exact : allowed;
   if (profiles.length !== 1) throw new ControlError("UPDATES_EXECUTION_PROFILE_UNAVAILABLE", "Exactly one signed execution profile must match");
   const profile = profiles[0];
   if (!profile || input.limits && Object.entries(input.limits).some(([key, value]) =>

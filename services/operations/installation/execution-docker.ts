@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ControlError } from "./model";
 import type { ExecutionLaunch, ExecutionTask } from "./execution-model";
+import { conversionExecution } from "./execution-model";
 import { executionRecipe } from "./execution-recipes";
 import { mirrorAddress, validateMirror } from "../environments/inputs";
 
@@ -109,6 +110,8 @@ export async function createOwnedContainer(socket: string, launch: ExecutionLaun
     }
   }
   const limit = task.request.limits;
+  const conversion = conversionExecution(task.request.work.kind);
+  const recipe = executionRecipe(task);
   const created = await dockerCommand(socket, [
     "create", "--name", launch.containerName,
     ...Object.entries(labels(launch)).flatMap(([key, value]) => ["--label", `${key}=${value}`]),
@@ -117,10 +120,11 @@ export async function createOwnedContainer(socket: string, launch: ExecutionLaun
       ["--read-only", "--user=65534:65534"]),
     "--pids-limit", String(limit.processes), "--memory", String(limit.memoryBytes),
     "--memory-swap", String(limit.memoryBytes), "--cpus=1", "--ulimit", "nofile=256:256", "--stop-timeout=1",
-    "--tmpfs", `/work:rw,nosuid,nodev,size=${limit.workspaceBytes},mode=1777`,
+    "--tmpfs", `/work:rw,nosuid,nodev,${conversion ? "noexec," : ""}size=${limit.workspaceBytes},mode=1777`,
     "--tmpfs", "/tmp:rw,nosuid,nodev,noexec,size=16777216,mode=1777",
     "--mount", `type=bind,source=${task.source},target=/src,readonly`, "--workdir=/work",
-    task.profile.image, ...executionRecipe(task),
+    ...(conversion ? ["--entrypoint", recipe[0]] : []),
+    task.profile.image, ...(conversion ? recipe.slice(1) : recipe),
   ]);
   if (created.code !== 0) throw new ControlError("CONTROL_CONTAINER_CREATE_FAILED", created.stderr);
   return z.string().regex(/^[0-9a-f]{64}$/).parse(created.stdout);

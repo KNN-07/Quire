@@ -7,7 +7,7 @@ import type { InstallationBinding } from "./model";
 import { ControlError } from "./model";
 import { handleControl } from "./controller-server";
 import type { ControlledLifecycle, ControlledRoleSession } from "./controller-server";
-import { ExecutionTaskSchema } from "./execution-model";
+import { conversionExecution, executionOutputLimits, ExecutionTaskSchema } from "./execution-model";
 import type { ExecutionExit, ExecutionWork } from "./execution-model";
 import { nativeExecutionCommand } from "./execution-recipes";
 import { releaseInventory } from "./prepared-storage-host";
@@ -53,14 +53,18 @@ export async function serveInstallationExecution(session: ControlledRoleSession)
           AbortSignal.any([eventsAbort.signal, AbortSignal.timeout(30000)])) : null;
         const argv = docker ? ["/usr/bin/docker", "--host", `unix://${socket}`, "start", "--attach", container] :
           [...nativeExecutionCommand(task)];
-        child = Bun.spawn(argv, { env: { PATH: "/usr/bin:/bin", HOME: "/nonexistent", LANG: "C.UTF-8" },
+        // Two Go clients share the helper's task budget with Bun. Bound their
+        // parallel runtime workers instead of increasing the signed PID limit.
+        const env = { PATH: "/usr/bin:/bin", HOME: "/nonexistent", LANG: "C.UTF-8",
+          ...(conversionExecution(task.request.work.kind) ? { GOMAXPROCS: "1" } : {}) };
+        child = Bun.spawn(argv, { env,
           stdin: "ignore", stdout: "pipe", stderr: "pipe" });
         const payload = child;
         let exitCode = payload.exited;
         if (docker) {
           await observation?.started;
           waiter = Bun.spawn(["/usr/bin/docker", "--host", `unix://${socket}`, "wait", container], {
-            env: { PATH: "/usr/bin:/bin", HOME: "/nonexistent" }, stdin: "ignore", stdout: "pipe", stderr: "pipe",
+            env, stdin: "ignore", stdout: "pipe", stderr: "pipe",
           });
           const wait = waiter;
           exitCode = Promise.all([wait.exited, new Response(wait.stdout).text(), new Response(wait.stderr).text()])
@@ -92,8 +96,9 @@ export async function serveInstallationExecution(session: ControlledRoleSession)
           await file.sync();
           return count;
         };
+        const limits = executionOutputLimits(task.request.work.kind);
         const [stdoutBytes, stderrBytes, code] = await Promise.all([
-          collect(payload.stdout, output, 64 * 1024 * 1024), collect(payload.stderr, errors, 8 * 1024 * 1024), exitCode,
+          collect(payload.stdout, output, limits.stdout), collect(payload.stderr, errors, limits.stderr), exitCode,
         ]);
         if (docker && await payload.exited !== code) throw new ControlError("CONTROL_CONTAINER_OUTPUT_FAILED");
         Object.assign(result, { stdoutBytes, stderrBytes, code });

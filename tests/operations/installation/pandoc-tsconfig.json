@@ -1,0 +1,11 @@
+{
+  "extends": "../../../tsconfig.json",
+  "include": [
+    "../../../packages/runtime/src/assets.d.ts",
+    "../../../services/operations/environments/assets.d.ts",
+    "../../../services/adapters/interchange/**/*.ts",
+    "./pandoc-*.ts",
+    "./supervisor-execution/**/*.ts"
+  ],
+  "exclude": []
+}

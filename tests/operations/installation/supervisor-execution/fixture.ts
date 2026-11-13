@@ -13,6 +13,7 @@ import { ControlStore } from "../../../../services/operations/installation/contr
 import { AcceptedReleaseSchema, BindingSchema, InstallationStateSchema } from "../../../../services/operations/installation/model";
 import { SystemdDriverConfigSchema } from "../../../../services/operations/installation/driver-config";
 import { ExecutionLaunchSchema } from "../../../../services/operations/installation/execution-model";
+import type { ExecutionProfile } from "../../../../services/operations/installation/execution-model";
 import { canonicalJson, controlDigest, requestDigest } from "../../../../services/operations/installation/protocol";
 import { handleControl, LaunchPermitSchema, listenControl } from "../../../../services/operations/installation/controller-server";
 import type { ControlChannel } from "../../../../services/operations/installation/controller-server";
@@ -28,7 +29,9 @@ async function bundle(path: string) {
   if (!built.success || !built.outputs[0]) throw new Error(built.logs.map(log => log.message).join("\n"));
   return built.outputs[0].text();
 }
-export async function executionFixture() {
+export async function executionFixture(options: {
+  readonly image?: string; readonly profiles?: readonly ExecutionProfile[]; readonly release?: string;
+} = {}) {
   const root = await mkdtemp(join(tmpdir(), "quire-p9-supervisor-"));
   const installationId = `p9${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const roots = { control: join(root, "control"), sockets: join(root, "ipc"), app: join(root, "app"),
@@ -45,21 +48,22 @@ export async function executionFixture() {
   await copyFile(await realpath("./node_modules/.bin/bun"), executable); await chmod(executable, 0o500);
   const script = join(roots.stable, "main.js");
   await writeFile(script, await bundle("tests/operations/installation/supervisor-execution/main.ts"), { mode: 0o400 });
-  const roleBytes = await bundle("tests/operations/installation/supervisor-execution/release.ts");
-  const imageProcess = Bun.spawn(["/usr/bin/docker", "image", "inspect", "quire-p2o-environments:st_01a17c2c", "--format", "{{.Id}}"],
+  const roleBytes = await bundle(options.release ?? "tests/operations/installation/supervisor-execution/release.ts");
+  const imageProcess = Bun.spawn(["/usr/bin/docker", "image", "inspect", options.image ?? "quire-p2o-environments:st_01a17c2c", "--format", "{{.Id}}"],
     { stdout: "pipe", stderr: "pipe" });
   const imageOutput = await new Response(imageProcess.stdout).text();
   if (await imageProcess.exited !== 0) throw new Error(await new Response(imageProcess.stderr).text());
   const image = z.string().regex(/^sha256:[0-9a-f]{64}$/).parse(imageOutput.trim());
-  const executionProfiles = [
+  const executionProfiles = options.profiles ?? [
     { id: "native", roles: ["api-a", "api-b"], kinds: ["compile", "environment-metadata", "environment-confinement"],
       backend: "bwrap", limits, maxConcurrent: 4 },
     { id: "docker", roles: ["api-a", "api-b"], kinds: ["compile", "environment-metadata", "environment-confinement",
       "environment-fixture", "environment-fonts", "environment-build"], backend: "docker", image, limits, maxConcurrent: 4,
       mirrors: ["https://archive.ubuntu.com/ubuntu/"] },
   ];
-  const roleMetadata = canonicalJson({ installationId, executionProfiles,
-    roles: roles.map(role => ({ role: role.role, kind: "api" })) });
+  const roleMetadata = canonicalJson({ installationId, executionProfiles, controlSocket: join(roots.sockets, "controller.sock"),
+    roles: roles.map(role => ({ role: role.role, kind: "api", port: 3000,
+      publicUrl: "http://localhost:5173", compilerBackend: "docker" })) });
   const migrations = await applicationMigrations();
   const releaseRoot = join(roots.app, "releases/prior");
   await mkdir(releaseRoot, { recursive: true, mode: 0o700 });

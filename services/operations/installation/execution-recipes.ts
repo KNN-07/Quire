@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { ControlError } from "./model";
 import type { ExecutionTask } from "./execution-model";
+import { conversionExecution } from "./execution-model";
 
 const runtimePaths = [
   "/usr/bin", "/usr/lib", "/usr/lib64", "/usr/libexec", "/usr/share/texlive",
@@ -11,9 +12,19 @@ const runtimePaths = [
   "/etc/ghostscript", "/etc/alternatives/bibtex", "/etc/LatexMk", "/var/lib/texmf", "/var/cache/fontconfig",
 ];
 /** All command text is fixed here; callers supply only parsed recipe arguments. */
-export function executionRecipe(task: ExecutionTask): readonly string[] {
+export function executionRecipe(task: ExecutionTask): readonly [string, ...string[]] {
   const work = task.request.work;
+  if (conversionExecution(work.kind) && task.profile.backend !== "docker") {
+    throw new ControlError("CONTROL_EXECUTION_POLICY_DENIED");
+  }
   switch (work.kind) {
+    case "pandoc-probe": return ["/usr/bin/pandoc", "--version"];
+    case "document-convert": {
+      const extension = { latex: "tex", markdown: "md", docx: "docx", html: "html" }[work.to];
+      return ["/bin/sh", "-c", '/usr/bin/pandoc "$@" && /usr/bin/zip -q -r - .', "quire-convert",
+        "--from", work.from, "--to", work.to, "--standalone", "--resource-path=/src", "--extract-media=media",
+        "--output", `/work/document.${extension}`, `/src/${work.mainFile}`];
+    }
     case "compile": {
       if (task.profile.backend === "docker") return ["/usr/local/bin/quire-compile", task.profile.profile,
         work.engine, work.mainFile, String(work.stopOnFirstError), String(work.draft)];

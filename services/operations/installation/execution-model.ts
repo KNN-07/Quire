@@ -15,6 +15,10 @@ export const ExecutionSourceSchema = z.strictObject({
   path: z.string().startsWith("/").max(4096), digest: DigestSchema,
 }).readonly();
 export const ExecutionWorkSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("pandoc-probe"), source: ExecutionSourceSchema }),
+  z.strictObject({ kind: z.literal("document-convert"), source: ExecutionSourceSchema,
+    mainFile: ProjectPathSchema, from: z.enum(["docx", "markdown", "latex"]),
+    to: z.enum(["latex", "docx", "markdown", "html"]) }),
   z.strictObject({ kind: z.literal("compile"), source: ExecutionSourceSchema,
     engine, mainFile: ProjectPathSchema, draft: z.boolean(), stopOnFirstError: z.boolean() }),
   z.strictObject({ kind: z.literal("synctex-forward"), source: ExecutionSourceSchema,
@@ -37,10 +41,18 @@ export const ExecutionWorkSchema = z.discriminatedUnion("kind", [
 ]).readonly();
 export type ExecutionWork = z.infer<typeof ExecutionWorkSchema>;
 export const ExecutionKindSchema = z.enum([
+  "pandoc-probe", "document-convert",
   "compile", "synctex-forward", "synctex-reverse", "pdf-validate", "pdf-diff-render", "pdf-diff-compile",
   "environment-metadata", "environment-confinement", "environment-fixture",
   "environment-fonts", "environment-build", "worker",
 ]);
+export function conversionExecution(kind: ExecutionWork["kind"]): boolean {
+  return kind === "pandoc-probe" || kind === "document-convert";
+}
+export function executionOutputLimits(kind: ExecutionWork["kind"]) {
+  return { stdout: kind === "pandoc-probe" ? 16 * 1024 : 64 * 1024 * 1024,
+    stderr: conversionExecution(kind) ? 64 * 1024 : 8 * 1024 * 1024 };
+}
 export const ExecutionProfileSchema = z.strictObject({
   id: z.string().regex(/^[a-zA-Z0-9_-]+$/).max(128),
   roles: z.array(z.string().min(1).max(128)).min(1).max(128).readonly(),
