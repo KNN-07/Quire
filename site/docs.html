@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Run Quire locally, configure it, and follow the runbooks for deployment, integrations, and recovery.">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="Quire documentation">
+    <meta property="og:description" content="Run Quire locally, configure it, and follow the runbooks for deployment, integrations, and recovery.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Quire documentation</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
+        <nav aria-label="Main navigation"><a href="./#views">Features</a><a href="./self-hosting.html">Self-hosting</a><a href="./pricing.html">Pricing</a><a href="./security.html">Security</a><a href="./docs.html" aria-current="page">Docs</a></nav>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="page-hero container">
+        <p class="eyebrow">Documentation</p>
+        <h1>Run and operate Quire</h1>
+        <p class="hero-description left">Start a local workspace in a few commands, then follow the runbooks for deployment, integrations, and recovery.</p>
+      </section>
+      <div class="container docs-layout">
+        <nav class="docs-nav" aria-label="On this page"><p>On this page</p><a href="#quick-start">Quick start</a><a href="#configuration">Configuration</a><a href="#compilation">Compilation</a><a href="#deployment">Deployment</a><a href="#integrations">Integrations</a><a href="#operations">Operations</a><a href="#development">Development</a><a href="#status">Project status</a></nav>
+        <article class="docs prose">
+          <section id="quick-start">
+            <h2>Quick start</h2>
+            <p>You need <strong>Bun 1.4.4</strong>, <strong>Node.js</strong> <code>^20.19.0</code> or <code>&gt;=22.12.0</code>, and <strong>Git</strong>. Compiling PDFs natively also needs Linux with a TeX distribution; see <a href="#compilation">Compilation</a>.</p>
+            <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div><pre tabindex="0"><code>git clone https://github.com/KNN-07/Quire.git
+cd Quire
+bun install
+bun run db:migrate
+bun run seed
+bun run doctor
+bun run dev</code></pre></div>
+            <p>Open <code>http://localhost:5173</code> and sign in as <code>kien@quire.local</code> with the password that <code>bun run seed</code> prints. The development operator account is <code>operator@quire.local</code> with the same password. Create a blank project or start from the Starter Article template.</p>
+            <p>The first compiler readiness check can take about 45 seconds. Project data is stored in <code>.data</code>.</p>
+            <p class="note">The install includes a repository-local Bun binary. Use the package scripts or <code>./node_modules/.bin/bun</code> so an older global Bun is not used by accident.</p>
+          </section>
+          <section id="configuration">
+            <h2>Configuration</h2>
+            <p>Copy <code>.env.example</code> and adjust it. These are the settings most installations change.</p>
+            <div class="table-wrap"><table><thead><tr><th scope="col">Variable</th><th scope="col">Default</th><th scope="col">Purpose</th></tr></thead><tbody><tr><th scope="row"><code>QUIRE_DATA_DIR</code></th><td><code>.data</code></td><td>Where the database, blobs, and repositories live. Use the same directory for migration, seeding, startup, and diagnostics.</td></tr><tr><th scope="row"><code>QUIRE_HOST</code></th><td><code>127.0.0.1</code></td><td>Address the API listens on.</td></tr><tr><th scope="row"><code>QUIRE_PORT</code></th><td><code>3001</code></td><td>Port the API listens on.</td></tr><tr><th scope="row"><code>QUIRE_PUBLIC_URL</code></th><td><code>http://localhost:5173</code></td><td>The origin people open in a browser. Sign-in and origin checks depend on it.</td></tr><tr><th scope="row"><code>QUIRE_PROFILE</code></th><td><code>local</code></td><td><code>local</code> for SQLite and disk, <code>scale</code> for PostgreSQL, Redis, and S3.</td></tr><tr><th scope="row"><code>QUIRE_COMPILER_BACKEND</code></th><td><code>bwrap</code></td><td><code>bwrap</code> or <code>docker</code>.</td></tr><tr><th scope="row"><code>QUIRE_MAX_REQUEST_BYTES</code></th><td><code>67108864</code></td><td>Largest request the server accepts. Upload quotas are separate.</td></tr><tr><th scope="row"><code>QUIRE_SECRET_KEY</code></th><td>generated locally</td><td>64 lowercase hex characters. Required in production.</td></tr><tr><th scope="row"><code>QUIRE_SEED_PASSWORD</code></th><td>generated once</td><td>Initial password for the development accounts.</td></tr></tbody></table></div>
+          </section>
+          <section id="compilation">
+            <h2>Compilation</h2>
+            <p>PDFs are compiled by an isolated worker, never in the API process. Native compilation needs Linux, TeX tools, BibTeX or Biber, SyncTeX, Poppler, Bubblewrap, and a working systemd user service. <code>bun run doctor</code> checks the toolchain and the sandbox; an executable being present is not enough to pass.</p>
+            <ul class="guide-list"><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/toolchains.md"><strong>Compiler environments</strong><span>Installing TeX tools, probes, and custom environments.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/workers.md"><strong>Compiler workers</strong><span>Worker processes, limits, and remote workers.</span></a></li></ul>
+          </section>
+          <section id="deployment">
+            <h2>Deployment</h2>
+            <p>The development command is not a production installation. Pick a profile and follow its guide. The <a href="./self-hosting.html">self-hosting page</a> has the install commands for each.</p>
+            <ul class="guide-list"><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/deployment.md"><strong>Deployment</strong><span>Configuration, startup, Compose, Helm, and offline bundles.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/installation.md"><strong>Managed installations</strong><span>Provisioning, signed releases, status, rollback, and recovery.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/updates.md"><strong>Signed updates</strong><span>Release verification and controlled updates.</span></a></li></ul>
+          </section>
+          <section id="integrations">
+            <h2>Integrations</h2>
+            <p>Every integration is optional and unconfigured until an operator sets it up: an AI provider, SAML, OIDC or LDAP sign-in, reference providers, remote Git hosts, Dropbox, outbound mail, and billing. ReadCube and Dimensions are not available.</p>
+            <ul class="guide-list"><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/adapters.md"><strong>Adapter configuration</strong><span>Configuring and testing each provider.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/ssh.md"><strong>SSH Git bridge</strong><span>Git over SSH for project repositories.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/creation-and-import.md"><strong>Project creation and import</strong><span>Templates, ZIP, and Git import choices.</span></a></li></ul>
+          </section>
+          <section id="operations">
+            <h2>Operations</h2>
+            <p>Backups are signed and cover the database, blobs, and repositories together. Do not copy a live SQLite file on its own.</p>
+            <ul class="guide-list"><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/recovery.md"><strong>Backups and recovery</strong><span>Creating, verifying, and restoring full backups.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/operations.md"><strong>Operational host</strong><span>Health, queues, and routine administration.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/support.md"><strong>Diagnostics and support</strong><span>Redacted support bundles and diagnostics.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/privacy.md"><strong>Privacy and browser storage</strong><span>What an installation stores and discloses.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/offline.md"><strong>Offline editing</strong><span>How the browser handles a lost connection.</span></a></li></ul>
+          </section>
+          <section id="development">
+            <h2>Development</h2>
+            <p>Run the checks before you send a change. Browser and compiler suites need Chromium and the TeX toolchain, so run the ones relevant to your change.</p>
+            <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div><pre tabindex="0"><code>bun run typecheck
+bun run lint
+bun run build
+bun run verify:matrix
+./node_modules/.bin/bun test tests/contract</code></pre></div>
+            <p>The server composition lives in <code>apps/server</code>, the web client in <code>apps/web</code>, shared contracts in <code>packages</code>, and features in <code>services</code>.</p>
+          </section>
+          <section id="status">
+            <h2>Project status</h2>
+            <p>Quire is in active development. The <a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">feature matrix</a> records which capabilities are available, which are partial, and which depend on external services.</p>
+          </section>
+        </article>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
+        <p>A self-hosted LaTeX workspace.</p>
+        <nav aria-label="Footer navigation"><a href="./docs.html">Docs</a><a href="./security.html">Security</a><a href="./privacy.html">Privacy</a><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>

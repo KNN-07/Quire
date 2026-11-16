@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Quire is free to self-host. Hosted plans are set by whoever operates an installation.">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="Quire pricing">
+    <meta property="og:description" content="Quire is free to self-host. Hosted plans are set by whoever operates an installation.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Quire pricing</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
+        <nav aria-label="Main navigation"><a href="./#views">Features</a><a href="./self-hosting.html">Self-hosting</a><a href="./pricing.html" aria-current="page">Pricing</a><a href="./security.html">Security</a><a href="./docs.html">Docs</a></nav>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="page-hero container center">
+        <p class="eyebrow">Pricing</p>
+        <h1>Free to run yourself</h1>
+        <p class="hero-description">Quire has one edition. You install it on your own infrastructure, and every capability is unlocked. Hosted plans exist only where an operator chooses to offer them.</p>
+      </section>
+
+      <section class="section container tight-top" aria-label="Options">
+        <div class="plan-grid">
+          <article class="plan featured">
+            <h2>Self-hosted</h2>
+            <p class="plan-price">Unbilled</p>
+            <p class="plan-note">No license key. No seat limit. No feature gates.</p>
+            <ul class="feature-list"><li>Source, Split, Visual, and PDF views</li><li>Shared editing, comments, and review</li><li>Real project Git repositories</li><li>Optional AI and identity providers you configure</li></ul>
+            <a class="button primary" href="./self-hosting.html#install">Install Quire Server <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
+          </article>
+          <article class="plan">
+            <h2>Hosted by an operator</h2>
+            <p class="plan-price">Set by the operator</p>
+            <p class="plan-note">An institution or provider that runs Quire can configure its own plans, billing periods, and prices.</p>
+            <ul class="feature-list"><li>Prices appear on that installation's own pricing page</li><li>Billing is per organization</li><li>Terms and support come from the operator</li></ul>
+            <a class="button secondary" href="./docs.html#integrations">How billing is configured</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section tinted" aria-labelledby="compare-title">
+        <div class="container">
+          <div class="section-heading"><h2 id="compare-title">What you get when you self-host</h2><p>These depend on how you install and configure Quire, not on a price.</p></div>
+          <div class="comparison"><section aria-label="Writing and compilation"><h3>Writing and compilation</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">Collaborators per project</th><td>Set by project permissions and your policy</td></tr><tr><th scope="row">Projects</th><td>Local project repositories, within your storage</td></tr><tr><th scope="row">Source, Split, Visual, and PDF views</th><td>Available in the editor</td></tr><tr><th scope="row">Compile timeout</th><td>Whatever you configure for your workers</td></tr><tr><th scope="row">Templates</th><td>Project templates and template-based creation</td></tr></tbody></table></div></section><section aria-label="Collaboration"><h3>Collaboration</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">Comments</th><td>Project comments and review threads</td></tr><tr><th scope="row">Track changes</th><td>Source change tracking and review</td></tr><tr><th scope="row">Version history</th><td>Repository history, kept as long as you keep it</td></tr><tr><th scope="row">Reference search</th><td>Bibliography search. Remote search needs a provider</td></tr></tbody></table></div></section><section aria-label="Git and integrations"><h3>Git and integrations</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">Git clone and push</th><td>Repository Git operations with authorized access</td></tr><tr><th scope="row">GitHub and GitLab sync</th><td>Needs configured connections and credentials</td></tr><tr><th scope="row">Zotero and Mendeley</th><td>Needs configured bibliography providers</td></tr></tbody></table></div></section><section aria-label="AI assistant"><h3>AI assistant</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">AI allowance</th><td>No built-in allowance. Your provider budget applies</td></tr><tr><th scope="row">Chat assistant and agent</th><td>Needs a configured model and permitted tools</td></tr><tr><th scope="row">AI controls</th><td>Operator provider settings and project policy</td></tr></tbody></table></div></section><section aria-label="Groups and security"><h3>Groups and security</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">Audit log and user administration</th><td>Available to authorized administrators</td></tr><tr><th scope="row">SSO and managed accounts</th><td>Needs a configured identity provider</td></tr><tr><th scope="row">License keys and seat limits</th><td>None</td></tr></tbody></table></div></section><section aria-label="Support"><h3>Support</h3><div class="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Self-hosted Quire</th></tr></thead><tbody><tr><th scope="row">Documentation</th><td>Included in the repository</td></tr><tr><th scope="row">Support plan</th><td>Only by separate agreement with whoever operates your installation</td></tr></tbody></table></div></section></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="bq-title">
+        <div class="questions container">
+          <h2 id="bq-title">Billing questions</h2>
+          <details open><summary>Do my collaborators need a paid plan?</summary><p>No. A self-hosted installation has no commercial feature gates. Sharing and account policy are yours to configure.</p></details>
+          <details><summary>Does AI cost extra?</summary><p>Quire does not charge for it. You pay whichever model provider you configure, and you can set a daily usage budget.</p></details>
+          <details><summary>Is there a hosted version I can sign up for?</summary><p>This project does not run a public hosted service. If your institution runs Quire, its pricing and terms come from that operator.</p></details>
+          <details><summary>Can I get support?</summary><p>There is no bundled support plan. The repository documents installation, operation, and recovery.</p></details>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
+        <p>A self-hosted LaTeX workspace.</p>
+        <nav aria-label="Footer navigation"><a href="./docs.html">Docs</a><a href="./security.html">Security</a><a href="./privacy.html">Privacy</a><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>

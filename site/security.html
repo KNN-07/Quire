@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="What Quire does by default to protect your work, and what remains the operator&#x27;s responsibility.">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="Quire security">
+    <meta property="og:description" content="What Quire does by default to protect your work, and what remains the operator&#x27;s responsibility.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Quire security</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
+        <nav aria-label="Main navigation"><a href="./#views">Features</a><a href="./self-hosting.html">Self-hosting</a><a href="./pricing.html">Pricing</a><a href="./security.html" aria-current="page">Security</a><a href="./docs.html">Docs</a></nav>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="page-hero container center">
+        <p class="eyebrow">Security</p>
+        <h1>How Quire protects your work</h1>
+        <p class="hero-description">Quire runs on infrastructure you control. This page describes what the software does by default and what remains the operator's responsibility.</p>
+      </section>
+      <section class="section container tight-top" aria-labelledby="builtin-title">
+        <h2 id="builtin-title">Built in</h2>
+        <div class="card-grid three"><article><h3>Sessions</h3><p>Signing in sets an HttpOnly session cookie with SameSite=Lax, marked Secure under HTTPS. State-changing requests need a matching origin and a per-session CSRF token. Passwords are hashed with Argon2id.</p></article><article><h3>Compilation</h3><p>LaTeX runs in an isolated worker with no network access, a read-only source mount, and memory, process, and time limits. There is no unsandboxed fallback.</p></article><article><h3>Outbound requests</h3><p>Requests to configured providers and remote Git hosts are restricted to public addresses, pinned to the resolved address, and require HTTPS when they carry credentials.</p></article><article><h3>Stored credentials</h3><p>Provider tokens and secrets are encrypted at rest with AES-256-GCM and bound to the record that owns them. Git access tokens are stored only as hashes.</p></article><article><h3>Assistant edits</h3><p>The assistant proposes changes. Nothing is written to a project until someone with edit access accepts the proposal.</p></article><article><h3>Backups</h3><p>Backups are signed with an Ed25519 key that you provision separately from the application's own secret.</p></article></div>
+      </section>
+      <section class="section tinted" aria-labelledby="ops-title">
+        <div class="container two-column top">
+          <div class="section-copy"><h2 id="ops-title">Your responsibility as operator</h2><p>Self-hosting means the deployment's security is yours. Quire does not manage these for you.</p></div>
+          <ul class="feature-list plain"><li>TLS termination and the reverse proxy in front of the API</li><li>Keeping the host, container images, and TeX distribution patched</li><li>Provisioning and rotating the application secret and backup signing key</li><li>Choosing identity, mail, AI, and storage providers and their retention</li><li>Network isolation between the API, workers, and data stores</li></ul>
+        </div>
+      </section>
+      <section class="section container prose" aria-labelledby="limits-title">
+        <h2 id="limits-title">Known limits</h2>
+        <p>Quire is in active development and has not had an independent security audit. Password sign-in has no built-in second factor; use a configured identity provider if you need one. Sign-in attempts are throttled per account, not per network address.</p>
+        <p>Browser Python is opt-in and runs in your browser, not on the server. Its worker has its network and shared-storage access removed before a script starts, but it shares the application's origin, so run only scripts from collaborators you trust.</p>
+        <h2>Reporting a vulnerability</h2>
+        <p>Please report security issues privately through the <a href="https://github.com/KNN-07/Quire/security">repository's security page</a> and avoid opening a public issue for anything exploitable.</p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
+        <p>A self-hosted LaTeX workspace.</p>
+        <nav aria-label="Footer navigation"><a href="./docs.html">Docs</a><a href="./security.html">Security</a><a href="./privacy.html">Privacy</a><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>
