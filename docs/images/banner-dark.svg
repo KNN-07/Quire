@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-labelledby="t d">
+  <title id="t">Quire</title>
+  <desc id="d">Write LaTeX together. Version it like code. A self-hosted LaTeX workspace with shared editing, real PDF compilation, review, and Git history.</desc>
+  <defs>
+    <clipPath id="frame"><rect width="1280" height="420" rx="20"/></clipPath>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#FFFFFF" stroke-opacity="0.05"/></pattern>
+    <linearGradient id="fade" x1="0" x2="1" y1="0" y2="0"><stop offset="0.3" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient>
+    <mask id="gridmask"><rect width="1280" height="420" fill="url(#fade)"/></mask>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="420" fill="#16181D"/>
+    <rect width="1280" height="420" fill="url(#grid)" mask="url(#gridmask)"/>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="419" rx="19.5" fill="none" stroke="#2E323C"/>
+  <g transform="translate(64 60) scale(0.6875)" fill="none" stroke="#9DB0FF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M42 9H27C16 9 9 17 9 29v6c0 12 8 20 20 20h5c12 0 20-8 20-20V21L42 9Z" stroke-width="6"/>
+    <path d="M41 10v13h12M34 39l21 18" stroke-width="6"/>
+    <path d="M22 26h9M22 35h9" stroke-width="4"/>
+  </g>
+  <text x="122" y="92" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="28" font-weight="600" fill="#F4F5F7">Quire</text>
+  <text font-family="Georgia,'Times New Roman',Times,serif" font-size="52" fill="#F4F5F7"><tspan x="64" y="172">Write LaTeX together.</tspan><tspan x="64" y="230">Version it like code.</tspan></text>
+  <text font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" fill="#C9CEDA"><tspan x="64" y="276">A self-hosted LaTeX workspace with shared editing,</tspan><tspan x="64" y="304">real PDF compilation, review, and Git history.</tspan></text>
+  <rect x="64" y="336" width="118" height="32" rx="16" fill="#1B1E25" stroke="#2E323C"/><text x="123.0" y="357" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="500" fill="#C9CEDA">Self-hosted</text><rect x="192" y="336" width="96" height="32" rx="16" fill="#1B1E25" stroke="#2E323C"/><text x="240.0" y="357" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="500" fill="#C9CEDA">Real Git</text><rect x="298" y="336" width="168" height="32" rx="16" fill="#1B1E25" stroke="#2E323C"/><text x="382.0" y="357" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="500" fill="#C9CEDA">Sandboxed compile</text><rect x="476" y="336" width="138" height="32" rx="16" fill="#1B1E25" stroke="#2E323C"/><text x="545.0" y="357" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" font-weight="500" fill="#C9CEDA">AI with review</text>
+  <rect x="754" y="62" width="470" height="296" rx="14" fill="#0F1115" stroke="#2E323C"/>
+  <path d="M754 98h470M754 294h470" stroke="#2E323C"/>
+  <circle cx="773" cy="80" r="5" fill="#3A3F4B"/><circle cx="789" cy="80" r="5" fill="#3A3F4B"/><circle cx="805" cy="80" r="5" fill="#3A3F4B"/>
+  <text x="989" y="84" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" font-weight="500" fill="#9AA0AD">main.tex</text>
+  <text x="778" y="136" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7"><tspan fill="#AFBCFF">\section</tspan>{Method}</text><text x="778" y="162" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7">Let <tspan fill="#88D6CB">$z_t$</tspan> denote the latent state.</text><text x="778" y="188" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7"><tspan fill="#AFBCFF">\begin</tspan>{equation}</text><text x="778" y="214" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7"><tspan fill="#88D6CB">  z_{t+1} = f_\theta(z_t, a_t)</tspan></text><text x="778" y="240" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7"><tspan fill="#AFBCFF">\end</tspan>{equation}</text><text x="778" y="266" xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace" font-size="14" fill="#F1F3F7"><tspan fill="#9AA0AD">% edit, compile, review</tspan></text>
+  <text x="989" y="334" text-anchor="middle" font-family="Georgia,'Times New Roman',Times,serif" font-style="italic" font-size="24" fill="#C9CEDA">z<tspan dy="7" font-size="15">t+1</tspan><tspan dy="-7" dx="2" font-size="24">​</tspan> = f<tspan dy="7" font-size="15">θ</tspan><tspan dy="-7" dx="2" font-size="24">​</tspan>(z<tspan dy="7" font-size="15">t</tspan><tspan dy="-7" dx="2" font-size="24">​</tspan>, a<tspan dy="7" font-size="15">t</tspan><tspan dy="-7" dx="2" font-size="24">​</tspan>)</text>
+</svg>

@@ -1,5 +1,11 @@
 <p align="center">
-  <a href="https://knn-07.github.io/Quire/"><img src="docs/images/banner.png" alt="Quire. Write LaTeX together. Version it like code. A self-hosted LaTeX workspace with shared editing, real PDF compilation, review, and Git history." width="100%"></a>
+  <a href="https://knn-07.github.io/Quire/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="docs/images/banner-light.svg">
+      <img src="docs/images/banner-light.svg" alt="Quire. Write LaTeX together. Version it like code. A self-hosted LaTeX workspace with shared editing, real PDF compilation, review, and Git history." width="100%">
+    </picture>
+  </a>
 </p>
 
 <p align="center">
