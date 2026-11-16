@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Install Quire Server on your own infrastructure: native, Docker Compose, or Kubernetes.">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="Self-hosting Quire">
+    <meta property="og:description" content="Install Quire Server on your own infrastructure: native, Docker Compose, or Kubernetes.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Self-hosting Quire</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
+        <nav aria-label="Main navigation"><a href="./#views">Features</a><a href="./self-hosting.html" aria-current="page">Self-hosting</a><a href="./pricing.html">Pricing</a><a href="./security.html">Security</a><a href="./docs.html">Docs</a></nav>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="page-hero dark">
+        <div class="container two-column top">
+          <div class="section-copy">
+            <p class="kicker light">Quire Server</p>
+            <h1>Host it yourself.<br>Keep control.</h1>
+            <p>The editor, Git, identity, and optional AI integrations, on servers you manage. There is no license key and no commercial feature gate. Each capability still needs its runtime dependencies.</p>
+            <div class="actions start"><a class="button light-button" href="#install">Install Quire Server <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a><a class="button ghost-light" href="#requirements">Read the requirements</a></div>
+          </div>
+          <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Native install</b></div><pre tabindex="0"><code>bun install --frozen-lockfile
+BUN=&quot;$PWD/node_modules/.bin/bun&quot;
+&quot;$BUN&quot; run build
+PREFIX=&quot;$HOME/quire-server&quot;
+&quot;$BUN&quot; scripts/ops/install.ts --source &quot;$PWD&quot; \
+  --prefix &quot;$PREFIX&quot; --bun &quot;$BUN&quot; --port 43181
+&quot;$PREFIX/bin/quire&quot; serve</code></pre></div>
+        </div>
+      </section>
+
+      <section class="section container" id="install" aria-labelledby="install-title">
+        <div class="section-heading"><h2 id="install-title">Three ways to install</h2><p>All three start from a source checkout. None of them ships credentials or a preconfigured production release.</p></div>
+        <div class="stack">
+          <article class="panel">
+            <h3>Native</h3>
+            <p>One machine, using the local profile: SQLite, local blobs, and Git repositories. Run the commands from the repository root. The destination must not already exist, and installation does not overwrite data or enable a system service.</p>
+            <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div><pre tabindex="0"><code>bun install --frozen-lockfile
+BUN=&quot;$PWD/node_modules/.bin/bun&quot;
+&quot;$BUN&quot; run build
+PREFIX=&quot;$HOME/quire-server&quot;
+&quot;$BUN&quot; scripts/ops/install.ts --source &quot;$PWD&quot; \
+  --prefix &quot;$PREFIX&quot; --bun &quot;$BUN&quot; --port 43181
+&quot;$PREFIX/bin/quire&quot; serve</code></pre></div>
+            <p>Open the service on port 43181. In a second terminal, run <code>$HOME/quire-server/bin/quire doctor</code> to check the running installation and the confined compiler.</p>
+          </article>
+          <article class="panel">
+            <h3>Docker Compose</h3>
+            <p>Two API coordinators, a single Git repository role, PostgreSQL, Redis, and authenticated S3-compatible storage. You supply a private environment file, pinned platform images, persistent volumes, TLS, and isolated workers.</p>
+            <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div><pre tabindex="0"><code>docker build -f deploy/runtime/Dockerfile \
+  -t quire-owned-app:release .
+docker compose --env-file &quot;${COMPOSE_ENV:?Set your private compose.env path}&quot; \
+  -f deploy/compose/compose.yaml config --quiet
+docker compose --env-file &quot;$COMPOSE_ENV&quot; \
+  -f deploy/compose/compose.yaml up --build --wait --wait-timeout 180</code></pre></div>
+            <p>The supplied image manifest targets Linux/amd64. API ports bind to loopback, so put your own TLS reverse proxy in front.</p>
+          </article>
+          <article class="panel">
+            <h3>Kubernetes (Helm)</h3>
+            <p>The chart lives in <code>deploy/helm</code>. There is no public chart repository. Your values file supplies the application image, the runtime, TLS and signing secrets, and shared backup storage.</p>
+            <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div><pre tabindex="0"><code>helm lint deploy/helm \
+  -f &quot;${QUIRE_HELM_VALUES:?Set your operator values file}&quot;
+helm template quire-owned deploy/helm -f &quot;$QUIRE_HELM_VALUES&quot;
+helm install quire-owned deploy/helm \
+  --namespace &quot;${QUIRE_NAMESPACE:?Set your owned namespace}&quot; \
+  -f &quot;$QUIRE_HELM_VALUES&quot; --wait --wait-for-jobs --timeout 5m</code></pre></div>
+            <p>Provision cluster storage, the database, Redis and S3 endpoints, ingress with TLS, and worker isolation before you install.</p>
+          </article>
+        </div>
+        <p class="note">Signed, controller-owned updates are supported for the native <code>systemd-local-v1</code> driver. Compose and Helm use their own documented deployment and recovery procedures.</p>
+        <p><a class="text-link" href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/deployment.md">Read the deployment runbook <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></p>
+      </section>
+
+      <section class="section tinted" id="requirements" aria-labelledby="req-title">
+        <div class="container two-column top">
+          <div class="section-copy">
+            <h2 id="req-title">What runs on your server</h2>
+            <p>The default profile is one API and real-time coordinator, a built web client, and a separate isolated compile worker.</p>
+            <dl class="spec">
+              <dt>Runtime</dt><dd>Bun 1.4.4, Git, and Linux for isolated compilation. Building the web client also needs Node.js <code>^20.19.0</code> or <code>&gt;=22.12.0</code>.</dd>
+              <dt>Compilation</dt><dd>TeX Live, latexmk, and a verified Bubblewrap or Docker sandbox with its resource-containment prerequisites.</dd>
+              <dt>Storage</dt><dd>Persistent directories for SQLite, blobs, and repositories, or the PostgreSQL, Redis, and S3 scale profile.</dd>
+              <dt>Hardware</dt><dd>There is no measured production sizing recommendation yet. Compile budgets are configurable. The default job memory budget is 1 GiB.</dd>
+            </dl>
+          </div>
+          <div class="card-grid"><article><h3>Web and API</h3><p>The browser interface and the Bun HTTP coordinator.</p></article><article><h3>Real-time sync</h3><p>Authorized collaborative document transport.</p></article><article><h3>Git repositories</h3><p>Repository objects and working checkpoints for each project.</p></article><article><h3>Compile workers</h3><p>An installed TeX distribution running in verified isolation.</p></article><article><h3>AI gateway</h3><p>Optional. One endpoint and model that you configure.</p></article><article><h3>Identity provider</h3><p>Optional. SAML, OIDC, or LDAP with your own configuration.</p></article></div>
+        </div>
+      </section>
+
+      <section class="section container two-column" aria-labelledby="ai-host-title">
+        <div class="section-copy">
+          <p class="kicker ai">AI on your terms</p>
+          <h2 id="ai-host-title">Bring your own model, or none</h2>
+          <p>Point the assistant at a model in your own data centre or at a provider you approve, or leave it unconfigured. Writing and compilation do not need it.</p>
+          <ul class="feature-list ai"><li>Requests go only to the endpoint you configure</li><li>The operator holds the credentials</li><li>Citation search needs its own provider configuration</li></ul>
+        </div>
+        <div class="section-copy">
+          <p class="kicker">Disconnected sites</p>
+          <h2>Build a signed offline bundle</h2>
+          <p>Repository tooling creates and verifies signed bundles of the runtime, dependencies, and images, using your own Ed25519 signing key.</p>
+          <p><a class="text-link" href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/deployment.md">Offline and recovery instructions <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></p>
+        </div>
+      </section>
+
+      <section class="section container narrow" aria-labelledby="bundle-title">
+        <h2 id="bundle-title" class="visually-hidden">Offline bundle commands</h2>
+        <div class="terminal"><div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Offline bundle</b></div><pre tabindex="0"><code>BUN=&quot;$PWD/node_modules/.bin/bun&quot;
+&quot;$BUN&quot; scripts/ops/airgap.ts create --source &quot;$PWD&quot; \
+  --output &quot;${QUIRE_BUNDLE:?Choose a new bundle directory}&quot; --bun &quot;$BUN&quot; \
+  --signing-key &quot;${QUIRE_SIGNING_KEY:?Set your private signing key}&quot; \
+  --environments &quot;${QUIRE_ENVIRONMENTS:?Set executed environment manifests}&quot; \
+  --image &quot;${QUIRE_APPLICATION_IMAGE:?Set your verified application image}&quot; \
+  --image &quot;${QUIRE_POSTGRES_IMAGE:?Set your PostgreSQL image}&quot; \
+  --image &quot;${QUIRE_REDIS_IMAGE:?Set your Redis image}&quot; \
+  --image &quot;${QUIRE_S3_IMAGE:?Set your S3 image}&quot; \
+  --image &quot;${QUIRE_TOOLCHAIN_IMAGE:?Set your verified toolchain image}&quot;
+&quot;$BUN&quot; scripts/ops/airgap.ts verify &quot;$QUIRE_BUNDLE&quot; \
+  --public-key &quot;${QUIRE_TRUSTED_KEY:?Set the separately trusted public key}&quot;</code></pre></div>
+        <p class="note">Private signing keys, production secrets, and data are not included in a bundle. Offline packaging does not make external identity, model, or reference services available offline.</p>
+      </section>
+
+      <section class="section closing container" aria-labelledby="closing-title">
+        <h2 id="closing-title">Ready to install?</h2>
+        <p>The documentation covers configuration, toolchains, backups, and updates.</p>
+        <a class="button primary" href="./docs.html">Read the documentation <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
+        <p>A self-hosted LaTeX workspace.</p>
+        <nav aria-label="Footer navigation"><a href="./docs.html">Docs</a><a href="./security.html">Security</a><a href="./privacy.html">Privacy</a><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>

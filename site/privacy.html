@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Quire&#x27;s default data handling: sign-in, browser storage, external providers, export, and deletion.">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="Quire privacy">
+    <meta property="og:description" content="Quire&#x27;s default data handling: sign-in, browser storage, external providers, export, and deletion.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Quire privacy</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
+        <nav aria-label="Main navigation"><a href="./#views">Features</a><a href="./self-hosting.html">Self-hosting</a><a href="./pricing.html">Pricing</a><a href="./security.html">Security</a><a href="./docs.html">Docs</a></nav>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="page-hero container center">
+        <p class="eyebrow">Privacy</p>
+        <h1>What Quire stores, and where</h1>
+        <p class="hero-description">This describes the software's default data handling. Whoever operates your installation decides its storage, retention, and external providers, and is the one to ask for a privacy policy.</p>
+      </section>
+      <section class="section container prose tight-top">
+        <h2>This website</h2>
+        <p>This site is a set of static pages served by GitHub Pages. It sets no cookies, loads no third-party scripts, and includes no analytics. GitHub may log requests as described in its own privacy statement.</p>
+        <h2>Sign-in and browser storage</h2>
+        <p>Signing in to a Quire installation sets an HttpOnly session cookie with a seven-day expiry. Server-side expiry and revocation can end access earlier.</p>
+        <p>The browser can remember editor layout, Python configuration, Dropbox selections, and operation IDs. Track Changes recovery keeps private draft text in session storage. Signing out does not clear all browser storage, and clearing site data can discard unsubmitted drafts without deleting anything on the server.</p>
+        <h2>Analytics</h2>
+        <p>Quire includes no advertising or analytics integration. An operator may separately configure proxy logs or extensions; ask them what those collect.</p>
+        <h2>External providers</h2>
+        <p>Configured identity, AI, mail, Git, reference, Dropbox, billing, and publisher services have their own terms. Connecting a service or sending content to it can disclose data to that provider.</p>
+        <p>AI requests require consent to the current configured terms. Operator logging of AI requests is off by default.</p>
+        <h2>Export and deletion</h2>
+        <p>An account export contains account metadata. Project source and history are exported separately. Passwords, session secrets, and provider credentials are never included. Ask your operator about retention periods and how to request access or deletion.</p>
+        <p><a class="text-link" href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/privacy.md">Read the privacy runbook for operators <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
+        <p>A self-hosted LaTeX workspace.</p>
+        <nav aria-label="Footer navigation"><a href="./docs.html">Docs</a><a href="./security.html">Security</a><a href="./privacy.html">Privacy</a><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>
