@@ -3,7 +3,7 @@ import type { AccountPageProps } from "./shared";
 import { Button, Field } from "../../ui";
 import { Notice, unwrap, useAction, value } from "./shared";
 
-export type CredentialProvider = "zotero" | "git";
+export type CredentialProvider = "zotero" | "git" | "publisher";
 export function ConnectionForm(props: {
   readonly client: AccountPageProps["client"];
   readonly provider: CredentialProvider;
@@ -12,7 +12,8 @@ export function ConnectionForm(props: {
 }) {
   const action = useAction();
   const generic = props.provider === "git";
-  return <form className="account-form connection-form" autoComplete="off" aria-label={generic ? "Generic Git credentials" : "Zotero credentials"} onSubmit={event => {
+  const publisher = props.provider === "publisher";
+  return <form className="account-form connection-form" autoComplete="off" aria-label={generic ? "Generic Git credentials" : publisher ? "Publisher credentials" : "Zotero credentials"} onSubmit={event => {
     event.preventDefault();
     const element = event.currentTarget;
     const form = new FormData(element);
@@ -21,6 +22,10 @@ export function ConnectionForm(props: {
       if (generic) {
         unwrap(await props.client.call(endpoints.gitCredentials, { params: {}, query: {}, body: {
           label, url: value(form, "url"), username: value(form, "username"), secret: value(form, "secret"),
+        } }));
+      } else if (publisher) {
+        unwrap(await props.client.call(endpoints.publisherCredentials, { params: {}, query: {}, body: {
+          label, accessToken: value(form, "accessToken"),
         } }));
       } else {
         unwrap(await props.client.call(endpoints.connectionCredentials, { params: { provider: "zotero" }, query: {}, body: {
@@ -33,9 +38,10 @@ export function ConnectionForm(props: {
       action.setMessage("Connection saved. The submitted credential has been cleared.");
     });
   }}>
-    <h3>{generic ? "Generic Git repository" : "Zotero API key"}</h3>
+    <h3>{generic ? "Generic Git repository" : publisher ? "Publisher bearer token" : "Zotero API key"}</h3>
     <p className="account-muted">{generic
       ? "Credentials are verified against this repository and cannot be used for another URL."
+      : publisher ? "Use a destination-issued bearer token. It is verified against the configured destination and stored encrypted."
       : "Use a dedicated key with library read access. Stored keys are never displayed."}</p>
     <fieldset disabled={action.busy}>
       <Field label="Connection label" name="label" required maxLength={200} autoComplete="off" />
@@ -43,7 +49,7 @@ export function ConnectionForm(props: {
         <Field label="Repository URL" name="url" type="url" required autoComplete="off" placeholder="https://git.example.org/team/paper.git" />
         <Field label="Repository username" name="username" required maxLength={512} autoComplete="off" autoCapitalize="none" spellCheck={false} />
         <Field label="Repository secret" name="secret" type="password" required maxLength={4096} autoComplete="new-password" autoCapitalize="none" spellCheck={false} />
-      </> : <Field label="Zotero access token" name="accessToken" type="password" required maxLength={512} autoComplete="new-password" autoCapitalize="none" spellCheck={false} />}
+      </> : <Field label={publisher ? "Publisher access token" : "Zotero access token"} name="accessToken" type="password" required maxLength={publisher ? 4096 : 512} autoComplete="new-password" autoCapitalize="none" spellCheck={false} />}
     </fieldset>
     <div className="account-row">
       <Button disabled={action.busy} onClick={props.cancel}>Cancel connection</Button>

@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { IdSchema } from "@quire/contracts";
+import { Database } from "bun:sqlite";
+import { migrations as sharedMigrations } from "../../../services/adapters/shared";
 import type { ProviderSettings } from "../../../services/adapters/shared";
 import {
   migrations,
@@ -23,8 +25,7 @@ test("names every missing publisher prerequisite when unconfigured", () => {
   // Then
   expect(missing).toEqual([
     "publisher destination API base URL",
-    "publisher OAuth client secret",
-    "publisher destination contract mapping in model JSON",
+    "valid publisher destination contract mapping in publisherContract or legacy model JSON",
   ]);
 });
 
@@ -48,7 +49,7 @@ test("rejects an invalid private destination mapping without inventing endpoints
   const missing = publisherRequirements(settings);
   // Then
   expect(missing).toEqual([
-    "valid publisher destination contract mapping in model JSON",
+    "valid publisher destination contract mapping in publisherContract or legacy model JSON",
   ]);
 });
 
@@ -64,4 +65,19 @@ test("ships explicit SQLite and PostgreSQL publisher migration variants", () => 
   expect(sqliteDigest).toHaveLength(64);
   expect(postgres).toContain("CREATE TABLE publisher_submissions");
   expect(postgres).not.toBe(migration.sql);
+});
+
+test("typed configuration migration preserves an existing model-only row", () => {
+  using db = new Database(":memory:");
+  const initial = sharedMigrations.find(migration => migration.id === "060-x-shared-adapters");
+  const delta = sharedMigrations.find(migration => migration.id === "060-x-shared-publisher-contract");
+  if (!initial || !delta) throw new TypeError("Shared migration missing");
+  db.exec(initial.sql);
+  db.run(`INSERT INTO adapter_provider_configs
+    (id,kind,base_url,model,policy_json,version,updated_at) VALUES(?,?,?,?,?,7,?)`,
+  ["legacy", "publisher", "https://publisher.invalid", '{"version":1}', "{}", "2026-11-13"]);
+  db.exec(delta.sql);
+  expect(db.query("SELECT model,version,publisher_contract_json FROM adapter_provider_configs").get())
+    .toEqual({ model: '{"version":1}', version: 7, publisher_contract_json: null });
+  expect(delta.postgres).toBe("ALTER TABLE adapter_provider_configs ADD COLUMN publisher_contract_json TEXT;");
 });

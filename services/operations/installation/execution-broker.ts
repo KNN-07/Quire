@@ -9,7 +9,7 @@ import type { ExecutionIdentity, InstallationBinding } from "./model";
 import { below } from "./driver-config";
 import { canonicalJson, controlDigest } from "./protocol";
 import { ExecutionEnvelopeSchema } from "./execution-protocol";
-import { ExecutionExitSchema, ExecutionProfileSchema, ExecutionRequestSchema } from "./execution-model";
+import { conversionExecution, executionOutputLimits, ExecutionExitSchema, ExecutionProfileSchema, ExecutionRequestSchema } from "./execution-model";
 import type { ExecutionExit, ExecutionLaunch, ExecutionSnapshot, ExecutionTask } from "./execution-model";
 import { handleControl, listenControl } from "./controller-server";
 import type { ControlChannel } from "./controller-server";
@@ -76,7 +76,7 @@ export class InstallationExecutionBroker {
       try { channel.notify("execution", snapshot); } catch { channel.close(); }
     }
   }
-  private async profile(binding: InstallationBinding, profileId: string) {
+  private async profile(binding: InstallationBinding, profileId: string, conversion: boolean) {
     const inventory = await releaseInventory(binding);
     if (!inventory.assets.some(asset => asset.path === "installation-roles.json")) throw new ControlError("CONTROL_EXECUTION_PROFILE_REQUIRED");
     const manifest = z.object({ installationId: z.string(),
@@ -88,6 +88,7 @@ export class InstallationExecutionBroker {
     }
     const selected = manifest.executionProfiles.find(item => item.id === profileId || item.image === profileId);
     if (selected) return selected;
+    if (conversion) throw new ControlError("CONTROL_EXECUTION_PROFILE_REQUIRED");
     // An immutable image is admitted only when this installation actually built it.
     const built = this.store.executionLaunches().find(launch => launch.result?.image === profileId &&
       launch.result.code === 0 && !launch.result.interrupted && launch.request.work.kind === "environment-build");
@@ -106,12 +107,13 @@ export class InstallationExecutionBroker {
       if (old.requestDigest !== digest) throw new ControlError("CONTROL_EXECUTION_CONFLICT");
       return this.snapshot(old.id);
     }
-    const profile = await this.profile(binding, request.profileId);
+    const profile = await this.profile(binding, request.profileId, conversionExecution(request.work.kind));
     if (!profile.roles.includes(parent.role) || !profile.kinds.includes(request.work.kind) ||
         request.limits.wallSeconds > profile.limits.wallSeconds || request.limits.memoryBytes > profile.limits.memoryBytes ||
         request.limits.processes > profile.limits.processes || request.limits.workspaceBytes > profile.limits.workspaceBytes ||
         (request.work.kind === "worker") !== (profile.backend === "worker") ||
         (profile.backend === "worker" && !profile.workerRole) ||
+        (conversionExecution(request.work.kind) && profile.backend !== "docker") ||
         (profile.backend === "docker" && (!profile.image || !config.dockerSocket))) {
       throw new ControlError("CONTROL_EXECUTION_POLICY_DENIED");
     }
@@ -172,8 +174,10 @@ export class InstallationExecutionBroker {
   async report(id: Id, input: unknown): Promise<void> {
     const result = ExecutionExitSchema.parse(input);
     const launch = this.store.executionLaunch(id);
-    if (!launch || result.id !== id || result.interrupted || result.stdoutBytes > 64 * 1024 * 1024 ||
-        result.stderrBytes > 8 * 1024 * 1024) throw new ControlError("CONTROL_EXECUTION_RESULT_INVALID");
+    if (!launch) throw new ControlError("CONTROL_EXECUTION_RESULT_INVALID");
+    const limits = executionOutputLimits(launch.request.work.kind);
+    if (result.id !== id || result.interrupted || result.stdoutBytes > limits.stdout ||
+        result.stderrBytes > limits.stderr) throw new ControlError("CONTROL_EXECUTION_RESULT_INVALID");
     if (this.stopping.has(id)) return;
     this.store.reportExecutionLaunch(id, result);
     const completion = this.finish(launch, result);

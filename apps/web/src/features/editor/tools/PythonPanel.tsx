@@ -34,7 +34,7 @@ export function PythonPanel(props: ToolsPanelProps) {
       Configure its directory and exact runtime version below. The core runtime loads from that directory only when you run a selected script.</p>
     <p>Scientific wheels are not included in the core installation. Missing optional imports report a Python error; they are not installed automatically.</p>
     <p>Python runs in a separate disposable browser worker, not the TeX server. Only selected inputs are copied to /inputs.
-      Write generated files under /outputs. Scripts can use browser networking. Review outputs before any project write.</p>
+      Write generated files under /outputs. Scripts run without network access. Review outputs before any project write.</p>
     <form className="editor-tools__stack" onSubmit={event => {
       event.preventDefault();
       void state.run(async () => {

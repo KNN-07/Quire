@@ -3,9 +3,11 @@ import { IdSchema } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import { defineAction } from "../../../services/adapters/shared";
 import type { AdapterContribution } from "../../../services/adapters/shared";
+import type { Capability } from "@quire/contracts";
 
 export function fixtureContribution(options: {
   readonly publicationFailure?: boolean; readonly projectAccess?: "none" | "read" | "write" | "owner";
+  readonly actionCapability?: () => Capability;
 } = {}): AdapterContribution {
   return (services) => ({
     kind: "fixture", label: "Protocol fixture",
@@ -27,6 +29,7 @@ export function fixtureContribution(options: {
     },
     actions: {
       sync: defineAction(z.strictObject({ value: z.string().min(1), branch: z.string().optional() }), {
+        ...(options.actionCapability ? { capability: options.actionCapability } : {}),
         projectAccess: options.projectAccess ?? "none",
         async prepare(parameters, context) {
           const response = await services.http.json(`${context.configuration.baseUrl}/action`,

@@ -10,6 +10,7 @@ import type { CredentialProvider } from "./connection-forms";
 const providers = [
   ["github", "GitHub"], ["gitlab", "GitLab"], ["zotero", "Zotero"],
   ["mendeley", "Mendeley"], ["dropbox", "Dropbox"], ["git", "Generic Git"],
+  ["publisher", "Publisher"],
 ] as const;
 
 /** Fetch complete current grants for version-sensitive actions and scope selectors. */
@@ -28,6 +29,7 @@ export async function currentConnections(client: AccountPageProps["client"], sig
 
 export function Connections({ client }: Pick<AccountPageProps, "client">) {
   const [availability, setAvailability] = useState<ResponseOf<typeof endpoints.connectionAvailability> | null>(null);
+  const [options, setOptions] = useState<ResponseOf<typeof endpoints.connectionOptions>>({});
   const [connections, setConnections] = useState<readonly AdapterGrant[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -35,11 +37,13 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
   const [removing, setRemoving] = useState<AdapterGrant | null>(null);
   const action = useAction();
   const load = useCallback(async (signal?: AbortSignal) => {
-    const [configured, page] = await Promise.all([
+    const [configured, page, methods] = await Promise.all([
       client.call(endpoints.connectionAvailability, readInput, signal),
       client.call(endpoints.connectionsList, { params: {}, query: { limit: 20 }, body: undefined }, signal),
+      client.call(endpoints.connectionOptions, readInput, signal),
     ]);
     setAvailability(unwrap(configured));
+    setOptions(unwrap(methods));
     const grants = unwrap(page);
     setConnections(grants.items); setNext(grants.nextCursor); setError("");
   }, [client]);
@@ -52,7 +56,7 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
     return () => controller.abort();
   }, [load]);
   return <div className="connection-settings"><Panel title="Git & integrations">
-    <p className="account-muted">Connect remotes and reference managers, and manage credentials for the Git CLI.</p>
+    <p className="account-muted">Connect remotes, reference managers and publisher destinations, and manage credentials for the Git CLI.</p>
     {error && <Notice error={error} message="" />}
     <Button disabled={action.busy} onClick={() => { void action.run(() => load()); }}>Reload connections</Button>
     {!availability && !error && <p role="status">Loading provider availability...</p>}
@@ -61,10 +65,11 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
         const capability = availability[provider];
         return <li key={provider}>
           <div className="account-row"><span><strong>{label}</strong><small>{capability?.enabled ? "Configured" : capability?.state ?? "Not installed"}</small></span>
-            <Button disabled={action.busy || !capability?.enabled} aria-expanded={provider === "zotero" || provider === "git" ? form === provider : undefined} onClick={() => {
+            <Button disabled={action.busy || !capability?.enabled} aria-expanded={provider === "zotero" || provider === "git" || (provider === "publisher" && options["publisher"]?.enrollment === "bearer") ? form === provider : undefined} onClick={() => {
+              if (provider === "publisher" && options["publisher"]?.enrollment === "bearer") { setForm(provider); return; }
               switch (provider) {
                 case "zotero": case "git": setForm(provider); break;
-                case "github": case "gitlab": case "mendeley": case "dropbox":
+                case "github": case "gitlab": case "mendeley": case "dropbox": case "publisher":
                   void action.run(async () => {
                     const result = unwrap(await client.call(endpoints.connectionStart, {
                       params: { provider }, query: {}, body: { returnTo: "/settings/git" },
@@ -93,12 +98,12 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
             action.setMessage(result.ok ? `${connection.label}: connection test passed.` : result.reason ?? "Connection test failed.");
           }); }}>Test {connection.label}</Button>
           <Button variant="danger" disabled={action.busy || connection.state !== "ready"} onClick={() => setRemoving(connection)}>
-            {connection.provider === "git" ? `Forget ${connection.label}` : `Disconnect ${connection.label}`}
+            {connection.provider === "git" || connection.disconnect === "local" ? `Forget ${connection.label}` : `Disconnect ${connection.label}`}
           </Button>
         </div>
         {removing?.id === connection.id && <div className="connection-confirm" onKeyDown={event => { if (event.key === "Escape") setRemoving(null); }}>
-          <p>{connection.provider === "git"
-            ? "Forget this repository credential locally? The independently managed upstream credential remains valid."
+          <p>{connection.provider === "git" || connection.disconnect === "local"
+            ? "Forget this saved credential locally? The independently managed upstream credential remains valid."
             : connection.provider === "zotero"
               ? "Revoke the dedicated key in Zotero account API-key settings first, then disconnect here. Quire will not delete your user-created key."
               : "Disconnect this provider grant? The adapter must complete provider revocation before Quire clears the stored credential."}</p>
@@ -108,8 +113,8 @@ export function Connections({ client }: Pick<AccountPageProps, "client">) {
               if (!current) { await load(); setRemoving(null); return; }
               unwrap(await client.call(endpoints.connectionDelete, { params: { id: current.id }, query: {}, body: { expectedVersion: current.version } }));
               setRemoving(null); await load();
-              action.setMessage(connection.provider === "git" ? "Saved credential forgotten locally. Upstream credential was not revoked." : "Connection disconnected.");
-            }); }}>{connection.provider === "git" ? "Forget saved credential" : "Confirm disconnect"}</Button>
+              action.setMessage(connection.provider === "git" || connection.disconnect === "local" ? "Saved credential forgotten locally. Upstream credential was not revoked." : "Connection disconnected.");
+            }); }}>{connection.provider === "git" || connection.disconnect === "local" ? "Forget saved credential" : "Confirm disconnect"}</Button>
           </div>
         </div>}
       </li>)}</ul>}

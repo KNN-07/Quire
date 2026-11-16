@@ -6,12 +6,14 @@ import { connectControl, connectControlledRole, handleControl } from "../../../.
 import { serveReleaseRole, serveStorageHelper } from "../../../../services/operations/installation/prepared-storage-host";
 import { serveInstallationExecution } from "../../../../services/operations/installation/execution-runner";
 import { createInstallationExecutionClient } from "../../../../services/operations/installation/execution-client";
-import { ExecutionRequestSchema } from "../../../../services/operations/installation/execution-model";
+import { ExecutionRequestSchema, ExecutionSnapshotSchema } from "../../../../services/operations/installation/execution-model";
+import { signExecutionCommand } from "../../../../services/operations/installation/execution-protocol";
 import type { OwnedExecution } from "../../../../services/operations/installation/execution-model";
 import { AcceptedReleaseSchema, ControlError, ReservedUpdateCommandSchema } from "../../../../services/operations/installation/model";
 import type { StoppedInstallation } from "../../../../services/operations/installation/model";
 import { discover } from "../../../../services/operations/updates/feed";
 import { ReportedUpdateFailure } from "../../../../services/operations/updates/model";
+import { PandocConverter } from "../../../../services/adapters/interchange/converter";
 
 const first = z.string().parse(process.argv[2]);
 if (first === "controller") {
@@ -74,7 +76,50 @@ if (first === "controller") {
     const harness = await connectControl(join(dirname(first), "harness.sock"), 1048576, 180000);
     const client = createInstallationExecutionClient(session);
     const handles = new Map<string, OwnedExecution>();
+    let converter: PandocConverter | undefined;
+    let conversion: Promise<{ ok: boolean; code?: string }> | undefined;
+    let conversionAbort: AbortController | undefined;
     handleControl(harness, async (method, input) => {
+      if (method === "payload-ready") {
+        const request = z.object({ id: IdSchema }).parse(input);
+        const channel = await connectControl(join(dirname(first), "executions.sock"));
+        const ready = Promise.withResolvers<void>();
+        const observe = (value: unknown) => {
+          const snapshot = ExecutionSnapshotSchema.parse(value);
+          if (snapshot.launch.payloadStartedAt !== null) ready.resolve();
+          else if (snapshot.launch.result) ready.reject(new Error("Payload exited before start acknowledgement"));
+        };
+        channel.handleEvents((_topic, value) => observe(value));
+        void channel.closed.then(() => ready.reject(new Error("Payload watch closed")));
+        void ready.promise.catch(() => undefined);
+        try {
+          observe(await channel.request("execution", signExecutionCommand(session, { method: "watch", input: request })));
+          await ready.promise;
+          return { ready: true };
+        } finally { channel.close(); }
+      }
+      if (method === "pandoc-begin") {
+        const request = z.object({ probe: z.boolean() }).parse(input);
+        converter = new PandocConverter();
+        conversionAbort = new AbortController();
+        conversion = (request.probe ? converter.probe() : converter.convert({
+          entries: [{ path: "hold.md", bytes: new TextEncoder().encode("# Hold") }],
+          main: "hold.md", from: "markdown", to: "latex", signal: conversionAbort.signal,
+        })).then(() => ({ ok: true }), (error: unknown) => ({
+          ok: false, code: error instanceof Error ? error.name : "unknown",
+        }));
+        return { started: true };
+      }
+      if (method === "pandoc-close") {
+        await converter?.close();
+        return conversion;
+      }
+      if (method === "pandoc-cancel") {
+        conversionAbort?.abort();
+        const result = await conversion;
+        await converter?.close();
+        return result;
+      }
       if (method === "start") {
         const handle = await client.start(ExecutionRequestSchema.parse(input));
         handles.set(handle.id, handle);
@@ -95,6 +140,6 @@ if (first === "controller") {
     });
     await harness.request("role-ready", { permit: session.permit });
     try { await serveReleaseRole(session); }
-    finally { harness.close(); }
+    finally { await converter?.close(); harness.close(); }
   }
 }

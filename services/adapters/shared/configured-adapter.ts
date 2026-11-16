@@ -1,7 +1,7 @@
 import type { Capability, ExternalAdapter, Id } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { AdapterDefinition, AdapterServices, GrantContext, ProviderSettings } from "./contracts";
-import { configurationCapability } from "./contracts";
+import { actionCapability, configurationCapability } from "./contracts";
 import { ExecuteActionSchema } from "./operation-store";
 import { OAuthProtocol } from "./oauth-protocol";
 
@@ -12,8 +12,7 @@ export class ConfiguredAdapter implements ExternalAdapter {
     private settings: ProviderSettings,
   ) {}
   capabilities(): Readonly<Record<string, Capability>> {
-    const capability = configurationCapability(this.definition, this.settings);
-    return Object.fromEntries(Object.keys(this.definition.actions).map((action) => [action, capability]));
+    return Object.fromEntries(Object.keys(this.definition.actions).map((action) => [action, actionCapability(this.definition, this.settings, action)]));
   }
   async availability(): Promise<Capability> {
     this.settings = await this.services.configuration.get(this.definition.kind);

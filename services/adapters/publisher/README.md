@@ -11,7 +11,9 @@ Configure `/api/admin/providers/publisher` with:
 
 - `baseUrl`: the destination's authorized API root.
 - `secret`: the OAuth client secret, encrypted by the shared adapter runtime.
-- `model`: the exact destination contract mapping JSON below.
+- `publisherContract`: the typed destination contract mapping below.
+- `model`: legacy JSON encoding of the same contract, still accepted for existing
+  configurations. Supply only one mapping field when changing the mapping.
 - `policy`: the ordinary Quire provider policy payload.
 
 Paths are relative to `baseUrl`; absolute paths, traversal, query strings, and
@@ -65,6 +67,21 @@ Manual destination:
 }
 ```
 
+Bearer destinations replace the `oauth` object with `"authentication": "bearer"`.
+They need no operator OAuth client secret. An authenticated user enrolls their
+destination-issued token with `POST /api/connections/publisher/credentials`,
+body `{ "label": "Journal account", "accessToken": "..." }` and normal mutation
+headers. Quire verifies the token at the configured `credentialTestPath` before
+creating an encrypted ready grant. OAuth start explicitly rejects bearer mode.
+Bearer disconnect forgets the saved credential locally and does not claim
+upstream revocation. The grant retains this removal mode even if the operator
+later changes enrollment configuration.
+
+An optional `actions` object can disable individual actions:
+`{ "prepare": true, "submit": false, "status": true }`. Unspecified actions stay
+enabled. Capability responses and dispatch/publication enforce those settings.
+Manual status remains a local durable-state read by default.
+
 Manual `prepare` returns the downloadable archive operation and advertises
 `manual: true, direct: false`. Manual `submit` performs no network request and
 requires both `manualSubmissionId` and the provider-issued `manualReceipt`.
@@ -73,12 +90,13 @@ Without those values the durable state remains `prepared`.
 ## External prerequisite
 
 There is no universal publisher API. An operator must supply a destination-
-specific public or partner API contract, OAuth registration, authorized user
+specific public or partner API contract, OAuth registration or bearer enrollment, authorized user
 grant, exact path/field mapping, and recipient approval. Quire does not infer
 private endpoints and never records `submitted` without a provider receipt.
 
-The current shared provider DTO has no typed contract-mapping field, so this
-adapter uses the existing `model` string as versioned JSON. It also exposes one
-uniform capability state for all actions and supports OAuth enrollment only.
-A future shared-contract delta should add typed per-action capabilities,
-publisher contract configuration, and non-OAuth credential enrollment.
+Typed configuration is stored separately from model JSON. Omitted mapping fields
+retain the existing publisher mapping; supplying a new typed mapping replaces
+legacy model JSON and supplying legacy model JSON replaces the typed mapping.
+Migration does not rewrite existing configurations or increment their versions.
+The account connection UI supports both enrollment modes. A dedicated publisher
+administration form and project preparation/submission screen remain separate work.

@@ -2,6 +2,7 @@ import { endpoints } from "@quire/contracts";
 import { ServiceError } from "@quire/runtime";
 import type { ModuleContext } from "@quire/runtime";
 import type { AdapterServices } from "./contracts";
+import { configurationCapability } from "./contracts";
 import type { ConfiguredAdapter } from "./configured-adapter";
 import { ConnectionOAuth } from "./oauth";
 import { authorizeAction } from "./operation-store";
@@ -25,6 +26,42 @@ export function registerConnections(
   context.routes.register(endpoints.connectionsList, async (input, request) => {
     const actor = await identity.require(request.request);
     return services.grants.list(actor.user.id, input.query);
+  });
+  context.routes.register(endpoints.connectionOptions, async (_input, request) => {
+    await identity.require(request.request);
+    const entries = await Promise.all([...adapters].map(async ([kind, adapter]) => {
+      const settings = await services.configuration.get(kind);
+      return adapter.definition.connection && configurationCapability(adapter.definition, settings).enabled
+        ? [[kind, adapter.definition.connection(settings)] as const] : [];
+    }));
+    return Object.fromEntries(entries.flat());
+  });
+  context.routes.register(endpoints.publisherCredentials, async (input, request) => {
+    const actor = await identity.require(request.request);
+    await identity.verifyMutation(request.request, actor);
+    const adapter = find("publisher");
+    const settings = await adapter.requireReady();
+    if (!adapter.definition.enrollBearer) {
+      throw new ServiceError("CREDENTIAL_ENROLLMENT_UNSUPPORTED", 422, "Provider does not support bearer enrollment");
+    }
+    const tokens = await adapter.definition.enrollBearer(settings, input.body.accessToken, AbortSignal.timeout(15_000));
+    const grant = await context.uow.run(async tx => {
+      await tx.lock("quire:accounts");
+      await tx.lock("adapter:provider:publisher");
+      const session = await tx.get("SELECT id FROM sessions WHERE id=? AND user_id=? AND expires_at>?",
+        [actor.sessionId, actor.user.id, context.clock.now()]);
+      if (!session) throw new ServiceError("UNAUTHENTICATED", 401, "Session expired during credential verification");
+      const current = await services.configuration.get("publisher", tx);
+      if (current.version !== settings.version || !configurationCapability(adapter.definition, current).enabled) {
+        throw new ServiceError("PROVIDER_CHANGED", 409, "Publisher configuration changed during credential verification");
+      }
+      const created = await services.grants.create({ actorId: actor.user.id, provider: "publisher", label: input.body.label, tokens }, tx);
+      await context.events.record(tx, { topic: "policy.changed", aggregateId: created.id,
+        payload: { resourceId: created.id, version: created.version } });
+      return created;
+    });
+    await context.events.dispatch();
+    return grant;
   });
   context.routes.register(endpoints.connectionStart, async (input, request) => {
     const actor = await identity.require(request.request);
