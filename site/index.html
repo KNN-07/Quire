@@ -5,15 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Quire is a self-hosted LaTeX workspace. Write together, preview real PDFs, review changes, and keep your project history in Git.">
     <meta name="theme-color" content="#ffffff">
-    <title>Quire - Write LaTeX together</title>
+    <meta property="og:title" content="Quire: write LaTeX together">
+    <meta property="og:description" content="A self-hosted LaTeX workspace with shared editing, real PDF compilation, review, and Git history.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://knn-07.github.io/Quire/assets/editor.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Quire: write LaTeX together</title>
     <link rel="icon" href="./logo.svg" type="image/svg+xml">
+    <link rel="preload" href="./assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="./assets/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="container header-inner">
-        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="34" height="34"><span>Quire</span></a>
+        <a class="brand" href="./" aria-label="Quire home"><img src="./logo.svg" alt="" width="30" height="30"><span>Quire</span></a>
         <nav aria-label="Main navigation">
           <a href="#views">Features</a>
           <a href="#git">Git</a>
@@ -21,115 +28,172 @@
           <a href="#self-hosting">Self-hosting</a>
           <a href="https://github.com/KNN-07/Quire#configuration-and-deployment">Docs</a>
         </nav>
-        <a class="header-link" href="https://github.com/KNN-07/Quire">View on GitHub <span aria-hidden="true">&#8599;</span></a>
+        <a class="button primary small header-action" href="https://github.com/KNN-07/Quire">View on GitHub</a>
       </div>
     </header>
     <main id="main">
       <section class="hero container" aria-labelledby="hero-title">
-        <p class="eyebrow">A self-hosted workspace for research teams</p>
+        <p class="eyebrow">Self-hosted LaTeX for research teams</p>
         <h1 id="hero-title">Write LaTeX together.<br>Version it like code.</h1>
-        <p class="hero-description">Edit source or a visual document, preview the PDF beside it, and keep your files, references, and project history together.</p>
+        <p class="hero-description">Edit source or a visual document, watch the PDF build beside it, and keep every change in real Git, on infrastructure you run.</p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/KNN-07/Quire#run-locally">Run locally <span aria-hidden="true">&#8594;</span></a>
+          <a class="button primary" href="https://github.com/KNN-07/Quire#run-locally">Run it locally <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
           <a class="button secondary" href="https://github.com/KNN-07/Quire">Explore the source</a>
         </div>
-        <p class="hero-note">Write in your browser. Run on your own infrastructure.</p>
         <figure class="editor-preview">
-          <a href="./assets/editor.png" aria-label="Open full-size Quire editor screenshot"><img src="./assets/editor.png" alt="The running Quire editor showing project files, LaTeX source, a compiled PDF, and the Assistant reviewing an edit." width="1600" height="1000" fetchpriority="high"></a>
-          <figcaption>The running workspace, with a seeded example project and its actual compiled PDF.</figcaption>
+          <a href="./assets/editor.png" aria-label="Open the full-size Quire editor screenshot">
+            <span class="window-bar" aria-hidden="true"><i></i><i></i><i></i><b>Latent Dynamics Note</b></span>
+            <img src="./assets/editor.png" alt="The Quire editor: a project file tree, LaTeX source, the compiled PDF, and the Assistant showing a proposed edit that is waiting for review." width="1600" height="1000" fetchpriority="high">
+          </a>
+          <figcaption>The running workspace with a seeded example project and its compiled PDF.</figcaption>
         </figure>
       </section>
-      <section class="section muted-section" id="views" aria-labelledby="views-title">
+
+      <section class="section tinted" id="views" aria-labelledby="views-title">
         <div class="container">
           <div class="section-heading">
             <h2 id="views-title">One document, four ways to see it</h2>
-            <p>Keep the source, the writing, and the finished page in one workspace. Choose the view that fits the task.</p>
+            <p>Co-authors who live in source and co-authors who never want to see a backslash can work in the same file.</p>
           </div>
           <div class="views-grid">
-            <article><div class="view-illustration source-view" aria-hidden="true"><span></span><span></span><span></span><span></span></div><h3>Source</h3><p>Edit LaTeX with syntax highlighting, project search, and source-linked compile diagnostics.</p></article>
-            <article><div class="view-illustration split-view" aria-hidden="true"><span></span><span></span></div><h3>Split</h3><p>Keep your source and compiled PDF side by side as you work on the same document.</p></article>
-            <article><div class="view-illustration visual-view" aria-hidden="true"><strong>A clearer way to write</strong><span></span><span></span></div><h3>Visual</h3><p>Work through the visual editor, with tools for symbols, tables, figures, and citations.</p></article>
-            <article><div class="view-illustration pdf-view" aria-hidden="true"><span></span></div><h3>PDF</h3><p>Give the compiled document room to breathe in a dedicated PDF layout.</p></article>
+            <article>
+              <div class="view-illustration source-view" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+              <h3>Source</h3>
+              <p>A code editor with LaTeX autocomplete, linting, project search, and Vim or Emacs keys.</p>
+            </article>
+            <article>
+              <div class="view-illustration split-view" aria-hidden="true"><span></span><span></span></div>
+              <h3>Split</h3>
+              <p>Source and PDF side by side. SyncTeX connects a line of source to its place on the page.</p>
+            </article>
+            <article>
+              <div class="view-illustration visual-view" aria-hidden="true"><strong>Introduction</strong><span></span><span></span></div>
+              <h3>Visual</h3>
+              <p>Edit the document directly, with tools for symbols, tables, figures, and citations.</p>
+            </article>
+            <article>
+              <div class="view-illustration pdf-view" aria-hidden="true"><span></span></div>
+              <h3>PDF</h3>
+              <p>Read the compiled paper on its own, with zoom, page navigation, and presentation views.</p>
+            </article>
           </div>
         </div>
       </section>
+
       <section class="section container two-column" id="git" aria-labelledby="git-title">
         <div class="section-copy">
-          <h2 id="git-title">Your project has a history.</h2>
-          <p>Keep it with your writing. Quire brings native Git tools and labeled history into the workspace, so you can review changes and return to earlier work.</p>
+          <p class="kicker">Real Git, not an export</p>
+          <h2 id="git-title">Your paper is a repository</h2>
+          <p>Clone it, branch it, commit it. Work offline with the tools you already use, then bring your changes back to Quire.</p>
           <ul class="feature-list">
-            <li>Review source changes with native Git tools</li>
-            <li>Save labeled versions and restore previous work</li>
-            <li>Import a project ZIP and export your source</li>
+            <li>Review source changes before you commit</li>
+            <li>Keep branches for experiments and submissions</li>
+            <li>Label versions and restore earlier work</li>
           </ul>
         </div>
-        <div class="history-panel">
-          <p class="panel-label">A workflow for the whole paper</p>
-          <ol>
-            <li><span class="history-dot" aria-hidden="true"></span><div><strong>Write and compile</strong><p>Keep source and output in view.</p></div></li>
-            <li><span class="history-dot" aria-hidden="true"></span><div><strong>Review the changes</strong><p>See what changed before moving on.</p></div></li>
-            <li><span class="history-dot" aria-hidden="true"></span><div><strong>Keep the next version</strong><p>Give important milestones a label.</p></div></li>
-          </ol>
+        <div class="terminal" role="img" aria-label="A terminal session: clone the project, create a branch, edit, commit, and push the revision back.">
+          <div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><b>Terminal</b></div>
+          <pre aria-hidden="true"><span class="prompt">$</span> git clone &lt;your-project-clone-url&gt;
+<span class="prompt">$</span> git switch -c revision
+<span class="comment"># edit your paper locally</span>
+<span class="prompt">$</span> git add main.tex
+<span class="prompt">$</span> git commit -m "Revise introduction"
+<span class="prompt">$</span> git push origin revision</pre>
         </div>
       </section>
+
       <section class="section ai-section" id="ai" aria-labelledby="ai-title">
         <div class="container two-column">
-          <div class="review-principles">
-            <p class="panel-label">Assistance with a review step</p>
-            <ol><li><span>01</span><div><strong>Choose the context</strong><p>Select what the assistant can work with.</p></div></li><li><span>02</span><div><strong>Read the proposal</strong><p>Review suggested changes to your source.</p></div></li><li><span>03</span><div><strong>Decide what to accept</strong><p>You control what enters the document.</p></div></li></ol>
+          <div class="proposal" role="img" aria-label="A proposed edit to main.tex: one removed line and one added line, with Reject and Accept actions.">
+            <div class="proposal-head" aria-hidden="true"><strong>Review changes</strong><span>1 pending</span></div>
+            <div class="proposal-body" aria-hidden="true">
+              <p class="proposal-file">main.tex</p>
+              <pre><span class="removed">- We study compact latent dynamics for
+  sample-efficient control.</span>
+<span class="added">+ We learn a compact latent dynamics model
+  and plan in it.</span></pre>
+              <div class="proposal-actions"><span class="chip">Reject</span><span class="chip accept">Accept</span></div>
+            </div>
           </div>
           <div class="section-copy">
-            <h2 id="ai-title">An assistant that leaves the decisions to you</h2>
-            <p>Ask questions, use language tools, or work with Agent proposals. Context selection is explicit, and proposed edits require acceptance before changing source.</p>
-            <p>AI uses providers you configure. It is optional for ordinary writing and compilation.</p>
-            <a class="text-link" href="https://github.com/KNN-07/Quire#features">Explore the workspace features <span aria-hidden="true">&#8594;</span></a>
+            <p class="kicker ai">AI assistant</p>
+            <h2 id="ai-title">A co-author that shows its work</h2>
+            <p>Ask about your paper, or give the agent a task. It proposes a diff, and nothing changes in your source until you accept it.</p>
+            <ul class="feature-list ai">
+              <li>You choose which files and selections it can read</li>
+              <li>Every proposed edit is reviewed before it applies</li>
+              <li>It uses the provider you configure, and it is optional</li>
+            </ul>
           </div>
         </div>
       </section>
+
       <section class="section container" aria-labelledby="paper-title">
         <h2 id="paper-title">Everything else a paper needs</h2>
         <div class="features-grid">
-          <article><h3>Shared editing</h3><p>Work together in the same project with role-based permissions.</p></article>
-          <article><h3>Comments and review</h3><p>Discuss the writing with comments, review suggestions, and tracked changes.</p></article>
-          <article><h3>Projects and templates</h3><p>Start blank, choose a template, or bring existing files in a ZIP.</p></article>
-          <article><h3>Real PDF compilation</h3><p>Compile through isolated workers, with diagnostics linked back to the source.</p></article>
-          <article><h3>References together</h3><p>Edit bibliographies, import references, and configure reference search.</p></article>
-          <article><h3>Source you can keep</h3><p>Export project source and preserve the files behind the finished document.</p></article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="7" r="3"/><path d="M2 17c0-3 2-5 5-5s5 2 5 5M13 5a3 3 0 0 1 0 6M15 12c2 .6 3 2.4 3 5"/></svg>
+            <h3>Shared editing</h3><p>Work in the same project at the same time, with role-based permissions.</p>
+          </article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14v9H9l-4 3v-3H3z"/></svg>
+            <h3>Comments and review</h3><p>Suggest edits, resolve threads, and review tracked changes.</p>
+          </article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14M8 8v9"/></svg>
+            <h3>Projects and templates</h3><p>Start blank, pick a template, or bring existing files in a ZIP.</p>
+          </article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1.5"/><path d="M8 2v3M12 2v3M8 15v3M12 15v3M2 8h3M2 12h3M15 8h3M15 12h3"/></svg>
+            <h3>Isolated compilation</h3><p>pdfLaTeX, XeLaTeX, and LuaLaTeX run in sandboxed workers, with diagnostics linked to source.</p>
+          </article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h9a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3zM4 14a3 3 0 0 1 3-3h9"/></svg>
+            <h3>References</h3><p>Edit bibliographies, import by DOI, and search configured reference providers.</p>
+          </article>
+          <article>
+            <svg class="feature-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+            <h3>Full history</h3><p>Compare versions, see who changed what, and restore earlier work.</p>
+          </article>
         </div>
       </section>
+
       <section class="section hosting-section" id="self-hosting" aria-labelledby="hosting-title">
         <div class="container two-column">
           <div class="section-copy">
+            <p class="kicker light">Self-hosting</p>
             <h2 id="hosting-title">Your workspace.<br>Your infrastructure.</h2>
-            <p>Run Quire for your lab, team, or personal writing. Keep projects on infrastructure you manage and connect the services you choose.</p>
-            <a class="button light-button" href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/deployment.md">Read the deployment guide <span aria-hidden="true">&#8594;</span></a>
+            <p>Run Quire for your lab, department, or yourself. Projects stay on machines you manage, and you connect only the services you choose.</p>
+            <a class="button light-button" href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/deployment.md">Read the deployment guide <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
           </div>
           <div class="hosting-grid">
-            <div><h3>Local storage</h3><p>A local profile using SQLite, local blobs, and Git repositories.</p></div>
-            <div><h3>Portable profile</h3><p>PostgreSQL, Redis, and S3-compatible storage with managed compiler workers.</p></div>
-            <div><h3>Workspace controls</h3><p>Accounts, organizations, permissions, and provider configuration.</p></div>
-            <div><h3>Operational guides</h3><p>Documented setup, compiler readiness, backups, and recovery procedures.</p></div>
+            <div><h3>Local profile</h3><p>SQLite, local blobs, and Git repositories on one machine.</p></div>
+            <div><h3>Portable profile</h3><p>PostgreSQL, Redis, and S3-compatible storage with separate compiler workers.</p></div>
+            <div><h3>Identity and policy</h3><p>Accounts, organizations, SAML, OIDC, LDAP, and role-based permissions.</p></div>
+            <div><h3>Operations</h3><p>Documented setup, compiler readiness checks, signed backups, and recovery.</p></div>
           </div>
         </div>
       </section>
-      <section class="section questions-section" aria-labelledby="questions-title">
+
+      <section class="section tinted" aria-labelledby="questions-title">
         <div class="questions container">
-          <h2 id="questions-title">Questions</h2>
-          <details open><summary>Can I bring an existing project?</summary><p>Yes. Import a project ZIP, or start with a blank project or a published template. You can also export your source.</p></details>
-          <details><summary>Do I need an AI provider?</summary><p>No. Ordinary writing and compilation work without AI. Optional AI and connected services use providers you configure.</p></details>
-          <details><summary>What do I need to run Quire?</summary><p>The local setup uses Bun, Node.js, and Git. Native compilation also needs Linux and the documented TeX and isolation toolchain. Follow the <a href="https://github.com/KNN-07/Quire#run-locally">local setup instructions</a> for requirements and readiness checks.</p></details>
-          <details><summary>Is every planned feature available?</summary><p>Quire is actively developed. Some advanced administration, accessibility, and integration work remains. The <a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">feature matrix</a> records availability and known limitations.</p></details>
+          <h2 id="questions-title">A few questions</h2>
+          <details open><summary>Can I bring an existing project?</summary><p>Yes. Import a project ZIP, or start from a blank project or a published template. You can export your source at any time.</p></details>
+          <details><summary>Do I need an AI provider?</summary><p>No. Writing and compilation work without one. The assistant and other connected services use providers you configure.</p></details>
+          <details><summary>What do I need to run Quire?</summary><p>The local setup uses Bun, Node.js, and Git. Native compilation also needs Linux with a TeX distribution and the documented isolation tools. The <a href="https://github.com/KNN-07/Quire#run-locally">local setup instructions</a> list the requirements and readiness checks.</p></details>
+          <details><summary>Is every planned feature available?</summary><p>Not yet. Quire is in active development, and some administration, accessibility, and integration work remains. The <a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">feature matrix</a> records what is available and what is not.</p></details>
         </div>
       </section>
+
       <section class="section closing container" aria-labelledby="closing-title">
         <h2 id="closing-title">Your next paper starts here.</h2>
-        <p>Set up a workspace and make room for the writing.</p>
-        <a class="button primary" href="https://github.com/KNN-07/Quire#run-locally">Run locally <span aria-hidden="true">&#8594;</span></a>
+        <p>Set up a workspace in a few commands.</p>
+        <a class="button primary" href="https://github.com/KNN-07/Quire#run-locally">Run it locally <svg class="arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
       </section>
     </main>
     <footer class="site-footer">
       <div class="container footer-inner">
-        <a class="brand" href="./"><img src="./logo.svg" alt="" width="28" height="28"><span>Quire</span></a>
+        <a class="brand" href="./"><img src="./logo.svg" alt="" width="26" height="26"><span>Quire</span></a>
         <p>A self-hosted LaTeX workspace.</p>
         <nav aria-label="Footer navigation"><a href="https://github.com/KNN-07/Quire">GitHub</a><a href="https://github.com/KNN-07/Quire#configuration-and-deployment">Documentation</a><a href="https://github.com/KNN-07/Quire/blob/main/docs/feature-matrix.md">Project status</a></nav>
       </div>
