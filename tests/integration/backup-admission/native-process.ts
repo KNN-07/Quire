@@ -7,7 +7,7 @@ const release = Promise.withResolvers<void>();
 const pending = new Set<Promise<void>>();
 process.send?.({ ready: "native" });
 process.on("message", (message: unknown) => {
-  const input = z.strictObject({ id: z.number(), method: z.string(), value: z.unknown() }).parse(message);
+  const input = z.strictObject({ id: z.number(), method: z.string(), value: z.unknown().optional() }).parse(message);
   const work = (async () => {
     switch (input.method) {
       case "write":

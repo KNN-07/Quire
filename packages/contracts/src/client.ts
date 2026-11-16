@@ -72,7 +72,7 @@ export function createClient(baseUrl = "", options: { readonly csrfToken?: () =>
           requestId: IdSchema.parse(response.headers.get("x-request-id")) }, metadata };
       }
       const envelope = z.union([
-        z.strictObject({ data: z.unknown(), requestId: IdSchema }), ErrorResultSchema,
+        z.strictObject({ data: z.unknown().optional(), requestId: IdSchema }), ErrorResultSchema,
       ]).parse(await response.json());
       if ("error" in envelope) return { result: envelope, metadata };
       return { result: { data: route.output.parse(envelope.data), requestId: envelope.requestId }, metadata };

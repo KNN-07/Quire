@@ -189,7 +189,7 @@ function SourcePanelContent(props: SourcePanelProps) {
       <p role="status">{!tracking.canTrack ? "Proposing requires review permission and the owner's Track Changes benefit."
         : tracking.draft.submission ? "Submission outcome pending. Retry the same request; your draft is retained."
           : tracking.conflict && tracking.dirty ? "Source changed. Your draft is retained and cannot overwrite newer source."
-            : tracking.draft.enabled ? "Local proposal draft. Submit explicitly to share for review; shared source stays unchanged."
+            : tracking.draft.enabled ? "Local proposal draft. Submit it to share for review; the shared source stays unchanged."
               : tracking.dirty ? "Tracking paused. Your unsubmitted draft is retained; turn tracking on to resume." : ""}</p>
       {tracking.draft.enabled && <p>Visual editing, file changes and insertions pause while tracking.</p>}
       {!tracking.online && tracking.draft.enabled && <p>Reconnect and wait for source acknowledgment before editing or submitting. Your draft is retained.</p>}
@@ -245,7 +245,7 @@ function SourcePanelContent(props: SourcePanelProps) {
       {tool === "shortcuts" && <div className="q-source-stack">
         <dl className="q-source-shortcuts"><dt>Find / replace</dt><dd>Ctrl/Cmd+F; Ctrl+H (Windows/Linux)</dd><dt>Bold / italic / comment</dt><dd>Ctrl/Cmd+B / I / /</dd><dt>Completion</dt><dd>Ctrl+Space; Option+Space on Mac if the OS reserves Ctrl+Space</dd><dt>Undo / redo</dt><dd>Ctrl/Cmd+Z / Shift+Z</dd><dt>Indent / outdent</dt><dd>Tab / Shift+Tab</dd><dt>Close tools / completion</dt><dd>Escape</dd></dl>
         <Button disabled={!online} busy={keysLoading} onClick={() => setRefresh(value => value + 1)}>{copy.refresh}</Button>
-        <p>Language actions: Ctrl/Cmd+Alt+L. At a caret, explicitly choose Inline completion. Selected text offers eligible rewrite actions. All changes require Assistant Send and review.</p>
+        <p>Language actions: Ctrl/Cmd+Alt+L. At the caret, choose Inline completion. Selected text offers eligible rewrite actions. All changes require Assistant Send and review.</p>
         <p>Commands show required packages in completion details. Labels and bibliography keys come from current project files.</p>
       </div>}
     </aside>}

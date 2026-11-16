@@ -86,7 +86,7 @@ export function ProjectBenefits({ client }: { readonly client: AdminClient }) {
       <Field label="Scope key" required value={key} disabled={busy} readOnly={kind === "deployment"}
         placeholder={kind === "user" ? "Existing user UUID" : "configured:price-id or manual:plan-id"}
         onChange={event => { setKey(event.currentTarget.value); setLoaded(null); setError(""); setMessage(""); }}
-        hint={kind === "plan" ? "Use the exact configured price ID or a deliberate manual plan ID." : undefined} />
+        hint={kind === "plan" ? "Use the exact configured price ID or a manual plan ID." : undefined} />
       <Button type="submit" busy={busy}>Load grant</Button>
     </form>
     {error && <p className="admin-message" role="alert">{error}</p>}

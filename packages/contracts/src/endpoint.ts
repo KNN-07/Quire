@@ -41,7 +41,7 @@ export function request<P extends z.ZodType, Q extends z.ZodType, B extends z.Zo
 ) {
   return z.strictObject({ params, query, body, headers: MutationHeadersSchema.default({}) });
 }
-export const noInput = request(EmptySchema, EmptySchema, z.undefined());
+export const noInput = request(EmptySchema, EmptySchema, z.undefined().optional());
 export const BytesSchema = z.instanceof(Uint8Array);
 export type RequestOf<E extends Endpoint> = z.input<E["input"]>;
 export type ResponseOf<E extends Endpoint> = z.output<E["output"]>;

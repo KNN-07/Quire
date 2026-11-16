@@ -156,6 +156,6 @@ export async function topology(instanceKey?: string) {
 
 export const responseData = async <T extends z.ZodType>(response: Response, schema: T): Promise<z.output<T>> => {
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-  return schema.parse(z.object({ data: z.unknown() }).parse(await response.json()).data);
+  return schema.parse(z.object({ data: z.unknown().optional() }).parse(await response.json()).data);
 };
 export { systemClock };

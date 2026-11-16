@@ -58,7 +58,7 @@ export function useInlineReferences(props: SourcePanelProps, editor: SourceEdito
   const blocked = !session ? authorityError || "Checking the current reference session."
     : !props.preferences.autocomplete ? "Autocomplete is off. Enable it in Source preferences before remote completion."
     : tracking ? "Remote completion is unavailable while Track changes is on."
-      : !props.workspace.access.capabilities.edit || props.document.getSnapshot().readOnly ? "Remote insertion requires current editing authority."
+      : !props.workspace.access.capabilities.edit || props.document.getSnapshot().readOnly ? "You need edit access to insert remote references."
         : !connected ? "Reconnect and recover source before remote completion."
           : files.length > 1 && !selected ? "Choose an editable bibliography before remote completion."
             : !files.length && props.workspace.files.some(file => file.path === "references.bib")

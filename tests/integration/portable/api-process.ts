@@ -45,7 +45,7 @@ const server = Bun.serve<RealtimeSocketData>({ hostname: "127.0.0.1", port: 0,
 process.send?.({ ready: server.url.toString() });
 const core = new CoreProjects({ ...app.runtime, routes: app.runtime.routes.forLane("K") });
 process.on("message", (message: unknown) => {
-  const value = z.object({ id: z.number(), method: z.string(), input: z.unknown() }).parse(message);
+  const value = z.object({ id: z.number(), method: z.string(), input: z.unknown().optional() }).parse(message);
   void (async () => {
     switch (value.method) {
       case "acquire": {

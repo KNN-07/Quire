@@ -38,7 +38,7 @@ export function OrganizationManagement(props: Props) {
   const recipients = members.filter(member => member.canReceiveProjects && member.id !== selection?.member.id);
   return <section className="account-stack" aria-labelledby="organization-management-title">
     <h3 id="organization-management-title">Managed accounts</h3>
-    <p>Membership is separate from account management. Each member must explicitly accept management in Sign-in &amp; SSO settings.</p>
+    <p>Membership is separate from account management. Each member must accept management in Sign-in &amp; SSO settings.</p>
     <p>Sensitive actions require a recent sign-in. <a href={`/sign-in?returnTo=${encodeURIComponent(props.path)}`}>Sign in again</a>.</p>
     <Notice {...action} />
     {loading && <p role="status">Loading managed accounts...</p>}

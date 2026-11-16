@@ -535,7 +535,7 @@ export class SystemdInstallationAuthority implements InstallationAuthority {
       this.store.acknowledgeExecution(session.execution.id, "exited", now(), bytes);
       this.sessions.delete(this.config.helperUnit);
       const response = z.discriminatedUnion("outcome", [
-        z.object({ outcome: z.literal("succeeded"), value: z.unknown() }),
+        z.object({ outcome: z.literal("succeeded"), value: z.unknown().optional() }),
         z.object({ outcome: z.literal("failed"), code: z.string(), detail: z.string() }),
       ]).parse(result);
       if (response.outcome === "failed") {

@@ -96,9 +96,9 @@ export function StartingPoint(props: AccountPageProps & { readonly returnTo?: st
         <label className="q-field"><span className="q-field__label" id="onboarding-view-label">LaTeX experience</span>
           <select className="q-input" name="view" aria-labelledby="onboarding-view-label" value={choices.defaultView} onChange={event =>
             draft.save({ ...choices, defaultView: OnboardingChoicesSchema.unwrap().shape.defaultView.parse(event.target.value) })}>
-            <option value="visual">New - open in Visual view</option>
-            <option value="split">Some - open in Split view</option>
-            <option value="source">Expert - open in Source view</option>
+            <option value="visual">New: open in Visual view</option>
+            <option value="split">Some: open in Split view</option>
+            <option value="source">Expert: open in Source view</option>
           </select>
         </label>
       </fieldset>

@@ -21,7 +21,8 @@ export function routesFor(lane: Lane) {
   };
 }
 export const none = EmptySchema;
-export const noBody = z.undefined();
+// Optional keeps callers free to omit the key; zod 4.6 otherwise requires it to be present.
+export const noBody = z.undefined().optional();
 export const list = ListQuerySchema;
 export const version = { expectedVersion: CountSchema } as const;
 export const key = { idempotent: true } as const;

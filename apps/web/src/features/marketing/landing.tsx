@@ -6,8 +6,8 @@ export function Landing() {
     <section className="qm-wrap qm-hero">
       <span className="qm-pill">LaTeX editor for research teams</span>
       <h1>Write LaTeX together.<br />Version it like code.</h1>
-      <p>Edit source or a visual document, watch the PDF build beside it, and keep every change in real git - with your organization's single sign-on.</p>
-      <div className="qm-actions"><a className="qm-link-button qm-primary" href="/sign-up">Start writing - free<Icon name="arrowRight" className="q-icon--nudge" /></a><a className="qm-link-button" href="/projects?view=templates">Browse templates</a></div>
+      <p>Edit source or a visual document, watch the PDF build beside it, and keep every change in real git, with your organization's single sign-on.</p>
+      <div className="qm-actions"><a className="qm-link-button qm-primary" href="/sign-up">Start writing free<Icon name="arrowRight" className="q-icon--nudge" /></a><a className="qm-link-button" href="/projects?view=templates">Browse templates</a></div>
       <EditorIllustration />
     </section>
     <section id="views" className="qm-band"><div className="qm-wrap qm-section">
@@ -26,7 +26,7 @@ export function Landing() {
     </section>
     <section id="ai" className="qm-band qm-ai-band"><div className="qm-wrap qm-section qm-split">
       <figure className="qm-card qm-ai-sample" aria-label="Example proposed edit"><figcaption><Icon name="sparkle" />Agent · proposed edit</figcaption><p>Tighten the abstract and check the citation.</p><pre>- of their environment and plan inside it.<br />+ their environment and plan inside it.</pre><p>Review the proposed diff before applying it.</p></figure>
-      <div><span className="qm-eyebrow">AI assistant</span><h2>A co-author that knows LaTeX - and shows its work</h2><p className="qm-lead">Ask about your paper, or give the agent a task. AI requires your operator's configured model and endpoint.</p><ul><li>Ask questions using selected project context</li><li>Review proposed changes before applying them</li><li>Keep provider and citation search settings explicit</li></ul><a href="/self-hosting#ai">Bring your own model - or none</a></div>
+      <div><span className="qm-eyebrow">AI assistant</span><h2>A co-author that knows LaTeX and shows its work</h2><p className="qm-lead">Ask about your paper, or give the agent a task. AI requires your operator's configured model and endpoint.</p><ul><li>Ask questions using selected project context</li><li>Review proposed changes before applying them</li><li>Keep provider and citation search settings explicit</li></ul><a href="/self-hosting#ai">Bring your own model, or none</a></div>
     </div></section>
     <section className="qm-wrap qm-section"><h2>Everything else a paper needs</h2><div className="qm-grid qm-three qm-feature-list">{features([
       ["Real-time co-editing", "users", "Work with co-authors in source and visual views."],

@@ -133,3 +133,11 @@
 .account-provider-grid:empty{display:none}
 .account-provider-grid .q-button .q-icon{color:var(--q-tertiary)}
 .account-auth__form{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out)}
+/* Section rhythm: a heading sits close to its own content and further from the section before it. */
+.account-panel>h3{margin-block:var(--q-space-5) calc(var(--q-space-5) - var(--q-space-9))}
+.account-panel>.account-stack:not(:first-child)>h3:first-child{margin-block-start:var(--q-space-5)}
+.account-stack>h3{margin-block-end:calc(var(--q-space-5) - var(--q-space-8))}
+.account-list:empty{display:none}
+.account-list li:first-child{padding-block-start:var(--q-space-3)}
+.account-main .account-form[data-inline]>.q-button{align-self:end;min-height:var(--q-field-height)}
+.account-signup .account-intro ol{padding-inline-start:0}

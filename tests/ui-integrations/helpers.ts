@@ -28,7 +28,7 @@ export async function contextFor(browser: Browser, actor: { readonly app: Applic
   return context;
 }
 export async function responseData<T extends z.ZodType>(response: { readonly json: () => Promise<unknown> }, schema: T): Promise<z.output<T>> {
-  const envelope = z.object({ data: z.unknown() }).parse(await response.json());
+  const envelope = z.object({ data: z.unknown().optional() }).parse(await response.json());
   return schema.parse(envelope.data);
 }
 export async function configure(app: Application, session: Session, settings: {

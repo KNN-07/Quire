@@ -22,7 +22,7 @@ const server = config.role === "server" ? await startRepositoryServer({
 }) : undefined;
 process.send?.({ ready: true, url: server?.url });
 process.on("message", (message: unknown) => {
-  const input = z.object({ id: z.number(), method: z.string(), value: z.unknown() }).parse(message);
+  const input = z.object({ id: z.number(), method: z.string(), value: z.unknown().optional() }).parse(message);
   void (async () => {
     let result: unknown = null;
     if (input.method === "time") time = z.number().parse(input.value);

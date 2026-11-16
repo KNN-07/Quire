@@ -82,7 +82,7 @@ export function InstitutionTemplates({ client, organizationId, navigate }: {
         </div>)}
     {canManage && <section aria-label="Manage featured templates">
       <h3>Manage featured templates</h3>
-      <p>Select a published version explicitly. Later source edits and publications do not update this selection.</p>
+      <p>Select a published version. Later source edits and publications do not update this selection.</p>
       {candidates.error && <p role="alert">{candidates.error}</p>}
       <label>Published template <select aria-label="Published template" value={candidate} onChange={event => setCandidate(event.currentTarget.value)}>
         <option value="">Choose a published template</option>

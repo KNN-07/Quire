@@ -7,7 +7,6 @@ import { parseDocument, selectionEdit, sourceRevision } from "./commands";
 import type { ParsedLatex } from "./model";
 import { packageEdit } from "../tools/insertion";
 
-/** Upload bytes through the actual optimistic, scoped multipart endpoint. */
 export async function uploadPng(props: AuthoringProps, file: File, signal: AbortSignal): Promise<string> {
   const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
   if (file.type !== "image/png" || signature.join(",") !== "137,80,78,71,13,10,26,10") {

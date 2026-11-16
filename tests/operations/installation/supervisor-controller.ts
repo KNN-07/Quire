@@ -13,7 +13,7 @@ import { join } from "node:path";
 const path = z.string().parse(process.argv[2]);
 const harness = z.string().parse(process.argv[3]);
 const value: unknown = JSON.parse(await readFile(path, "utf8"));
-const setup = z.object({ config: z.unknown(), policy: z.unknown(),
+const setup = z.object({ config: z.unknown().optional(), policy: z.unknown().optional(),
   operator: z.object({ id: IdSchema, secret: z.string() }) }).parse(value);
 const authority = await SystemdInstallationAuthority.open(setup.config);
 const storage = new InstallationStorageHost(authority, setup.policy);
