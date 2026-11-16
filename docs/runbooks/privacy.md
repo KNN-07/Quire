@@ -51,9 +51,11 @@ must separately identify its payloads, retention, recipients and applicable
 choices. The existing source-draft “Track changes” feature is document review,
 not website analytics.
 
-Browser Python is explicitly enabled and run by the user. Its UI states that
-selected scripts can use browser networking. Same-origin runtime assets do not
-make arbitrary user scripts network-isolated.
+Browser Python is explicitly enabled and run by the user. The worker removes
+its network, nested-worker and shared-storage APIs before a script starts, and
+the production content security policy limits it to same-origin connections.
+This is in-browser isolation, not a separate origin: treat scripts from
+collaborators you do not trust with corresponding care.
 
 ## Configured processors and server retention
 

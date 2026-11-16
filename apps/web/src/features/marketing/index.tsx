@@ -54,7 +54,7 @@ function PolicyPage({ path }: { readonly path: string }) {
       <h2>Analytics and extensions</h2>
       <p>Quire does not include an advertising or website-analytics integration. There is no analytics-consent switch in this application.
         Your operator may separately configure proxy logs or extensions; ask which data those additions collect.</p>
-      <p>Browser Python is opt-in. Only selected inputs are copied to its worker, but scripts you run can use browser networking.</p>
+      <p>Browser Python is opt-in. Only selected inputs are copied to its worker, and scripts run without network access.</p>
       <h2>External providers</h2>
       <p>Configured identity, AI, mail, Git, reference, Dropbox, billing and publisher services have their own processing terms.
         Connecting a service or sending content can disclose data to that provider. Configuration does not establish its retention,

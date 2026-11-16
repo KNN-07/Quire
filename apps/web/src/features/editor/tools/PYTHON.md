@@ -25,8 +25,12 @@ errors, never successful empty runs. Cancel terminates the owned worker.
 Select a project `.py` file. The saved script and explicitly selected input
 files are read through the injected authorized client. Inputs are copied to
 `/inputs/<project-relative-path>`. Scripts should write their output to
-`/outputs/<project-relative-path>`; nested directories are supported. The browser
-worker can use browser networking. It has no host filesystem or TeX service.
+`/outputs/<project-relative-path>`; nested directories are supported. After the
+runtime loads and before the script starts, `python-isolation.ts` removes the
+worker's network, nested-worker and shared-storage APIs, because a script written
+by a collaborator would otherwise act with the session of whoever runs it. The
+production server's content security policy additionally limits the worker to
+same-origin connections. It has no host filesystem or TeX service.
 It starts fresh for each run and is terminated on completion, failure or cancel.
 
 Only regular output files are accepted, up to 20 files and 5 MiB in total.

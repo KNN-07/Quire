@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PythonRunSchema } from "./python-contract";
+import { isolatePythonWorker } from "./python-isolation";
 
 type Runtime = {
   readonly version: string;
@@ -54,6 +55,8 @@ async function execute(data: unknown) {
       runtime.FS.mkdirTree(path.slice(0, path.lastIndexOf("/")));
       runtime.FS.writeFile(path, file.bytes);
     }
+    // The runtime and inputs are loaded. The script gets no network or shared storage.
+    isolatePythonWorker(self, self.navigator);
     await runtime.runPythonAsync(request.source);
     const files: { readonly path: string; readonly bytes: Uint8Array }[] = [];
     const pending = [""];
