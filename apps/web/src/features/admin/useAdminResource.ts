@@ -4,7 +4,6 @@ import type { z } from "zod";
 import type { AdminClient, WireInput } from "./api";
 import { errorMessage } from "./api";
 
-/** Shared read lifecycle for the administration's typed resource panels. */
 export function useAdminResource<I extends z.ZodType<WireInput>, O extends z.ZodType>(
   client: AdminClient, endpoint: Endpoint<I, O>, input: z.input<I>,
 ) {

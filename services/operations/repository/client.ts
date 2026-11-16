@@ -33,7 +33,7 @@ class Connection {
         const error = z.object({ error: z.object({ code: z.string() }) }).parse(value);
         throw new StorageError(error.error.code, method);
       }
-      return schema.parse(z.object({ result: z.unknown() }).parse(value).result);
+      return schema.parse(z.object({ result: z.unknown().optional() }).parse(value).result);
     };
     const work = this.options.admission ? this.options.admission.writer(invoke) : invoke();
     this.pending.add(work);

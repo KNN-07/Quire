@@ -28,7 +28,7 @@ async function receipt(db: SqlExecutor, actorId: Id, route: string, key: Id, dig
   if (!value) return null;
   const row = z.object({ request_digest: z.string(), response_json: z.string() }).parse(value);
   if (row.request_digest !== digest) throw new ServiceError("IDEMPOTENCY_CONFLICT", 409, "Import receipt differs from the frozen attempt");
-  return z.object({ data: z.unknown() }).parse(JSON.parse(row.response_json));
+  return z.object({ data: z.unknown().optional() }).parse(JSON.parse(row.response_json));
 }
 
 export function registerOnboardingImports(context: ModuleContext, { auth, repository }: IdentityDependencies): void {

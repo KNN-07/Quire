@@ -41,7 +41,7 @@ export function FilesPanel(props: FilesPanelProps) {
     void state.run(async () => {
       if (state.blocked) throw new TypeError(state.blocked);
       await props.document?.flush();
-      // Binary files go through the real byte endpoint, not an empty source editor.
+      // Binary files have no source document, so they open through the byte endpoint.
       if (!file.editable && !file.link) saveDownload(file, await actions.download(file));
       else await props.navigation.openFile(file.id);
     });

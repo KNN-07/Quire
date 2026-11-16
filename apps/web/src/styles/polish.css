@@ -1,0 +1,96 @@
+/* Refinement layer, loaded after every feature stylesheet. It only restyles native
+ * controls and adds state feedback; layout and geometry stay with their owners.
+ * All motion here inherits the reduced-motion collapse in global.css. */
+:root{
+  --q-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%235B6170' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  --q-lift:0 8px 24px rgb(22 24 29 / 10%);
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+    --q-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23AEB7C6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+    --q-lift:0 8px 24px rgb(0 0 0 / 40%);
+  }
+}
+[data-theme="dark"]{
+  --q-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23AEB7C6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  --q-lift:0 8px 24px rgb(0 0 0 / 40%);
+}
+
+/* Text selection, scrollbars and native check controls follow the palette. */
+::selection{background:var(--q-selected);color:var(--q-ink)}
+*{scrollbar-width:thin;scrollbar-color:var(--q-control-border) transparent}
+input[type="checkbox"],input[type="radio"]{accent-color:var(--q-brand);cursor:pointer}
+input[type="checkbox"]:disabled,input[type="radio"]:disabled{cursor:not-allowed}
+
+/* One select treatment everywhere. Feature rules reset `background` and `padding`
+ * with higher specificity, so the chevron and its clearance are marked important. */
+select:not([multiple],[size]){
+  appearance:none;cursor:pointer;text-overflow:ellipsis;
+  background-image:var(--q-chevron)!important;background-repeat:no-repeat!important;
+  background-position:right 9px center!important;background-size:12px!important;
+  padding-inline-end:28px!important;
+}
+/* Without the native arrow box, selects that set no padding of their own need a start inset. */
+:where(select:not([multiple],[size])){padding-inline-start:var(--q-space-3)}
+select:hover:not(:disabled){border-color:var(--q-muted)}
+select:disabled{cursor:not-allowed}
+textarea{resize:vertical}
+
+/* Links: the underline strengthens on hover instead of only changing hue. */
+a{text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);transition-property:color,background-color,border-color,text-decoration-color,box-shadow,transform,opacity}
+a:hover{text-decoration-color:currentColor}
+
+/* Buttons: primary actions gain a soft coloured lift; icon buttons press in. */
+.q-button--primary:hover:not(:disabled){box-shadow:0 6px 16px -6px color-mix(in srgb,var(--q-brand) 70%,transparent)}
+.q-button--ai:hover:not(:disabled){box-shadow:0 6px 16px -6px color-mix(in srgb,var(--q-ai) 70%,transparent)}
+.q-button--success:hover:not(:disabled){box-shadow:0 6px 16px -6px color-mix(in srgb,var(--q-success) 70%,transparent)}
+.q-icon-button:active:not(:disabled){transform:scale(.94)}
+.q-brand__mark{transition:transform var(--q-motion-slow) var(--q-ease-out)}
+.q-brand:hover .q-brand__mark,a:hover>.q-brand__mark{transform:rotate(-6deg) scale(1.04)}
+
+/* Disclosure rows read as interactive. */
+summary{cursor:pointer;transition:color var(--q-motion-fast) var(--q-ease)}
+summary::marker{color:var(--q-tertiary)}
+
+/* A lone loading indicator sits in the middle of the page, not its corner. */
+main:has(>[role="status"]:only-child>.q-spinner){display:grid;place-items:center;min-block-size:100dvh}
+
+/* Editor chrome. */
+.qe-rail-button:active:not(:disabled){transform:scale(.94)}
+.qe-avatar,.p-account-avatar{transition:transform var(--q-motion) var(--q-ease-out),box-shadow var(--q-motion) var(--q-ease)}
+.qe-avatar:hover{position:relative;z-index:1;transform:translateY(-2px) scale(1.06);box-shadow:var(--q-shadow)}
+.p-account:hover .p-account-avatar{transform:scale(1.06)}
+.editor-tools__file{transition:background-color var(--q-motion-fast) var(--q-ease),color var(--q-motion-fast) var(--q-ease)}
+.editor-tools__tree .editor-tools__file:hover:not([aria-selected="true"],:disabled){background:var(--q-wash)}
+.editor-tools__kind{transition:color var(--q-motion-fast) var(--q-ease)}
+.git-files li,.git-history li{transition:background-color var(--q-motion-fast) var(--q-ease)}
+
+/* Cards that lead somewhere lift slightly; static panels stay still. */
+.admin-overview-card{transition:transform var(--q-motion) var(--q-ease-out),box-shadow var(--q-motion) var(--q-ease),border-color var(--q-motion-fast) var(--q-ease)}
+.admin-overview-card:hover{transform:translateY(-2px);border-color:var(--q-control-border);box-shadow:var(--q-lift)}
+.admin-overview-cards>*{animation:q-fade-up var(--q-motion-slow) var(--q-ease-out) both}
+.admin-overview-cards>:nth-child(2){animation-delay:40ms}
+.admin-overview-cards>:nth-child(3){animation-delay:80ms}
+.admin-overview-cards>:nth-child(4){animation-delay:120ms}
+.p-template:hover{box-shadow:var(--q-lift)}
+.account-nav a,.admin-navigation a,.p-nav a{transition:background-color var(--q-motion-fast) var(--q-ease),color var(--q-motion-fast) var(--q-ease)}
+.admin-navigation a .q-icon{transition:color var(--q-motion-fast) var(--q-ease),transform var(--q-motion) var(--q-ease-out)}
+.admin-navigation a:hover .q-icon,.account-nav a:hover .q-icon{transform:translateX(1px)}
+
+/* Table rows in the projects list reveal with a short stagger on first paint. */
+.p-table tbody tr{animation:q-fade var(--q-motion-slow) var(--q-ease) both}
+.p-table tbody tr:nth-child(2){animation-delay:30ms}
+.p-table tbody tr:nth-child(3){animation-delay:60ms}
+.p-table tbody tr:nth-child(n+4){animation-delay:90ms}
+
+@media(forced-colors:active){select:not([multiple],[size]){appearance:auto;background-image:none!important;padding-inline-end:revert!important}}
+
+/* Spacing corrections where a container's heading and paragraph margins leak into shared parts. */
+.q-empty>.q-empty__title,.q-empty>.q-empty__description{margin:0}
+.q-empty{gap:var(--q-space-3)}
+.q-empty>.q-button{margin-block-start:var(--q-space-3)}
+.qm-center>.qm-actions{margin-block-start:var(--q-space-9)}
+@media(pointer:fine) and (min-width:601px){
+  .admin-label select{min-block-size:var(--q-field-height);padding:var(--q-space-3) var(--q-space-5);border-radius:var(--q-radius-md)}
+  .admin-label textarea{border-radius:var(--q-radius-md)}
+}

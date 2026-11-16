@@ -43,7 +43,6 @@ export function FigurePanel(props: ToolsPanelProps) {
       const actions = createToolsActions(props);
       if (route !== "project") {
         selected = figurePath(destination);
-        // Validate fields before performing any structural write.
         figureCommand(selected, caption, label, width);
         if (route === "device") {
           if (!device) throw new TypeError("Choose one image file.");

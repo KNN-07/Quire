@@ -125,7 +125,7 @@ if (app) {
 const server = app ? Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: request => app.fetch(request) }) : undefined;
 process.send?.({ ready: repository?.url ?? server?.url.toString() });
 process.on("message", (message: unknown) => {
-  const input = z.strictObject({ id: z.number(), method: z.string(), value: z.unknown() }).parse(message);
+  const input = z.strictObject({ id: z.number(), method: z.string(), value: z.unknown().optional() }).parse(message);
   void (async () => {
     let result: unknown = null;
     switch (input.method) {

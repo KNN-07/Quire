@@ -35,7 +35,7 @@ helm install quire-owned deploy/helm \\
   -f "$QUIRE_HELM_VALUES" --wait --wait-for-jobs --timeout 5m`}</pre><p>Provision cluster storage, database/Redis/S3 endpoints, ingress/TLS and worker isolation before installation. This is a source chart, not a claim of a published release or a configured cluster.</p><a href="#deployment-guides">Download chart metadata and the deployment guide</a></div> },
       ]} /></div>
     </div></section>
-    <section id="deployment-guides" className="qm-wrap qm-section" aria-label="Deployment files and guides"><h2>Files from this source build</h2><p className="qm-lead">Download the actual repository guides and definitions. They contain configuration requirements, not credentials or a preconfigured production release.</p><ul className="qm-file-list">
+    <section id="deployment-guides" className="qm-wrap qm-section" aria-label="Deployment files and guides"><h2>Files from this source build</h2><p className="qm-lead">Download the repository guides and definitions. They contain configuration requirements, not credentials or a preconfigured production release.</p><ul className="qm-file-list">
       <li><a href={deploymentRunbook} download="deployment.md">Deployment runbook</a></li>
       <li><a href={installationRunbook} download="installation.md">Installation and update runbook</a></li>
       <li><a href={composeDefinition} download="compose.yaml">Compose definition</a></li>
@@ -52,11 +52,11 @@ helm install quire-owned deploy/helm \\
       ["Git repositories", "Local repository objects and working checkpoints"],
       ["Compile workers", "Installed TeX Live in verified isolation"],
       ["AI gateway", "Optional configured endpoint and model"],
-      ["SQLite · local disk", "Default durable records and content-addressed blobs"],
+      ["SQLite · local disk", "Default records and content-addressed blobs"],
       ["Scale profile", "Implemented PostgreSQL, Redis and S3 roles; supply your own endpoints, storage and credentials"],
       ["Identity provider", "SAML, OIDC or LDAP credentials and configuration"],
     ].map(([name, text]) => <article className="qm-card" key={name}><h3>{name}</h3><p>{text}</p></article>)}</div></div></section>
-    <section id="ai" className="qm-wrap qm-section qm-split"><div><span className="qm-eyebrow">AI on your terms</span><h2>Bring your own model - or none</h2><p className="qm-lead">Point the assistant at a model running in your data centre, at an approved provider, or leave it unconfigured.</p><ul><li>External requests depend on your chosen endpoint and policy</li><li>Credentials are configured by the operator</li><li>Citation search needs its own provider configuration</li></ul></div><article className="qm-card"><h3>Provider configuration</h3><p>No model or provider health is assumed. Administrators can configure and test the actual endpoint in the admin console.</p><a href="/admin/providers">Open provider settings</a></article></section>
+    <section id="ai" className="qm-wrap qm-section qm-split"><div><span className="qm-eyebrow">AI on your terms</span><h2>Bring your own model, or none</h2><p className="qm-lead">Point the assistant at a model running in your data centre, at an approved provider, or leave it unconfigured.</p><ul><li>External requests depend on your chosen endpoint and policy</li><li>Credentials are configured by the operator</li><li>Citation search needs its own provider configuration</li></ul></div><article className="qm-card"><h3>Provider configuration</h3><p>No model or provider health is assumed. Administrators can configure and test the endpoint in the admin console.</p><a href="/admin/providers">Open provider settings</a></article></section>
     <section className="qm-wrap qm-section qm-airgap"><h2>Build a signed offline bundle</h2><p className="qm-lead">The repository tooling creates and verifies signed package/image bundles. Prepare the pinned runtime, installed dependencies, selected images and executed environment manifests on a connected producer using your own Ed25519 signing key.</p><pre>{`BUN="$PWD/node_modules/.bin/bun"
 "$BUN" scripts/ops/airgap.ts create --source "$PWD" \\
   --output "\${QUIRE_BUNDLE:?Choose a new bundle directory}" --bun "$BUN" \\

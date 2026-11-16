@@ -158,3 +158,11 @@ test("preserves an explicit project token only on its typed HTTP request", async
     ]);
   } finally { await server.stop(true); await app.close(); }
 });
+
+test("bodyless routes accept a request that omits the body key", () => {
+  // Given a caller that passes only the path and query of a GET route.
+  const input = { params: {}, query: { q: "", role: "all", state: "active", limit: 50 } };
+  // Then the contract accepts it with the key absent or explicitly undefined.
+  expect(endpoints.adminUsersList.input.safeParse(input).success).toBe(true);
+  expect(endpoints.adminUsersList.input.safeParse({ ...input, body: undefined }).success).toBe(true);
+});

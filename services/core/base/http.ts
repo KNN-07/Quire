@@ -21,7 +21,7 @@ export function checkMatch(request: RequestContext, version: number): void {
   if (match && match !== resourceVersionTag(version)) fail("STALE_VERSION", 409, "If-Match does not match resource");
 }
 const tails = new WeakMap<object, Promise<unknown>>();
-const storedResponse = z.object({ data: z.unknown(), etag: z.string().nullable() });
+const storedResponse = z.object({ data: z.unknown().optional(), etag: z.string().nullable() });
 
 /** The handler attaches this identity to its aggregate finalization transaction. */
 export async function replay<T>(context: ModuleContext, input: {

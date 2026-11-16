@@ -236,7 +236,7 @@ export async function executeStorageHelper(binding: InstallationBinding, value: 
 export async function serveStorageHelper(session: ControlledRoleSession): Promise<void> {
   let executed = false;
   handleControl(session.channel, async (method, value) => {
-    const request = z.strictObject({ token: z.string(), generation: z.number(), epoch: z.string(), input: z.unknown() }).parse(value);
+    const request = z.strictObject({ token: z.string(), generation: z.number(), epoch: z.string(), input: z.unknown().optional() }).parse(value);
     const permit = session.permit;
     if (method !== "execute" || executed || request.token !== permit.token ||
         request.generation !== permit.execution.generation || request.epoch !== permit.execution.supervisorEpoch) {

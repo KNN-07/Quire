@@ -13,7 +13,7 @@ import { defaultPolicy } from "../../../services/accounts/identity/policy";
 
 export async function data<T extends z.ZodType>(response: Response, schema: T): Promise<z.output<T>> {
   if (!response.ok) throw new TypeError(`HTTP ${response.status}: ${await response.text()}`);
-  return schema.parse(z.object({ data: z.unknown() }).parse(await response.json()).data);
+  return schema.parse(z.object({ data: z.unknown().optional() }).parse(await response.json()).data);
 }
 
 export async function integrationFixture(deployment: AdapterDeployment = {}) {

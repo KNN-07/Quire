@@ -177,6 +177,6 @@ export type EditorSlots = {
   readonly review: ReactNode;
   readonly git: ReactNode;
   readonly status: ReactNode;
-  /** Supplied only after the real adapter/assistant phase; no placeholder controls. */
+  /** Absent until the assistant is available; the workspace renders no stand-in controls. */
   readonly assistant?: ReactNode;
 };

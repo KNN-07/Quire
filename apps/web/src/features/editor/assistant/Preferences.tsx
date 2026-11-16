@@ -63,7 +63,7 @@ export function AssistantPreferences({ state }: { readonly state: AssistantState
       <label className="qa-assistant__check"><input name="inline" type="checkbox" defaultChecked={prefs.inlineCompletion} />Enable inline completion</label>
       <label className="qa-assistant__check"><input name="languageEnabled" type="checkbox" defaultChecked={prefs.languageEnabled} />Enable language tools</label>
       <label className="qa-assistant__check"><input name="languageFloatingMenu" type="checkbox" defaultChecked={prefs.languageFloatingMenu} />Show contextual language menu</label>
-      <p>Ctrl/Cmd+Alt+L opens language actions in Source. Completion is explicitly invoked at the caret and always produces a proposal for review.</p>
+      <p>Ctrl/Cmd+Alt+L opens language actions in Source. Completion runs only when you invoke it at the caret, and always produces a proposal for review.</p>
       <label className="qa-assistant__check"><input name="error" type="checkbox" defaultChecked={prefs.errorAssist} />Enable error assistance</label>
       <label className="qa-assistant__check"><input name="branch" type="checkbox" defaultChecked={prefs.aiBranch} />Default future Agent approvals to a new branch</label>
       <label className="qa-assistant__check"><input name="shared" type="checkbox" defaultChecked={prefs.shareAiChat} />Default future conversation choice to shared</label>

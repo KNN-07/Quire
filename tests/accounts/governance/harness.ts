@@ -55,7 +55,7 @@ export async function governanceFixture(options: { readonly core?: boolean } = {
 }
 export async function data<T extends z.ZodType>(response: Response, schema: T): Promise<z.output<T>> {
   if (!response.ok) throw new TypeError(`HTTP ${response.status}: ${await response.text()}`);
-  const envelope = z.object({ data: z.unknown() }).parse(await response.json());
+  const envelope = z.object({ data: z.unknown().optional() }).parse(await response.json());
   return schema.parse(envelope.data);
 }
 export type GovernanceFixture = Awaited<ReturnType<typeof governanceFixture>>;

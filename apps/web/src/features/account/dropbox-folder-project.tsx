@@ -45,7 +45,7 @@ export function DropboxFolderProjects({ client, grants }: {
   }
   return <section className="account-form" aria-label="Create project from Dropbox folder">
     <h3>Create project from a Dropbox folder</h3>
-    <p className="account-muted">Discover folders directly inside Apps/Quire, select a TeX main file, then explicitly import. Your files stay in their original Dropbox folder, which remains connected for two-way sync. Generated output is excluded.</p>
+    <p className="account-muted">Discover folders directly inside Apps/Quire, select a TeX main file, then import. Your files stay in their original Dropbox folder, which remains connected for two-way sync. Generated output is excluded.</p>
     {grants.length === 0 ? <p>Connect Dropbox above, then reload Dropbox settings to discover folders.</p> : <>
       <div className="q-field"><label className="q-field__label" htmlFor={connectionId}>Folder import connection</label>
         <select id={connectionId} className="q-input" value={grant?.id ?? ""} disabled={action.busy} onChange={event => {

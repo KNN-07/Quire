@@ -42,7 +42,7 @@ export function OrganizationSaml({ client, organizationId }: Pick<SettingsProps,
     <Button busy={action.busy} onClick={() => void action.run(() => load())}>Refresh SAML links</Button>
     {!links ? <p role="status">Loading SAML link status...</p> : !links.configured ?
       <p>This organization has no configured SAML adapter.</p> : <>
-        <p>Reminders ask members to sign in and explicitly link their existing account. Unlinking preserves accounts, projects and independent identities. Every affected session ends.</p>
+        <p>Reminders ask members to sign in and link their existing account. Unlinking preserves accounts, projects and independent identities. Every affected session ends.</p>
         <p>Unlink all is for a change to the IdP unique identifier. Each affected member needs an independently usable password and verified email. Accepted managed accounts receive one administrator-authorized SAML relink while management remains in place.</p>
         <Button variant="danger" busy={action.busy}
           disabled={!links.items.some(item => item.linked) || links.items.some(item => item.linked && item.unlinkBlocked)}

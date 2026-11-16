@@ -30,8 +30,8 @@ const followUps: readonly Suggestion[] = [
 ];
 function persistenceMessage(status: PersistenceStatus): string | null {
   switch (status.kind) {
-    case "connecting": return "Source connecting. Generation waits for durable synchronization.";
-    case "saving": return "Source saving. Generation waits for durable acknowledgment.";
+    case "connecting": return "Connecting to the source. Generation starts once it is synced.";
+    case "saving": return "Saving the source. Generation starts once it is saved.";
     case "saved": return null;
     case "offline": return "Source offline. Reconnect before using AI; local edits are retained.";
     case "recovery": return `${status.code}: ${status.message}. Reopen a fresh document; do not overwrite retained local edits.`;
@@ -100,7 +100,7 @@ function Settings({ state }: { readonly state: AssistantState }) {
     <h3>Assistant settings</h3>
     <p>{state.availability}</p>
     <p>{state.usage ? `${state.usage.month} usage · ${state.usage.used} used · ${state.usage.reserved} reserved · ${state.usage.refunded} refunded`
-      : "Loading actual usage"}</p>
+      : "Loading usage"}</p>
     <p className="qa-assistant__fine">Nothing is applied to your files until you accept. Generation and regeneration use the shared daily allowance.</p>
     <AssistantConversation state={state} />
     <AssistantPreferences state={state} />

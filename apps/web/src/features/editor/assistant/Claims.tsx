@@ -116,7 +116,7 @@ export function AssistantClaims({ state }: { readonly state: AssistantState }) {
     </article>)}
     <h3>Retrieved publications</h3>
     <label>Publication to copy<select value={publicationId} onChange={event => setPublicationId(event.target.value)} disabled={state.busy}>
-      <option value="">Select an actual retrieved publication</option>
+      <option value="">Select a retrieved publication</option>
       {run.sources.map(source => <option key={`${source.provider}:${source.providerId}`} value={`${source.provider}:${source.providerId}`}>{source.title}</option>)}
     </select></label>
     {selected && <div className="qa-assistant__source"><strong>{selected.title}</strong>
