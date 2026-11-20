@@ -1,6 +1,7 @@
 # Configured adapter boundary
 
-Native runtime: Bun 1.3.14. No new dependencies are required.
+Native runtime: repository-pinned Bun (see `.bun-version`). No new dependencies
+are required.
 
 ## Registration and lifecycle
 
@@ -90,9 +91,11 @@ Tokens are AES-256-GCM encrypted with a fresh nonce and resource-associated
 data binding grant ID, account and provider. Reads never return access/refresh
 tokens. Refresh rotates encrypted credentials and grant version; an expired
 grant's connection-test route refreshes before testing. Lack of refresh
-credentials reports reconnection, not successful renewal. Delete performs real
-configured revocation before clearing ciphertext and disabling the grant.
-Failed upstream revocation is not reported as successful.
+credentials reports reconnection, not successful renewal. Delete follows the
+provider's disconnect mode. Remote-mode disconnect requires successful provider
+revocation before Quire clears ciphertext and disables the grant. Local-mode
+disconnect (for example, generic Git or publisher bearer credentials) only
+forgets the saved credential; revoke it separately at the issuer if needed.
 
 Use `GrantStore.create(input, tx)` only after the consumer's credential
 protocol has actually verified credentials. It requires a current active

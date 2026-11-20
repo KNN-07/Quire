@@ -45,16 +45,18 @@ before enabling require-SSO. No automatic break-glass user is created. Admission
 creates ordinary accounts only; privileged/group provisioning stays in the
 federation verifier's fenced publication hook.
 
-## Integration deltas outside this ownership
+## Account UI and default assembly
 
-- The existing account Link button uses `client.call` and discards headers;
-  change it to `callWithMetadata`, check/unwrap `.result`, then navigate to
-  `.metadata.headers["location"]`. The shared client already supports this;
-  no new link DTO is required. Unlink now revokes all sessions, so navigate to
-  sign-in instead of immediately reloading an authenticated list.
-- Root assembly adds `identityContributions` to the shared provider assembly
-  and `createIdentityModule()` to the service modules. Do not alter the backup
-  owner's admission/lifecycle wiring.
+- The account Link button uses `callWithMetadata`, unwraps `.result`, and
+  navigates to the authorization URL in the `Location` header on success. No
+  new link DTO is required. Successful unlink revokes all sessions, so the UI
+  navigates to sign-in rather than reloading the authenticated list.
+- Default application assembly includes the identity provider definitions in
+  the shared adapter assembly and registers `createIdentityModule()`. Keep the
+  backup owner's admission and lifecycle wiring separate.
+
+## Other integration boundaries
+
 - A foundation-owned public domain-routing endpoint or extension to
   `AuthOptionsSchema` is needed for an interactive institutional domain chooser.
   The existing `authOptions` query schema is empty and cannot accept a domain.

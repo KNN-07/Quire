@@ -1,8 +1,9 @@
 # Configured institutional federation
 
-Native Bun 1.3.14. The adapter supports one operator-configured institution
-per runtime. Providers are not connected by default. Fixture verification does
-not establish access to a real institution's IdP or directory.
+Native runtime: repository-pinned Bun (see `.bun-version`). The adapter supports
+one operator-configured institution per runtime. Providers are not connected by
+default. Fixture verification does not establish access to a real institution's
+IdP or directory.
 
 ## Assembly
 

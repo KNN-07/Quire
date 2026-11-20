@@ -1,9 +1,10 @@
 # References and publication retrieval
 
-Native runtime: Bun 1.3.14. No extra executable, browser, container, or SDK is
-required. `SafeHttpClient` supplies bounded, DNS-pinned HTTPS requests; runtime
-SQLite/PostgreSQL, encrypted secrets, account/project policy, branch leases,
-source writers and Git publication remain authoritative.
+Native runtime: repository-pinned Bun (see `.bun-version`). No extra executable,
+browser, container, or SDK is required. `SafeHttpClient` supplies bounded,
+DNS-pinned HTTPS requests; runtime SQLite/PostgreSQL, encrypted secrets,
+account/project policy, branch leases, source writers and Git publication remain
+authoritative.
 
 ## Assembly
 
@@ -53,12 +54,12 @@ Manual `.bib` imports, editable account Library entries and explicitly labeled
 Crossref/arXiv/Semantic Scholar alternatives remain usable.
 
 Zotero supports OAuth 1.0a or dedicated keys, not the shared OAuth2 flow.
-`references.connectZotero(actorId, { apiKey, label })` is the typed server-side
-admission port: it verifies `/keys/current` over the configured transport,
-checks account/configuration authority, and uses encrypted `GrantStore`.
-The caller must require identity and CSRF. A shared typed HTTP API-key endpoint
-is a requested foundation delta, recorded in
-`docs/evidence/p2x-references/contract-delta.md`; no registry is bypassed here.
+The account Connections form calls `POST /api/connections/zotero/credentials`
+with `{label, accessToken}`. The route requires identity and CSRF validation
+and delegates to `references.connectZotero(actorId, { apiKey, label })`,
+the typed server-side hook. It verifies `/keys/current` over the configured
+transport, checks account and configuration authority, and saves the key
+through encrypted `GrantStore`.
 For disconnect, revoke the dedicated key in Zotero's account settings first.
 Quire verifies that the key is invalid before clearing its encrypted copy;
 it never deletes a manually created upstream key. Mendeley's consulted public

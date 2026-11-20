@@ -51,9 +51,12 @@ private per-API `QUIRE_DATA_DIR`, shared `QUIRE_SECRET_KEY`,
 `QUIRE_REPOSITORY_URL`, `QUIRE_REPOSITORY_TOKEN`, `QUIRE_S3_ENDPOINT`,
 `QUIRE_S3_BUCKET`, `QUIRE_S3_REGION`, `QUIRE_S3_ACCESS_KEY_ID`,
 `QUIRE_S3_SECRET_ACCESS_KEY`, `QUIRE_BACKUP_ROOT`, and
-`QUIRE_BACKUP_SIGNING_KEY_FILE`. Then run the same migration, seed and API
-commands above. Both APIs must see the same backup filesystem and signer;
-their private data directories must not be treated as the archive store.
+`QUIRE_BACKUP_SIGNING_KEY_FILE`. Follow the [deployment runbook](deployment.md)
+for migration and startup; do not use the fixture seed on a production
+deployment. Startup does not enroll an operator, and normal signup grants no
+operator role. Arrange production first-operator enrollment or import separately
+before configuring integrations. Both APIs must see the same backup filesystem
+and signer; their private data directories must not be treated as the archive store.
 The encryption key and repository bearer must be provisioned consistently
 across roles; never substitute the test fixture-origin bypass in deployment.
 
@@ -63,7 +66,7 @@ across roles; never substitute the test fixture-origin bypass in deployment.
 | `QUIRE_DROPBOX_APP_KEY` | Registered Dropbox app key. |
 | `QUIRE_DROPBOX_APP_FOLDER` | Explicit registration confirmation; only `Apps/Quire` accepted. |
 | `QUIRE_AI_TERMS_VERSION` | Required consent version; default `2026-10-27`. |
-| `QUIRE_AI_RETENTION_DAYS` | Shared conversation retention; default 30, positive days. |
+| `QUIRE_AI_RETENTION_DAYS` | Shared conversation retention in integer days, 1–3,650; default 30. Invalid values prevent startup with the default adapter configuration. |
 | `QUIRE_AI_VISION_MODELS` | Comma-separated explicitly enabled image-capable model IDs. |
 | `QUIRE_FEDERATION_ORGANIZATION_ID` | Existing institution UUID for provisioning. |
 | `QUIRE_FEDERATION_TRANSFER_TO` | Explicit verified transferee UUID; management acceptance remains required. |

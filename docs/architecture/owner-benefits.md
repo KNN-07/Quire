@@ -1,6 +1,6 @@
 # Project-owner benefits and writable-capacity transitions
 
-Decision date: October 27, 2026. Status: recommended implementation, not implemented or accepted product behavior. This document closes the design decision only. No implementation, suite run, or live provider request accompanied it.
+Decision date: October 27, 2026. This is the original design decision; no implementation, suite run, or live provider request accompanied it. The [P4 backend handoff](../handoffs/p4-benefits-backend.md) records later implementation and scoped verification of owner-benefit projection.
 
 ## Decision
 
@@ -10,7 +10,7 @@ Add one benefit-set table and one nullable project column containing the owner's
 
 Reject the smaller-looking alternative of replacing `actorId` with `ownerId` in the policy query: it would bypass actor/federation restrictions, change AI consent and allowances, and still leave existing collaborators writable.
 
-## Requirements and current evidence
+## Requirements and evidence at the design checkpoint
 
 Original capability IDs in `docs/discovery/services.md`:
 
@@ -207,4 +207,4 @@ Actual Quire baseline/plan values, price mappings, paid personal connector eligi
 
 C33's link-counting conflict and C39/A51's unspecified general overflow winner selection are resolved here: admitted link Editors count; no arbitrary survivor; owner explicitly selects. In-flight compilation and multi-sponsorship combination are also concrete Quire decisions above, not vendor-parity claims.
 
-C40a's prospective sharing-policy promise remains a separate unresolved product contract: current code applies live deny-wins sharing and this change preserves it. Git's personal-premium versus owner-premium wording and full personal connector licensing remain separate gaps. No new external fact or live-provider access is needed to implement this design; genuine commercial inputs must arrive through explicit configuration, not fabricated entitlements.
+At this checkpoint, C40a's prospective sharing-policy promise was unresolved; the proposed benefits change preserved then-live deny-wins sharing. The later [P73 decision and verification](../handoffs/p73-prospective-sharing.md) elects a prospective snapshot for **workspace sharing only**: existing projects capture the workspace contribution at migration, not retroactively at creation, and new projects capture it at creation. Effective access still intersects live actor and independent policy restrictions. Git's personal-premium versus owner-premium wording and full personal connector licensing remain separate gaps; genuine commercial inputs require explicit configuration, not fabricated entitlements.

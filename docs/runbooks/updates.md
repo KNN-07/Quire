@@ -1,9 +1,10 @@
 # Signed releases and controlled updates
 
-Updates are disabled until the operator configures a release feed, pinned
-Ed25519 public key, dedicated installation root, maintenance interval, and the
-real recovery/quiescence adapter. No built-in latest version or vendor URL is
-invented. Never point the updater at the source checkout or a system directory.
+Controlled updates require a configured [installation controller](installation.md),
+an operator-owned release feed, a pinned Ed25519 public key, a dedicated
+installation root, a maintenance interval, and provisioned recovery targets.
+There is no built-in release source. Never point the updater at the source
+checkout or a system directory.
 
 ## Configuration and release format
 
@@ -68,8 +69,8 @@ The digest covers exact package bytes. The package JSON is
 `{format:1,entrypoint:"bin/quire",files:[{path:"bin/quire",data:"<base64>",executable:true}]}`.
 Only regular files are supported. Absolute paths, traversal, duplicate paths,
 symlinks, and absent/nonexecutable entrypoints fail validation. The format does
-not execute archive hooks or installation scripts. The configured safety
-adapter performs migration preflight, migration and health verification.
+not execute archive hooks or installation scripts. The installation controller
+supervises migration preflight, live migration and health verification.
 
 ## Validate and schedule
 
@@ -92,48 +93,45 @@ operationsList expose its actual phase progress, error and final receipt.
 The accepted time must fall inside the configured half-open maintenance
 interval. An overdue job fails rather than silently updating after it closes.
 
-Root composition registers `migrations` and calls
-`registerUpdates(context,{config,safety})`. It starts
-`startScheduler(service,onError)` and awaits scheduler `close()` before closing
-runtime storage. Run the scheduler on the designated installation host, not on
-every API replica with a different local filesystem. An injected `UpdateTimer` supports controlled-clock tests;
-production uses an exact next-deadline timer. Only one pending update is
-admitted; SQL aggregate locking, persisted claim state and an exclusive
-filesystem lock protect installation. The caller must provide an error sink
-for scheduler errors.
+The controller on the designated installation host is the sole owner of the
+update service and scheduler. APIs submit authorized requests through the
+controller client; they do not run their own schedulers. Follow the
+[installation runbook](installation.md) for host configuration, role bindings,
+and preflight and rollback targets.
 
 ## Safety and recovery
 
-The safety adapter must close mutation admission and drain HTTP, realtime,
-repository and compiler work across all deployment roles. Its quiescence gate
-remains held while a full verified backup is created, migration preflight runs
-against an isolated restored target, live migration executes, the atomic
-`current` symlink switch occurs, and the new executable passes health checks.
-An editor-readonly flag or a caller's assertion is not a quiescence adapter.
-The backup receipt is persisted before migration. The installation receipt
-records previous/staged paths, backup digest/id, release id/version and rollback.
+The controller closes mutation admission and proves managed roles are stopped
+before maintenance. Admission stays closed through backup and verification,
+migration preflight against an isolated restored target, live migration, an
+atomic `current` symlink switch, and health verification. The verified backup
+receipt is persisted before live migration.
 
-On migration or health failure, the old symlink is restored and the verified
-backup is restored before admission reopens. A failed candidate remains under
-its unique release directory for diagnosis; it can never replace the prior
-version merely by existing. After success, the prior version remains available
-and the durable sequence floor prevents replay/downgrade.
+For a proven reported failure during installation, the controller can roll
+back automatically. If live migration intent was recorded, rollback first
+restores the verified backup to a separately provisioned fresh target. Without
+that intent, it uses the prior data binding without restoring the backup.
+An ambiguous or interrupted maintenance attempt, or a failed rollback, instead
+requires explicit recovery; admission stays closed. After a successful update,
+the prior release is retained and the durable sequence floor prevents
+replay or downgrade.
 
-If rollback fails, the operation remains running with `ROLLBACK_FAILED` and
-`recovery_required` phase. Admission and the lock are deliberately retained.
-After stopping competing schedulers and investigating the backup, an operator
-may invoke `service.recover(operationId, "recover <installId> <operationId>")`
-through a trusted maintenance host. Generic `yes` is rejected. Recovery restores
-the prior target and the recorded verified backup, writes an interrupted-update
-receipt, releases its matching lock and reopens admission only after success.
-A process crash also requires this explicit recovery; startup never steals a
-lock or assumes that an interrupted migration completed. Do not delete a lock
-to force an installation.
+Use the pinned stable bundle and the operator credential for this installation
+to inspect the authoritative operation receipt. When it reports that recovery
+is required, investigate the recorded failure before sending the exact
+installation and operation IDs back to the controller:
 
-Root must bridge the backup boundary and installer boundary using actual
-database/blob/repository recovery, and must arrange adapter reconnection if
-rollback restores the control database. This lane does not pretend an
-unconfigured host supports safe live updates.
+```sh
+<bun-1.4.4> <stable-installation.js> status <socket-root> <operator-credential.json>
+<bun-1.4.4> <stable-installation.js> recover <socket-root> <operator-credential.json> <installation-id> <operation-id>
+```
+
+See [controller and operator commands](installation.md#controller-and-operator-commands).
+The command authenticates to the operator socket and binds recovery to the
+current supervisor epoch and generation. Recovery restores to a fresh target
+only if live migration intent was recorded; it reopens admission only after
+completion is proven. Confirm the terminal receipt and open state with
+`status`. Restarting the controller or deleting a lock is not recovery.
 
 ## Verification
 

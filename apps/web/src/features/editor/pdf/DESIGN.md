@@ -61,8 +61,12 @@ Logs primary action: Recompile.
 Priorities: failure and retained PDF notice; diagnostics; raw log/artifacts.
 Required content: all/error/warning/typesetting counts, parsed/raw view,
 file/line source links, raw excerpts, raw log, every generated artifact,
-cache clear and optimization advice. AI fixes belong to the later real
-assistant adapter; no no-op AI button is rendered.
+cache clear and optimization advice. In the assembled editor, Logs offers
+**Fix with AI** when Error Assist is enabled and source tracking is off.
+The action requires loaded log data, editing access and an editable file
+linked to the diagnostic. It opens Assistant with Error Fix selected and the
+selected diagnostic. Logs itself never dispatches inference: the user must
+explicitly consent to share the diagnostic and send the request from Assistant.
 
 Comparison primary action: Compare PDFs.
 Priorities: selected revisions; rendered comparison; changed pages.

@@ -1,13 +1,16 @@
 # Editor implementation phase
 
-Preparation checkpoint, October 27, 2026. This is an execution boundary, not
-implementation evidence. Start after portable-storage acceptance; preserve
-its final test input until the independent verifier finishes.
+Historical preparation checkpoint, October 27, 2026. This records the original
+phase boundary, not current implementation or acceptance. The phase was to
+start after portable-storage acceptance, with its final test input preserved
+until independent verification. The [application router](../../apps/web/src/router.tsx)
+now mounts `EditorPage`; see the [assembly handoff](../handoffs/p2u-assemble.md)
+for scoped mounted evidence.
 
 ## Confirmed starting surface
 
-`apps/web/src/router.tsx` currently renders an explicit unavailable message
-for all seven project editor routes. No editor feature directory exists.
+At this checkpoint, `apps/web/src/router.tsx` rendered an explicit unavailable
+message for all seven project editor routes. No editor feature directory existed.
 The router already owns navigation, session refresh and a CSRF-aware typed
 client from `apps/web/src/session.ts`. Successful project creation already
 navigates to `/projects/:id/edit`.

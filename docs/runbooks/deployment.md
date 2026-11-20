@@ -8,13 +8,21 @@ Use `node_modules/.bin/bun`, pinned by `package.json` and `.bun-version`; do not
 replace the workstation's global Bun. Historical 1.3.14 receipts describe only
 those earlier scenarios, not current-runtime acceptance.
 
+The native, Compose, and Helm startup steps below bring up the runtime but do
+not enroll a production operator. A healthy endpoint does not establish access
+to authenticated administration. Arrange first-operator enrollment or import
+separately before production cutover; this runbook does not provide an
+enrollment procedure. Normal signup, including the first signup, grants no
+operator role. Use the fixture seed only on disposable non-production loopback
+deployments.
+
 ## Native owned prefix
 
 Prepare the source release on a connected build machine:
 
 ```sh
+bun install --frozen-lockfile
 BUN="$PWD/node_modules/.bin/bun"
-"$BUN" install --frozen-lockfile
 "$BUN" run build
 "$BUN" scripts/ops/install.ts --source "$PWD" --prefix /tmp/quire-owned-install \
   --bun "$BUN" --port 43181
@@ -70,6 +78,9 @@ platform manifests.
 ```sh
 docker build -f deploy/runtime/Dockerfile -t quire-owned-app:release .
 ```
+
+For custom browser offline policy, set it in the
+[application image build](offline.md), not in the runtime environment.
 
 Create a private `runtime.env` with the same 64-hex `QUIRE_SECRET_KEY` and
 32-byte-or-longer `QUIRE_REPOSITORY_TOKEN` for both APIs. Set `QUIRE_PUBLIC_URL`
@@ -157,7 +168,10 @@ provide a Docker runner or a separate validation sidecar.
 
 `deploy/helm` consumes reachable real external PostgreSQL, Redis and an
 authenticated pre-provisioned S3 bucket. Provision an existing runtime Secret
-with the portable profile variables in `deploy/portable/README.md`. Provision
+with the portable profile variables in `deploy/portable/README.md`. Set Helm's
+`publicUrl` to the exact browser origin
+(scheme, host, and port when non-default). The chart sets `QUIRE_PUBLIC_URL`
+from that value; do not duplicate it in the runtime Secret. Provision
 a separate TLS Secret containing `ca.pem`, `cert.pem`, `key.pem`; its
 certificate must cover `<release>-repository`. The chart mounts only its CA
 into API pods. Never commit either Secret.
@@ -178,13 +192,16 @@ to that loader. Roll API pods when rotating this Secret.
 
 ```sh
 helm lint deploy/helm --set image=<verified-image> \
+  --set-string publicUrl=https://quire.example.org \
   --set existingSecret=<runtime-secret> --set existingTLSSecret=<tls-secret> \
   --set existingBackupSigningSecret=<backup-signing-secret> --set existingBackupClaim=<shared-backup-pvc>
 helm template quire-owned deploy/helm --set image=<verified-image> \
+  --set-string publicUrl=https://quire.example.org \
   --set existingSecret=<runtime-secret> --set existingTLSSecret=<tls-secret> \
   --set existingBackupSigningSecret=<backup-signing-secret> --set existingBackupClaim=<shared-backup-pvc>
 helm install quire-owned deploy/helm --namespace <owned-namespace> \
   --set image=<verified-image> --set existingSecret=<runtime-secret> \
+  --set-string publicUrl=https://quire.example.org \
   --set existingTLSSecret=<tls-secret> \
   --set existingBackupSigningSecret=<backup-signing-secret> --set existingBackupClaim=<shared-backup-pvc> \
   --wait --wait-for-jobs --timeout 5m
@@ -205,7 +222,9 @@ image architecture, an RWO dynamic storage class (or prebound private/Git claims
 a separately provisioned shared backup filesystem, sufficient
 capacity, real external stores and trusted TLS. The optional Ingress requires
 an installed controller, `ingress.className`, `ingress.host` and
-`ingress.tlsSecret`. SSE buffering and WebSocket settings are controller-specific.
+`ingress.tlsSecret`. Setting `ingress.host` does not set `publicUrl`; use your
+real browser origin in place of `https://quire.example.org`. SSE buffering and
+WebSocket settings are controller-specific.
 The chart includes nginx timeout/body-size annotations, not an invented ingress
 controller or certificate issuer.
 Fresh claims use a short root init container with only CHOWN/FOWNER to assign
@@ -215,15 +234,28 @@ the chart does not chown an operator's shared filesystem.
 The namespace's admission policy must permit that init container.
 
 `worker.enabled` requires a separately verified confined remote-worker image
-and explicit environment IDs. The plain API image is not such an image.
+and explicit environment IDs. For the Quire worker entrypoint, supply the
+derived 64-hex `QUIRE_WORKER_BEARER` (see [remote compilation](#remote-compilation))
+through the referenced runtime Secret. For a Docker worker, make the producer's
+independently probed JSON environment manifest array readable in the worker
+container and set `QUIRE_WORKER_ENVIRONMENTS_FILE` to its in-container path.
+The selected IDs must match environments that the worker successfully probes. The chart
+neither derives the bearer nor mounts the manifest; provide the file through
+your worker image or deployment configuration. The plain API image is not a
+confined worker image.
 Uninstalling a release does not delete its StatefulSet PVCs; retain or remove
 the exact claims only through the operator's recovery/decommission procedure.
 
 ## Signed offline package and image bundles
 
-On the connected producer, use a dedicated Ed25519 signing key:
+On a connected producer, start with a clean staging checkout. Install frozen
+dependencies and build the release there (`bun install --frozen-lockfile`,
+then `./node_modules/.bin/bun run build`) so `node_modules` and `dist` are
+present. Ensure all selected images are already in the local Docker store for
+the producer's architecture. Use a dedicated Ed25519 signing key:
 
 ```sh
+BUN="$PWD/node_modules/.bin/bun"
 "$BUN" scripts/ops/airgap.ts create --source "$PWD" \
   --output /tmp/quire-owned-bundle --bun "$BUN" \
   --signing-key /private/release-signing.pem \
@@ -241,8 +273,14 @@ record each producer image's descriptor ID, a stable configuration/rootfs conten
 digest, and every regular file's length, SHA-256 and
 execution permission, plus internal package symlink targets. External symlinks,
 special files, changed permissions, added files, byte changes, wrong signing
-identity and wrong host architecture are rejected. The private signing key and
-production instance secrets/data are not included.
+identity and wrong host architecture are rejected by bundle verification.
+The packager recursively copies the selected release trees, including `apps`,
+`deploy`, `dist`, and `node_modules`, without scrubbing their contents. Keep
+private signing keys, private env files, and live data outside the copied trees
+and paths their links resolve to. Inspect the payload inventory before transfer
+and confirm it contains only intended release material. A valid signature
+proves integrity and origin under the trusted key; it neither encrypts the
+payload nor checks it for secrets.
 
 Carry the bundle plus a separately trusted public key to the offline machine:
 

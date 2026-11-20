@@ -9,9 +9,9 @@ and hidden refs; deployment configuration; and the original instance key.
 
 The manifest records each file's SHA-256 and length and is Ed25519 signed
 under an independent operator signing key with a format-specific domain separator.
-Verification requires both the independently retained original instance key
-and a pinned signing public key. The private signing key is NOT archived and
-must not appear in the deployment configuration export. Retain it separately;
+Independent archive verification requires both the separately retained original
+instance key and a pinned signing public key. The private signing key is not
+archived and must not appear in the deployment configuration export. Retain it separately;
 the included instance key must never serve as archive signing authority.
 Do not derive trust from keys inside an untrusted archive. Losing the original
 key prevents full recovery, including existing session/CSRF and encrypted
@@ -84,9 +84,19 @@ root and an exact user-entered confirmation:
 RESTORE <backup UUID> TO <target>
 ```
 
-`openFresh` must provision isolated database, blob namespace/bucket and repository
-volume, not merely a separate API directory pointing at live scale storage.
-It must preserve the original key and migrate the exact supported schema set.
+The stock API and CLI restore to an isolated native generation (SQLite, local
+blob storage, and local Git), including when the source archive came from scale.
+A successful stock restore does not replace PostgreSQL, S3, or Git authority
+for a scale deployment.
+
+Scale-to-scale restore requires an explicit host integration that supplies
+`BackupHost.openFresh` with an isolated scale database, blob namespace/bucket,
+and repository volume. A separate API directory pointing to live stores is
+not isolation. The target must preserve the original key and migrate the exact
+supported schema set. The [installation controller's rollback targets](installation.md#provisioning-the-binding)
+are separately provisioned for controlled updates; that rollback path is not a
+general-purpose scale restore command.
+
 Every pre-existing target directory, even an empty one, is rejected.
 Only untouched migration-seeded counter and worker-policy defaults may already
 exist. Configured domain rows or changed original migration hashes are rejected.
@@ -147,7 +157,13 @@ has installed this timer (or the root role calls `runScheduledBackup`).
 
 ## Commands and drill
 
-With root host integration configured:
+These stock commands open the application using its configured backup signer.
+`--action verify` does not take a public-key flag and is not an independent
+public-key-only tool. Use it only where the private signing authority is
+already provisioned; do not distribute the private key for a verification drill.
+An independent verifier can use the `verifyBackup` archive primitive with the
+trusted public key and original instance key. The stock restore shown here
+writes a new native generation, not a scale replacement:
 
 ```sh
 bun scripts/ops/backup.ts --action create

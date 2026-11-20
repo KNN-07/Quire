@@ -4,15 +4,17 @@
 Operator-facing runtime topology and compile-queue view; score 8, distinct administrative read surface.
 
 ## WHERE TO LOOK
+Paths are relative to this guide unless marked repo root.
+
 | Task | Location | Notes |
 |------|----------|-------|
 | Topology mapping | `index.ts` | Adapter identity and queue route |
 | Adapter types | `../storage/` and `../repository/` | Configured backend identity |
-| Queue authority | `services/compiler/` | Existing compile job state |
-| Route contracts | `packages/contracts` | Operator queue endpoint |
-| Authentication | `services/accounts/identity/` | Operator principal |
-| Host assembly | `apps/server/src/composition.ts` | Route registration |
-| Runtime boundaries | `packages/runtime/src/context.ts` | Module dependencies |
+| Queue authority | `services/compiler/` (repo root) | Existing compile job state |
+| Route contracts | `packages/contracts` (repo root) | Operator queue endpoint |
+| Authentication | `services/accounts/identity/` (repo root) | Operator principal |
+| Host assembly | `apps/server/src/composition.ts` (repo root) | Route registration |
+| Runtime boundaries | `packages/runtime/src/context.ts` (repo root) | Module dependencies |
 | Cache policy | `index.ts` | Private response headers |
 | Queue row schemas | `index.ts` | Bounded database result parsing |
 

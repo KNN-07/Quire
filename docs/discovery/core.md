@@ -12,7 +12,9 @@ Evidence cutoff and local probes: October 26, 2026. This document translates sup
 
 ### Source keys and precedence
 
-All research paths below are relative to `/tmp/tmp.0KkWOTN9jO/research/`. These stable section locators also work after the research is copied elsewhere:
+All research paths below are relative to `research/` inside the repository's
+[`research.zip`](../../research.zip). The original audit used a temporary
+extraction; the section locators below apply to the archived files:
 
 | Key | Source and exact section locator |
 |---|---|

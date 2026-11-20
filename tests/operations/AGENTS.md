@@ -30,7 +30,7 @@ operations/
 
 ## CONVENTIONS
 - Operational fixtures exercise process, Docker, and persistence behavior directly.
-- Deployment proofs use `/tmp/quire-p2o-deployment-compose` and fixed loopback ports.
+- Compose/cluster proof scripts use `/tmp/quire-p2o-deployment-compose` and fixed loopback ports. Native deployment tests allocate a fresh temporary root and an ephemeral loopback port.
 - Storage fixtures are grouped under their backend rather than their consumer.
 - Update evidence and release entry construction live beside update suites.
 

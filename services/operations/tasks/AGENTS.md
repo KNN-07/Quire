@@ -4,16 +4,18 @@
 Authorized read surface joining application and update operation records; score 8, distinct cross-authority query domain.
 
 ## WHERE TO LOOK
+Paths are relative to this guide unless marked repo root.
+
 | Task | Location | Notes |
 |------|----------|-------|
 | Endpoint registration | `index.ts` | Operation get/list routes |
 | Authority merge | `readers.ts` | Application and update rows |
 | Row queries | `store.ts` | SQL mapping and query functions |
 | Operation producers | `../updates/` and `../../core/base/` | Separate durable authorities |
-| Shared response contract | `packages/contracts` | Operation schema |
+| Shared response contract | `packages/contracts` (repo root) | Operation schema |
 | Identity service | `../../accounts/identity/` | Principal authentication |
 | Project access | `../../core/base/` | Current project authorization |
-| Route composition | `apps/server/src/composition.ts` | Update client wiring |
+| Route composition | `apps/server/src/composition.ts` (repo root) | Update client wiring |
 
 ## CONVENTIONS
 - Authenticate and authorize each operation before returning its result.

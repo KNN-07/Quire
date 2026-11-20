@@ -41,7 +41,7 @@ ssh/          restricted Git SSH topology
 - `bun run db:migrate` applies schema before role startup.
 - `bun run start:repository` starts the separate repository authority.
 - `bun run worker:compiler` starts the separately provisioned compiler worker.
-- `bun run test:scale` exercises the owned-service two-API profile.
+- `bun run test:scale` requires Docker and provisions Docker-backed fixture services to exercise the two-API profile.
 - `bun scripts/ops/environments.ts bootstrap quire-toolchain:2025` builds the image.
 - Probe its actual immutable image ID using the toolchain runbook.
 

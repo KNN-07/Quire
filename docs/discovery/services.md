@@ -4,7 +4,9 @@ Research cutoff: October 26, 2026. This is a requirements extraction for Quire, 
 
 ## Evidence and interpretation
 
-The supplied research root is `/tmp/tmp.0KkWOTN9jO/research`. Source references below are relative to that root:
+Source references below are relative to `research/` inside the repository's
+[`research.zip`](../../research.zip). The original audit used a temporary
+extraction of that archive:
 
 - **F31**, for example, means `OVERLEAF-FUNCTIONALITY.md`, numbered section 31. **F-guide** means its plan/deployment reading guide; **F-notes** means its evidence boundaries.
 - **C**, **I**, and **A** mean `waves/collaboration/slice.md`, `waves/integrations/slice.md`, and `waves/administration/slice.md`. A reference such as **C:S7** identifies that slice's numbered primary source and its listed page headings, not a source number from another slice.

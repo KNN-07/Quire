@@ -112,9 +112,14 @@ bun run test:e2e
 ./node_modules/.bin/bun test tests/ui-editor/source
 ```
 
+`bun run test` is unfiltered `bun test`, not a host-independent smoke check.
+Some suites require Docker and their fixture images, a working user systemd
+session, or a TeX toolchain. For a bounded check, select a focused suite or
+use the test selection in `.github/workflows/ci.yml`.
+
 ## NOTES
 - Read nested AGENTS.md for domain-specific authority and fixture constraints.
-- Implementation plans and feature matrices describe work to build, not completed behavior.
+- The implementation plan records historical targets. The feature matrix pairs those targets with scoped evidence, not whole-product acceptance.
 - Architecture documents are dated design checkpoints, not a current source census.
 - Evidence retains snapshot, fixture, provider, platform and reviewed-state boundaries.
 - P67 integrated validation preserves `behavioralAcceptance:false`; static/build success does not prove whole-product acceptance.
@@ -126,13 +131,11 @@ bun run test:e2e
 - Offline environment admission proposals are unsigned review material; probes grant no execution admission.
 - `scripts/ops/restore-drill.ts` accepts only `--fixture complete`, never a live restore.
 - `docs/feature-matrix.md` retains its October 27, 2026 checkpoint; historical signatures are documentary claims.
-- Browser acceptance commonly checks rendered behavior together with durable application state; fixture ownership includes explicit disposal.
+- Browser acceptance commonly checks rendered behavior together with durable application state; dispose owned fixture resources explicitly.
 - PostgreSQL and external-service acceptance remain distinct from local fixture coverage.
 - `workers/compiler/main.ts` performs controlled-entry admission before worker setup; compiler inputs pass through typed stages and explicit sandbox limits.
 - `docs/handoffs` and `docs/evidence` contain dated, bounded records; their claims apply only to stated selections, fixtures, runtimes and acceptance scope.
 - Test suites use isolated runtime and storage fixtures, with provider or process doubles only at explicitly owned boundaries.
-- Browser acceptance commonly checks rendered behavior together with durable application state; event waits subscribe before actions and fixtures dispose owned resources.
-- PostgreSQL and external-service acceptance remain distinct from local fixture coverage.
 - Project creation uses typed server data for compatible compiler environments; signed execution admission is scoped to controlled installations, while ready unmanaged environments may be selectable.
 - CI runs typecheck, lint, capability mapping, dependency audit and contract tests; browser and toolchain-dependent suites are separate.
 - Portable and Helm deployments require operator-managed secrets and durable external services; repository state remains singleton-owned.

@@ -15,9 +15,8 @@ Compiler image profiles, probes, admission, and confinement; score 6, retained e
 | Events and errors | `events.ts`, `error.ts` | Shared response helpers |
 
 ## CONVENTIONS
-- The owned Docker image is inspected before fixture image selection.
-- Its current tag is `quire-p2o-environments:st_01a17c2c`.
-- `QUIRE_TEST_ENVIRONMENT_IMAGE` can override the selected parsed image identity.
+- Provision the owned Docker fixture with the local tag `quire-p2o-environments:st_01a17c2c` before running the suite.
+- `QUIRE_TEST_ENVIRONMENT_IMAGE` can override the selected immutable image ID only after `docker image inspect` succeeds for that tag. The override does not replace the tag prerequisite.
 - `verifiedReport` caches an in-flight probe per profile.
 - Any unavailable report throws with the names of failing real checks.
 - Profile acceptance executes each full fixture inventory serially.

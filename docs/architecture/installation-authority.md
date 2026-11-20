@@ -1,7 +1,10 @@
 # Installation authority for configured signed updates
 
 Decision date: October 27, 2026. Required application runtime: Bun 1.4.4.
-Status: implementation decision, not implementation or acceptance evidence.
+Status: historical implementation decision, not an operator procedure or
+acceptance receipt. See the [installation runbook](../runbooks/installation.md)
+for the separate controller-managed installation and role authority, and the
+[P73 handoff](../handoffs/p73-installation-continuation.md) for bounded evidence.
 Owner of this decision: parent/F, with O owning the controller implementation.
 
 ## Decision
@@ -48,9 +51,10 @@ runtime and fresh-target restore contracts. Keep `MutationAdmission` and its
 existing native/PostgreSQL backup semantics; do not relabel callback-scoped
 locks as crash-retained installation authority.
 
-## Source findings that determine the design
+## Source findings at the October 27 design checkpoint
 
-The following are observations of the current source, not inferred acceptance:
+The following observations describe the pre-controller source, not current
+controller behavior or inferred acceptance:
 
 * `packages/runtime/src/native-admission.ts` owns two flock descriptions.
   `services/operations/storage/postgres/admission.ts` owns two advisory locks
@@ -78,9 +82,10 @@ The following are observations of the current source, not inferred acceptance:
   reaper during registration; Dropbox registration can start recovery work.
   `createRuntime()` also dispatches events before return. Merely postponing
   `app.start()` is insufficient to prepare a quiet candidate.
-* `scripts/ops/install.ts` currently installs `release/`, `data/`, and an
-  unmanaged launcher. It does not provision `.quire-update-root`,
-  `releases/`, `current`, a controller, or supervised role units.
+* The direct `scripts/ops/install.ts` path installed `release/`, `data/`, and
+  an unmanaged launcher. It did not provision `.quire-update-root`,
+  `releases/`, `current`, a controller, or supervised role units. The direct
+  installer remains distinct from the controlled path in the installation runbook.
 
 The handoffs `p2o-updates.md`, `p2o-backup-integration.md`, and
 `p2o-deployment.md` remain historical evidence. This decision does not rewrite

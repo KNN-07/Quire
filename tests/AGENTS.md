@@ -41,6 +41,11 @@ tests/
 bun run test
 ```
 
+This is unfiltered `bun test`. Its suites include Docker-backed fixtures
+requiring fixture images and native installation tests requiring a working user
+systemd session. For a bounded check, select a focused suite or follow the
+test selection in the repo-root `.github/workflows/ci.yml`.
+
 ## ANTI-PATTERNS
 - Baseline capture requires an extracted, unmodified `3fe3a23` tree; never use user data.
 - Keep baseline recreation separate from normal runtime fixture initialization.

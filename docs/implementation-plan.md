@@ -1,5 +1,12 @@
 # Quire implementation architecture
 
+> Historical plan, October 26–27, 2026. The original runtime baseline, phase
+> exits and proposed verification contract below are preserved as history,
+> not setup or acceptance instructions. Use the [README setup](../README.md)
+> and [package manifest](../package.json) for the repository runtime pin
+> (Bun 1.4.4) and executable scripts. See the [feature matrix](feature-matrix.md)
+> for later scoped evidence.
+
 > Execution correction, October 27, 2026: after P1 verification and before
 > P2 adapter implementations, run a portable-storage phase as specified in
 > `architecture/storage-portability.md`. P1's native services directly use
@@ -9,7 +16,7 @@
 > transaction/coordination contracts. This adds implementation work; it does
 > not reduce the scale-profile requirement.
 
-Status: implementation contract, October 26, 2026. This document and `feature-matrix.md` specify work to build, not completed application behavior. Inputs: the original HTML/research archive, `docs/discovery/{design,core,services}.md`, and the 23 decoded design sources. Original inputs and the existing Git baseline remain untouched.
+Original implementation contract, October 26, 2026. This plan and the original matrix specified work to build, not completed application behavior. Inputs: the original HTML/research archive, `docs/discovery/{design,core,services}.md`, and the 23 decoded design sources. Original inputs and the existing Git baseline remained untouched by the planning assignment.
 
 ## 1. Decisions
 
@@ -391,9 +398,16 @@ All 23 screen routes: `/projects/:p/edit`, `/projects/:p/git`, `/projects/:p/age
 | P3 Integration | F with narrow owner fixes; unify routes/settings/policy, build production assets, source/export migration, complete feature matrix evidence. | Full commands below pass once; no route/button stub, no unhandled permission bypass, native startup/seed/compile and restart verified. |
 | P4 Browser/release QA | Lead personally; F records evidence, owners fix their paths. | All 23 screens and alternate states at desktop/mobile, multi-user/reconnect, real PDF download/diff, setup from clean data. Missing external live checks explicitly recorded, all native targets complete. |
 
-## 9. Runnable verification contract
+## 9. Proposed verification contract (historical)
 
-The foundation must provide these scripts and test paths; commands below are the acceptance interface to implement, not claims that scripts exist today.
+The commands, comments, and T01–T22 test paths and scenarios below are the
+original proposals, not a current verification procedure or a suite-pass
+ledger. Consult the [package scripts](../package.json) and the applicable
+[runbooks](runbooks/) and [handoffs](handoffs/) for executable checks and
+their fixture boundaries. In particular, today's `test:scale` selects three
+portable integration files, not the proposed full Compose/Helm acceptance
+sequence. `verify:matrix` checks mapping only, and `ops:restore-drill`
+uses a bounded local fixture, not a live restore.
 
 ```sh
 bun install
@@ -445,4 +459,4 @@ Async tests subscribe before action and wait for exact ack/event with bounded fa
 
 Completion means every build target in `feature-matrix.md` has its suite assertion and visible operational route; all native tests pass, real compiler and Git work, persistence survives restart, browser QA is inspected, and remaining live external checks name the exact missing credential/hardware/service contract. Policy/evidence-boundary rows are tested representations, not removed features. An unavailable optional provider is acceptable only with finished connection/validation/execution code and fixture coverage; an unavailable native capability without an installation/implementation result is unfinished.
 
-Upstream reports contain 86 core IDs and 55 service IDs; design adds 23 screen IDs plus explicit cross-cutting decisions. `feature-matrix.md` preserves them individually. No application tests were run by this architecture assignment. Runtime claims here derive from upstream probes; sandbox and compiler integration still require the listed real tests. Implementers verify selected library API versions when locking dependencies; compatibility is gated by P0 on native Bun 1.3.14, not assumed from the eval runtime.
+Upstream reports contain 86 core IDs and 55 service IDs; design adds 23 screen IDs plus explicit cross-cutting decisions. `feature-matrix.md` preserves them individually. No application tests were run by this architecture assignment. Runtime claims in the original plan derived from upstream probes; sandbox and compiler integration were to be proved by real tests. The original P0 gate used native Bun 1.3.14, not the eval runtime or today's repository pin.

@@ -243,15 +243,20 @@ official Ky 1.14.3 API, not its unreleased main-branch documentation.
 
 ## Verify and clean owned resources
 
+Before running the environment suite, provision the owned local fixture tag
+`quire-p2o-environments:st_01a17c2c`, for example with
+`bun scripts/ops/environments.ts bootstrap quire-p2o-environments:st_01a17c2c`
+on the build host described above. The suite must be able to inspect this tag
+even when `QUIRE_TEST_ENVIRONMENT_IMAGE` is set. The override selects a
+separately provisioned immutable image ID only after that inspection succeeds.
+
 ```sh
 bun test tests/operations/environments
 bun node_modules/typescript/bin/tsc --noEmit -p tests/operations/environments/tsconfig.json
 bun node_modules/oxlint/bin/oxlint --type-aware --deny-warnings services/operations/environments workers/compiler/docker.ts scripts/ops/environments.ts tests/operations/environments
 ```
 
-The fixture image tag is `quire-p2o-environments:st_01a17c2c`; set
-`QUIRE_TEST_ENVIRONMENT_IMAGE` to an explicitly provisioned immutable image ID
-when using a different owned fixture. Tests use only `quire-environment-*`
+Tests use only `quire-environment-*`
 containers and uniquely named `quire-environment-*`/`quire-environments-http-*`
 temporary directories and loopback listeners. They remove those resources;
 the explicit bootstrap image is a retained artifact until its owner removes

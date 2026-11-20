@@ -4,17 +4,19 @@
 Operator commands for environment management, configured backups and fixture-only recovery drills; score 8, distinct operations boundary.
 
 ## WHERE TO LOOK
+Paths are relative to this guide unless marked repo root.
+
 | Task | Location | Notes |
 |------|----------|-------|
 | Environment tooling | `environments.ts` | Build, probe and configured API commands |
 | Admission proposal | `environment-admission.ts` | Offline unsigned review material |
 | Backup operations | `backup.ts` | Opens configured app; default action creates a backup |
 | Fixture restore drill | `restore-drill.ts` | Accepts only the complete fixture |
-| Shared environment policy | `services/operations/environments/` | Probe and admission authority |
-| Restore fixture | `tests/operations/backups/drill.ts` | Isolated recovery evidence |
-| Toolchain procedure | `docs/runbooks/toolchains.md` | Build, probe and admission steps |
-| Project commands | `package.json` | Script aliases and runtime |
-| Evidence destination | `docs/evidence/` | Reviewed drill artifacts |
+| Shared environment policy | `services/operations/environments/` (repo root) | Probe and admission authority |
+| Restore fixture | `tests/operations/backups/drill.ts` (repo root) | Isolated recovery evidence |
+| Toolchain procedure | `docs/runbooks/toolchains.md` (repo root) | Build, probe and admission steps |
+| Project commands | `package.json` (repo root) | Script aliases and runtime |
+| Evidence destination | `docs/evidence/` (repo root) | Reviewed drill artifacts |
 
 ## CONVENTIONS
 - Validate each command's inputs at the CLI boundary; some commands call the configured application directly.

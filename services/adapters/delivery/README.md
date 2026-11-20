@@ -45,7 +45,7 @@ never return the credential document.
 | `baseUrl`      | HTTPS-shaped endpoint used only for SMTP hostname and port, for example `https://smtp.example.org:465` |
 | `model`        | `implicit` or `starttls`                                                                               |
 | `secret`       | JSON document shown below; encrypted before persistence                                                |
-| `enabled`      | operator delivery switch                                                                               |
+| `enabled`      | persisted state, not an input to provider PUT                                                          |
 
 ```json
 {
@@ -56,6 +56,12 @@ never return the credential document.
   "ca": "optional PEM CA bundle"
 }
 ```
+
+`PUT /api/admin/providers/smtp` rejects an `enabled` field and sets persisted
+`enabled` to true on save. To stop new SMTP delivery admissions with that
+configuration, save `secret: ""` in the provider update. This clears the stored
+credential and makes SMTP unconfigured; omitting `secret` leaves it unchanged.
+Clearing the credential does not cancel an in-flight delivery.
 
 `AUTH PLAIN` is permitted only after certificate-verified TLS. TLS certificate
 verification is never disabled. The client uses CRLF framing, EHLO, multiline
@@ -83,20 +89,18 @@ protocol across the narrow crash window after remote acceptance and before
 local receipt commit; the stable Message-ID gives cooperating providers and the
 fixture a deterministic dedupe key.
 
-## Integration contract deltas
+## Application assembly and outbox limits
 
-These shared changes are deliberately not made from this lane:
+Default application composition registers `smtpContribution`,
+`localMailContribution` and `delivery.module`, owns their cleanup, and seeds an
+enabled `localMail` provider record at version 1 if absent. The local mailbox
+thus reports `ready` without operator setup. The exports above are for custom
+assembly, where an unseeded version-zero provider still reports `unconfigured`.
 
-1. Root composition must include `smtpContribution`,
-   `localMailContribution`, `delivery.module`, and matching close calls.
-2. Shared `configurationCapability()` currently marks every version-zero
-   provider unconfigured. A built-in-provider exemption (or an integration-owned
-   seeded `localMail` provider record) is required if the capability registry
-   must report the established local mailbox as `ready` without operator setup.
-3. `mail_outbox` has no actor, notification kind, project or preference-version
-   columns. Delivery therefore honors the authoritative producer-time ACL and
-   notification preference decision. Rechecking policy at dispatch would require
-   a shared outbox contract migration carrying those typed references.
+`mail_outbox` has no actor, notification kind, project or preference-version
+columns. Delivery therefore honors the authoritative producer-time ACL and
+notification preference decision. Rechecking policy at dispatch would require
+a shared outbox contract migration carrying those typed references.
 
 No authorized external SMTP sender/domain or credentials were supplied for this
 work. Protocol-fixture success is not a claim of live third-party delivery.

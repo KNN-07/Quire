@@ -96,8 +96,9 @@ AI is optional: writing and compilation work without it.
 ## Quick start
 
 You need **Bun 1.4.4**, **Node.js** `^20.19.0 || >=22.12.0`, and **Git**.
-Compiling PDFs natively also needs **Linux** with TeX tools, BibTeX or Biber,
-SyncTeX, Poppler, Bubblewrap, and a working systemd user service. See the
+Compiling PDFs natively also needs **Linux** with TeX tools, SyncTeX, Poppler,
+Bubblewrap, and a working systemd user service. Install both BibTeX and Biber
+for the default `bun run doctor` readiness check. See the
 [toolchain guide](docs/runbooks/toolchains.md).
 
 ```sh

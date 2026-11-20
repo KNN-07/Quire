@@ -5,16 +5,25 @@ short transport disconnection. This is one deployment policy, not a vendor
 Free/Premium entitlement mapping.
 
 Operators can set the public Vite build variable `VITE_QUIRE_OFFLINE_WINDOW_MS`.
-For example, from the repository root:
+For example, for a native asset build from the repository root:
 
 ```sh
 VITE_QUIRE_OFFLINE_WINDOW_MS=120000 ./node_modules/.bin/bun run build
 ```
 
-For development, set the same variable when starting `bun run dev:web`. Vite also
-reads it from the web root's `.env.local` (`apps/web/.env.local`). Rebuild and serve
-the new web assets to change an installed deployment. Changing only the server
-environment after building does not change existing assets or open tabs.
+For development, set the same variable when starting `bun run dev:web`.
+For a native deployment, rebuild and serve the new web assets.
+
+For Compose or Helm, the supplied runtime Dockerfile builds its own web assets.
+A host rebuild does not change that image. Set the public value in the image's
+web build stage when Vite runs, build a new application image, and roll it out.
+The supplied Dockerfile does not expose this setting as a build argument.
+Changing only the server or pod environment after building does not affect
+existing assets; open tabs need to load the new client.
+
+Keep private env files outside the release trees copied into
+[offline bundles](deployment.md#signed-offline-package-and-image-bundles).
+The packager does not remove them, and the Vite setting is public.
 
 Unset means exactly 600000 ms. A configured value must contain decimal digits and
 represent a positive integer no greater than 2147483647 ms (the browser timer

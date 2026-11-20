@@ -1,7 +1,7 @@
 # Remote Git adapters
 
-Native target: Bun 1.3.14 and Git 2.53 or later. No provider SDK or new
-dependency is required.
+Native target: repository-pinned Bun (see `.bun-version`) and Git 2.53 or
+later. No provider SDK or new dependency is required.
 
 ## Assembly
 
@@ -25,8 +25,9 @@ modules.push(
 
 The module is order 62, after shared connection/provider modules 60/61. It
 registers migration `062-x-remote-git`, recovery for prepared repository
-publications, and no import route by default. Interchange order 65 is the
-single composed owner of `POST /api/imports`; it dispatches Git/GitHub to the
+publications and generic Git credential enrollment, but no import route by
+default. Interchange order 65 is the single composed owner of
+`POST /api/imports`; it dispatches Git/GitHub to the
 actual `ConfiguredAdapter` contributions and encrypted `GrantStore`.
 The contribution registry installs these exact actions:
 
@@ -97,10 +98,10 @@ transaction.
 
 ## Import ownership and action parameters
 
-The default module owns migrations/recovery only. Unified import parsing,
-receipts and route registration belong to interchange. The standalone fallback
-uses the same real contribution/action code and exists only for isolated remote
-Git deployments and focused tests.
+The default module registers credential enrollment independently of import.
+Unified import parsing, receipts and route registration belong to interchange.
+The standalone fallback is off by default. It uses the same contribution and
+action code for isolated remote Git deployments and focused tests.
 
 - `listRepositories`: `{ limit }`; use the returned adapter cursor on the next
   request.
@@ -113,20 +114,18 @@ Every action also requires the shared grant version, idempotency key and
 per-action cursor. Project actions repeat current ACL/policy checks before
 preparation and in final publication.
 
-## Generic Git contract prerequisite
+## Generic Git credential enrollment
 
-The frozen shared connection registry has OAuth enrollment only. It does not
-define a typed user-owned non-OAuth credential enrollment/revocation endpoint,
-and the public `ExternalAdapter` port still omits actor, parameters and expected
-grant version. The generic contribution therefore advertises the exact missing
-contract and remains `unconfigured`; no operator-wide credential or success
-stub substitutes for a user grant.
+Configure the `git` provider and put Git on the server's PATH. The account
+Connections form calls `POST /api/connections/git/credentials` with
+`{label, url, username, secret}`. The route requires an authenticated session
+and CSRF validation, verifies access to the repository and saves an encrypted,
+actor-owned grant. `ExternalAdapter.execute` accepts the actor, action
+parameters and expected grant version.
 
-The pinned generic clone/fetch/push transport is implemented and covered
-against the real smart-HTTP fixture. Foundation must add the actor-aware port
-delta documented in `services/adapters/shared/CONTRACT.md` plus a typed
-credential enrollment route before generic authenticated actions are reachable
-from production UI/API.
+Disconnecting the saved connection removes the local credential only. Revoke
+the password or token at its issuer if it should no longer work there. The
+smart-HTTP fixture covers the Git transport, not third-party provider acceptance.
 
 ## Checks
 

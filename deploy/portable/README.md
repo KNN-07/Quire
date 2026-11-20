@@ -57,13 +57,18 @@ set `QUIRE_REPOSITORY_HOST`, terminate TLS and authenticate the network boundary
 The APIs must use its remote coordinator; no API issues raw SQL fences around
 repository admission.
 
-For an empty development installation, seed through the real remote ports:
+For an empty, disposable non-production installation with a loopback API
+bind, seed through the real remote ports:
 
 ```sh
 bun run seed
 QUIRE_DATA_DIR=/srv/quire/api-a QUIRE_PORT=3001 bun apps/server/src/main.ts
 QUIRE_DATA_DIR=/srv/quire/api-b QUIRE_PORT=3003 bun apps/server/src/main.ts
 ```
+
+For production, skip the fixture seed. Migration and startup do not enroll an
+operator, and normal signup does not grant the role. Arrange first-operator
+enrollment or import separately; see the [deployment runbook](../../docs/runbooks/deployment.md).
 
 For an existing native installation, stop every API and compiler writer, finish
 native intent recovery, and retain the original key. Use an empty migrated

@@ -117,6 +117,12 @@ this namespace remain ordinary synchronized project files.
 
 The shared Policy DTO does not yet have a Dropbox field. This implementation
 provides an explicit typed adapter policy rather than repurposing AI/sharing.
+The registered Dropbox module exposes authenticated `GET` and `PUT` on
+`/api/dropbox/policies/:scopeKind/:id`, where `scopeKind` is `project` or
+`organization`. `PUT` requires CSRF validation and `{enabled, expectedVersion}`.
+Both routes return `{enabled, effectiveEnabled, version}`.
+
+Server-side integrations may also use the in-process setter:
 
 ```ts
 await dropbox.policies.set({
@@ -134,8 +140,8 @@ organization deny wins over project allow; no row means allowed, subject to
 current core ACLs and provider/grant availability. Deny is rechecked before
 each outbound mutation and inside final publication.
 
-Composition must expose this setter through its chosen typed administration
-surface. This adapter does not change shared schemas or editor UI ownership.
+The module owns these typed policy routes; composition does not need to add
+another administration route. The routes do not change editor UI ownership.
 
 ## Recovery and scheduler lifecycle
 

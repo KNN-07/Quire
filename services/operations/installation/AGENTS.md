@@ -26,10 +26,11 @@ Independent controller ledger and authenticated fixed-recipe execution; score 9,
 - Caller-supplied recipe arguments are parsed against fixed recipes.
 - Rollback requires a fresh storage binding.
 - Persistence records evidence; process ownership is separate authority.
+- The controller owns `controller.lock` throughout `ControlStore` access; execution callers use the authenticated client, not the lock or ledger.
 
 ## ANTI-PATTERNS
 - Never add the control ledger migration to application `schema_migrations`.
 - Never create a missing database while probing a binding.
 - Never fall back to caller-selected commands, managers or monitor argv.
 - Never treat persistence as a supervisor, launch gate or proof of stop.
-- The caller must hold `controller.lock`; never invent a lost helper exit result.
+- Never invent a lost helper exit result.

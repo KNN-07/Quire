@@ -44,7 +44,7 @@ bun run db:migrate
 bun run seed
 bun run doctor
 bun run dev</code></pre></div>
-            <p>Open <code>http://localhost:5173</code> and sign in as <code>kien@quire.local</code> with the password that <code>bun run seed</code> prints. The development operator account is <code>operator@quire.local</code> with the same password. Create a blank project or start from the Starter Article template.</p>
+            <p>On a fresh seed, open <code>http://localhost:5173</code> and sign in as <code>kien@quire.local</code> with the password that <code>bun run seed</code> prints. The development operator account is <code>operator@quire.local</code> with the same initial password. Seeding again does not change existing passwords. Create a blank project or start from the Starter Article template.</p>
             <p>The first compiler readiness check can take about 45 seconds. Project data is stored in <code>.data</code>.</p>
             <p class="note">The install includes a repository-local Bun binary. Use the package scripts or <code>./node_modules/.bin/bun</code> so an older global Bun is not used by accident.</p>
           </section>
@@ -55,7 +55,7 @@ bun run dev</code></pre></div>
           </section>
           <section id="compilation">
             <h2>Compilation</h2>
-            <p>PDFs are compiled by an isolated worker, never in the API process. Native compilation needs Linux, TeX tools, BibTeX or Biber, SyncTeX, Poppler, Bubblewrap, and a working systemd user service. <code>bun run doctor</code> checks the toolchain and the sandbox; an executable being present is not enough to pass.</p>
+            <p>PDFs are compiled by an isolated worker, never in the API process. Native compilation needs Linux, TeX tools, SyncTeX, Poppler, Bubblewrap, and a working systemd user service. Install both BibTeX and Biber for the default <code>bun run doctor</code> readiness check. The check probes the toolchain and sandbox; an executable being present is not enough to pass.</p>
             <ul class="guide-list"><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/toolchains.md"><strong>Compiler environments</strong><span>Installing TeX tools, probes, and custom environments.</span></a></li><li><a href="https://github.com/KNN-07/Quire/blob/main/docs/runbooks/workers.md"><strong>Compiler workers</strong><span>Worker processes, limits, and remote workers.</span></a></li></ul>
           </section>
           <section id="deployment">

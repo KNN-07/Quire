@@ -77,13 +77,20 @@ Information priorities:
 2. Selected source quote and author conversation.
 3. Resolved threads and moderation actions.
 
-Left out on purpose: assistant actions, plan marketing, decorative author
+Left out on purpose: plan marketing, decorative author
 stripes, raw IDs, and client-only proposal persistence.
 
 Required content: file/open/resolved filters, anchored comment, reply, edit own
 comment, delete own comment, resolve/reopen, delete resolved thread, selected
 and all proposal accept/reject, conflict state, replacement proposal form,
 source navigation.
+
+In the assembled editor, **Ask Assistant about thread** opens Assistant with a
+captured thread snapshot. Opening it is local and does not send thread content
+to the provider. Sending requires explicit consent to share the displayed
+thread, normal AI authorization, and a check that the thread version is still
+current. The submitted prompt includes the captured quote and comments; if the
+thread has changed, reopen it before sending.
 
 States: loading, empty, offline-disabled creation, recovery-disabled creation,
 read-only viewer, proposal conflict, mutation error.
@@ -169,5 +176,5 @@ historical coordinates are never silently reused in divergent current source.
 
 These previews do not intercept ordinary source typing. Source tracking and
 thread-to-Assistant context are separately owned requirements under
-`docs/handoffs/p29-history-contract-decision.md`; full D10 acceptance cannot
-follow from this bounded presentation alone.
+`docs/handoffs/p29-history-contract-decision.md`; neither the previews nor the
+thread handoff alone establish full D10 acceptance.

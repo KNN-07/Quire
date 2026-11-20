@@ -22,7 +22,7 @@ Singleton Git repository authority with SQL-fenced publication and remote client
 - Remote service connections require HTTPS except explicit loopback development.
 
 ## ANTI-PATTERNS
-- Never instantiate the repository engine in API processes.
+- Never instantiate the portable/scale `RepositoryEngine` in API processes; it belongs to the remote repository role. Local-profile APIs intentionally use `LocalRepositoryService`.
 - Do not treat remote completion alone as proof that local publication is fenced.
 - Do not share process IDs or repository ownership across controllers.
 - Do not bypass the explicit recovery RPC for uncertain journaled intents.

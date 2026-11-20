@@ -24,12 +24,12 @@ Toolchain registration, construction and signed execution admission; score 8, di
 - Probe readiness and execution admission are separate results.
 - Controlled roles resolve admission through their signed installation release.
 - Scale or managed pools use the managed execution route.
-- Selection requires a ready probe and no explicit admission denial.
+- Selection requires a ready probe and no explicit admission denial; ready unmanaged environments may be selectable.
 - Environment resolution is rechecked before compiler execution.
 
 ## ANTI-PATTERNS
-- Toolchain probes do not grant execution.
-- Do not admit an environment or image absent from the signed release.
+- Toolchain probes do not grant controlled execution authority.
+- For controlled installations, do not admit an environment or image absent from the signed release.
 - Do not equate an unsigned operator proposal with live authority.
 - Do not hide an untrusted manifest behind a successful binary probe.
 - Keep build/process execution behind the installation execution boundary.

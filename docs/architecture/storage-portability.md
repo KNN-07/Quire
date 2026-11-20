@@ -1,15 +1,21 @@
 # Portable storage and scale coordination
 
-Decision checkpoint: October 27, 2026. This is implementation direction for
-the next phase, not a claim that the scale profile works.
+Historical decision checkpoint: October 27, 2026. This records the
+pre-conversion P1 state and the chosen direction. The
+[runtime context](../../packages/runtime/src/context.ts) now exposes
+`SqlExecutor` and rejects scale startup with `PROFILE_UNAVAILABLE` when no
+adapter factory is supplied. The [server composition](../../apps/server/src/composition.ts)
+selects `createScaleAdapters` for scale; see the [P2X handoff](../handoffs/p2x-verification.md)
+for scoped two-API PostgreSQL, Redis, S3 and Git evidence, not generic scale
+acceptance.
 
 ## Why the phase is required
 
 The design plan requires PostgreSQL, Redis and S3 in the scale profile, with
-two API processes, durable replay and fenced failover. Current
-`packages/runtime/src/context.ts` exposes Bun's SQLite `Database`,
-`LocalUnitOfWork` and `LocalEventPort`. Scale startup correctly rejects the
-profile with `PROFILE_UNAVAILABLE`.
+two API processes, durable replay and fenced failover. At the P1 checkpoint,
+`packages/runtime/src/context.ts` exposed Bun's SQLite `Database`,
+`LocalUnitOfWork` and `LocalEventPort`. Scale startup rejected the profile
+with `PROFILE_UNAVAILABLE`.
 
 An independent read-only assessment found 483 SQL query calls across 62 of
 91 service files, 77 synchronous transaction calls across 33 files, and no
