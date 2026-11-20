@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-11-12
-**Commit:** 21089107ed830aa09d60a1206f32511617e64aaf
+**Generated:** 2026-11-20
+**Commit:** 52706047
 **Branch:** main
 
 ## OVERVIEW
@@ -30,16 +30,23 @@ Quire/
 | Endpoint changes | packages/contracts/src/endpoint.ts; registry.ts | Eight route groups plus health |
 | Runtime and SQL | packages/runtime/src/context.ts; database.ts | Runtime/ModuleContext; paired SQLite/PostgreSQL migrations |
 | Project/source authority | services/core/base/ | Recovery precedes CoreProjects and route registration |
+| Catalog and template publication | services/core/catalog/ | Actor-owned library and template-version publication |
 | Git and review | services/core/git/; services/core/review/ | Journaled Git; realtime lifecycle |
 | Provider integration | services/adapters/ | Contributions extend core delegates; interchange owns dispatch |
+| Provider submission | services/adapters/publisher/ | Explicit submission confirmation and provider receipts |
 | Identity/governance | services/accounts/identity/; governance/ | Authentication, onboarding and organization lifecycle |
 | Billing/delivery | services/adapters/billing/; delivery/ | Stripe REST receipts and durable mail outbox |
 | Compilation | services/compiler/; workers/compiler/main.ts | Service/lease authority and worker lifecycle |
 | Browser/editor | apps/web/src/main.tsx; apps/web/src/features/editor/ | AppRouter mount; editor owns geometry |
+| PDF behavior | apps/web/src/features/editor/pdf/DESIGN.md | Scroll ownership, actual compiler results, preserve last successful PDF |
 | Installation/recovery | services/operations/; deploy/ | Controller authority, backups, admission and workers |
+| Support diagnostics | services/operations/support/ | Private diagnostics, SQL outbox and durable SIEM delivery |
 | Deployment/toolchains | deploy/runtime/; deploy/helm/; scripts/ops/ | Runtime roles, operator inputs and admission proposals |
 | Test fixtures | tests/fixtures/runtime.ts; tests/core/base/harness.ts | runtimeFixture/isolatedData and baseFixture |
 | Browser acceptance | tests/ui-editor/; tests/ui-product/; tests/e2e/ | Browser suites and isolated E2E composition |
+| Provider reference tests | tests/adapters/references/ | Provider-backed bibliography and credential lifecycle |
+| Assembled editor acceptance | tests/ui-editor/assembly/ | Authenticated browser behavior and durable state |
+| Catalog tests | tests/core/catalog/ | Catalog library and template publication |
 | Operator procedures | docs/runbooks/ | Deployment, adapters and update constraints |
 | Requirements/history | docs/discovery/; docs/handoffs/ | Design evidence and phase-specific receipts |
 
@@ -77,6 +84,8 @@ resolved reference counts and graph centrality are unmeasured.
 - Keep credentials out of URLs, project files, exports and logs.
 - Never replace the global runtime or generate per-API instance keys.
 - Do not copy live SQLite independently of WAL, blobs and Git; preserve instance keys and independent backup signing authority.
+- Signed execution admission applies to controlled installations; ready unmanaged environments may be selectable, and inventory manifests are not admission policy.
+- Do not treat dated evidence or a scoped PASS receipt as whole-product acceptance.
 
 ## UNIQUE STYLES
 - Source editing uses a private tracked Y.Doc, explicit proposals and actor-scoped draft recovery; no second save path.
@@ -117,3 +126,13 @@ bun run test:e2e
 - Offline environment admission proposals are unsigned review material; probes grant no execution admission.
 - `scripts/ops/restore-drill.ts` accepts only `--fixture complete`, never a live restore.
 - `docs/feature-matrix.md` retains its October 27, 2026 checkpoint; historical signatures are documentary claims.
+- Browser acceptance commonly checks rendered behavior together with durable application state; fixture ownership includes explicit disposal.
+- PostgreSQL and external-service acceptance remain distinct from local fixture coverage.
+- `workers/compiler/main.ts` performs controlled-entry admission before worker setup; compiler inputs pass through typed stages and explicit sandbox limits.
+- `docs/handoffs` and `docs/evidence` contain dated, bounded records; their claims apply only to stated selections, fixtures, runtimes and acceptance scope.
+- Test suites use isolated runtime and storage fixtures, with provider or process doubles only at explicitly owned boundaries.
+- Browser acceptance commonly checks rendered behavior together with durable application state; event waits subscribe before actions and fixtures dispose owned resources.
+- PostgreSQL and external-service acceptance remain distinct from local fixture coverage.
+- Project creation uses typed server data for compatible compiler environments; signed execution admission is scoped to controlled installations, while ready unmanaged environments may be selectable.
+- CI runs typecheck, lint, capability mapping, dependency audit and contract tests; browser and toolchain-dependent suites are separate.
+- Portable and Helm deployments require operator-managed secrets and durable external services; repository state remains singleton-owned.
