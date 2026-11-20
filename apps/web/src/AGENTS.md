@@ -12,7 +12,9 @@ React client with routed account, project and collaborative editor features; sco
 | Shared controls | `ui/index.ts` | Public primitive barrel |
 | Account flows | `features/account/` | Forms, onboarding, organizations |
 | Administration | `features/admin/` | Shared `useAdminResource` |
+| Project creation | `features/projects/` | Typed creation API and executable environment selection |
 | Editor assembly | `features/editor/index.tsx` | Owns outer panel geometry |
+| PDF panel | `features/editor/pdf/` | `DESIGN.md` defines compile, logs, comparison and layout contracts |
 | Source editing | `features/editor/source/` | CodeMirror and private tracking |
 | Collaboration | `features/editor/transport/` | Acknowledged documents and presence |
 | Review | `features/editor/review/` | Persisted suggestions and anchors |
@@ -26,6 +28,8 @@ React client with routed account, project and collaborative editor features; sco
 - Source tracking binds a private Y.Doc; normal editing uses transport-owned shared text.
 - Tracking recovery is scoped by actor, project, branch and file.
 - Account mutations use `mutationHeaders()` and shared result helpers.
+- Project creation must display server-provided environment compatibility and admission; probes alone do not authorize execution.
+- PDF controls use the shared compile controller and `PdfPanelHandle`; preserve actual compiler output, durable revisions and the last successful PDF on errors.
 - The source scroller and tool bodies own scrolling inside assembly-owned geometry.
 - The transport offline window bounds editing; it grants no server authority.
 
